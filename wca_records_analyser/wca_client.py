@@ -34,39 +34,36 @@ class Result:
 
 def search_persons(name, client=None):
     """Return the competitors whose names match the given search term."""
-    owns_client = client is None
-    if owns_client:
-        client = httpx.Client(base_url=WCA_API_BASE_URL)
-    try:
-        response = client.get(
-            PERSONS_SEARCH_ENDPOINT,
-            params={SEARCH_QUERY_PARAMETER: name},
-        )
-        response.raise_for_status()
-        matches = response.json()
-    finally:
-        if owns_client:
-            client.close()
+    matches = _get_json(
+        PERSONS_SEARCH_ENDPOINT,
+        params={SEARCH_QUERY_PARAMETER: name},
+        client=client,
+    )
     return [_to_person(match) for match in matches]
 
 
 def get_results(wca_id, event_id, client=None):
     """Return a competitor's results for one event, newest WCA order preserved."""
     endpoint = PERSON_RESULTS_ENDPOINT.format(wca_id=wca_id)
+    results = _get_json(
+        endpoint,
+        params={EVENT_QUERY_PARAMETER: event_id},
+        client=client,
+    )
+    return [_to_result(result) for result in results]
+
+
+def _get_json(endpoint, params, client):
     owns_client = client is None
     if owns_client:
         client = httpx.Client(base_url=WCA_API_BASE_URL)
     try:
-        response = client.get(
-            endpoint,
-            params={EVENT_QUERY_PARAMETER: event_id},
-        )
+        response = client.get(endpoint, params=params)
         response.raise_for_status()
-        results = response.json()
+        return response.json()
     finally:
         if owns_client:
             client.close()
-    return [_to_result(result) for result in results]
 
 
 def _to_person(match):
