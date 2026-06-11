@@ -20,6 +20,7 @@
 - **Language:** Python
 - **Web:** FastAPI + Jinja2 templates, served with uvicorn
 - **HTTP:** httpx (against the WCA public API at `https://www.worldcubeassociation.org/api/v0`)
+- **Charting:** Chart.js (vendored under `static/vendor/`, no CDN) with the date-fns adapter for time axes.
 - **CI/CD:** gitlab
 
 ## project structure
@@ -30,6 +31,7 @@ Each module owns one concern; keep HTTP, analysis, presentation, and web wiring 
 - `records.py` — PR analysis (no HTTP). `personal_record_flags`, `single_record_progression`; dataclass `RecordPoint`. Singles are centiseconds; non-positive values are DNF/DNS and are skipped.
 - `events.py` — event id → display name table (`EVENT_NAMES`) and `named_events`; dataclass `Event`.
 - `formatting.py` — `format_single` renders centiseconds as a cubing time string.
+- `chart.py` — shapes `RecordPoint` progressions into JSON-serialisable chart series (no HTTP); rendered client-side by `static/records-chart.js`.
 - `web.py` — FastAPI routes (`/`, `/search`, `/records`) with injectable `Depends` seams (`get_search_function`, `get_events_function`, `get_progression_function`) so web tests never hit the network. Templates in `templates/`.
 
 ## running and testing
