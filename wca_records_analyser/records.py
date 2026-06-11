@@ -32,11 +32,9 @@ def single_record_progression(results, competition_dates):
     )
     singles = [result.single for result in dated_results]
     flags = personal_record_flags(singles)
-    return [
-        RecordPoint(
-            date=competition_dates[result.competition_id],
-            single=result.single,
-        )
-        for result, is_record in zip(dated_results, flags)
-        if is_record
-    ]
+    records_by_date = {}
+    for result, is_record in zip(dated_results, flags):
+        if is_record:
+            date = competition_dates[result.competition_id]
+            records_by_date[date] = RecordPoint(date=date, single=result.single)
+    return list(records_by_date.values())
