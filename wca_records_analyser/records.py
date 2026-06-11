@@ -6,7 +6,8 @@ def personal_record_flags(singles):
     flags = []
     best_so_far = None
     for single in singles:
-        is_record = best_so_far is None or single < best_so_far
+        is_attempted = single > 0
+        is_record = is_attempted and (best_so_far is None or single < best_so_far)
         flags.append(is_record)
         if is_record:
             best_so_far = single
