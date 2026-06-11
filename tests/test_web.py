@@ -105,6 +105,27 @@ def test_search_shows_an_event_dropdown_of_each_competitors_events():
         assert event.name in response.text
 
 
+def test_search_lets_each_competitor_submit_an_event_to_the_records_route():
+    app.dependency_overrides[get_search_function] = lambda: _search_returning(
+        [MATS_VALK]
+    )
+    app.dependency_overrides[get_events_function] = lambda: _events_returning(
+        {MATS_VALK.wca_id: MATS_VALK_EVENTS}
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            SEARCH_ROUTE, params={SEARCH_NAME_PARAMETER: SEARCHED_NAME}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert f'action="{RECORDS_ROUTE}"' in response.text
+    assert 'name="wca_id"' in response.text
+    assert f'value="{MATS_VALK.wca_id}"' in response.text
+
+
 def test_search_with_no_matches_shows_a_friendly_message():
     app.dependency_overrides[get_search_function] = lambda: _search_returning([])
     try:
