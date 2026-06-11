@@ -11,7 +11,10 @@ from fastapi.templating import Jinja2Templates
 from wca_records_analyser.chart import to_record_series
 from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import format_time
-from wca_records_analyser.records import single_record_progression
+from wca_records_analyser.records import (
+    average_record_progression,
+    single_record_progression,
+)
 from wca_records_analyser.wca_client import (
     Person,
     get_competed_events,
@@ -33,8 +36,10 @@ STATIC_DIRECTORY = Path(__file__).parent / "static"
 RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 EVENT_NAME_CONTEXT_KEY = "event_name"
-PROGRESSION_CONTEXT_KEY = "progression"
-CHART_SERIES_CONTEXT_KEY = "chart_series"
+SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
+AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
+SINGLE_CHART_SERIES_CONTEXT_KEY = "single_chart_series"
+AVERAGE_CHART_SERIES_CONTEXT_KEY = "average_chart_series"
 TIME_FILTER = "time"
 
 app = FastAPI()
@@ -53,6 +58,14 @@ class CompetitorResult:
 
     person: Person
     events: list
+
+
+@dataclass(frozen=True)
+class RecordProgressions:
+    """A competitor's single and average PR progressions for one event."""
+
+    singles: list
+    averages: list
 
 
 def get_search_function():
@@ -75,7 +88,10 @@ def get_progression_function():
     def record_progression(wca_id, event_id):
         results = get_results(wca_id, event_id)
         competition_dates = get_competition_dates(wca_id)
-        return single_record_progression(results, competition_dates)
+        return RecordProgressions(
+            singles=single_record_progression(results, competition_dates),
+            averages=average_record_progression(results, competition_dates),
+        )
 
     return record_progression
 
@@ -117,13 +133,15 @@ def records(
     event_id: str,
     progression_function=Depends(get_progression_function),
 ):
-    progression = progression_function(wca_id, event_id)
+    progressions = progression_function(wca_id, event_id)
     return templates.TemplateResponse(
         request=request,
         name=RECORDS_TEMPLATE,
         context={
             EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
-            PROGRESSION_CONTEXT_KEY: progression,
-            CHART_SERIES_CONTEXT_KEY: to_record_series(progression),
+            SINGLE_PROGRESSION_CONTEXT_KEY: progressions.singles,
+            AVERAGE_PROGRESSION_CONTEXT_KEY: progressions.averages,
+            SINGLE_CHART_SERIES_CONTEXT_KEY: to_record_series(progressions.singles),
+            AVERAGE_CHART_SERIES_CONTEXT_KEY: to_record_series(progressions.averages),
         },
     )

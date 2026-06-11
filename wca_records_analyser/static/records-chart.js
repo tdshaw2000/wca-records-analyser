@@ -1,10 +1,16 @@
-const CHART_DATA_ELEMENT_ID = "chart-data";
+const SINGLE_CHART_DATA_ELEMENT_ID = "single-chart-data";
+const AVERAGE_CHART_DATA_ELEMENT_ID = "average-chart-data";
 const CANVAS_ELEMENT_ID = "record-progression";
 const SINGLE_LABEL = "Personal record single";
+const AVERAGE_LABEL = "Personal record average";
+const SINGLE_COLOUR = "#1f77b4";
+const AVERAGE_COLOUR = "#ff7f0e";
 const DATE_AXIS_LABEL = "Date";
-const SINGLE_AXIS_LABEL = "Single";
+const TIME_AXIS_LABEL = "Time";
 
-const series = JSON.parse(document.getElementById(CHART_DATA_ELEMENT_ID).textContent);
+function readSeries(elementId) {
+    return JSON.parse(document.getElementById(elementId).textContent);
+}
 
 new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
     type: "line",
@@ -12,7 +18,15 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
         datasets: [
             {
                 label: SINGLE_LABEL,
-                data: series,
+                data: readSeries(SINGLE_CHART_DATA_ELEMENT_ID),
+                borderColor: SINGLE_COLOUR,
+                backgroundColor: SINGLE_COLOUR,
+            },
+            {
+                label: AVERAGE_LABEL,
+                data: readSeries(AVERAGE_CHART_DATA_ELEMENT_ID),
+                borderColor: AVERAGE_COLOUR,
+                backgroundColor: AVERAGE_COLOUR,
             },
         ],
     },
@@ -23,7 +37,7 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
                 title: { display: true, text: DATE_AXIS_LABEL },
             },
             y: {
-                title: { display: true, text: SINGLE_AXIS_LABEL },
+                title: { display: true, text: TIME_AXIS_LABEL },
             },
         },
         plugins: {
