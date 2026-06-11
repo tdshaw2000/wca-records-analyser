@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WCA Records Analyser</title>
+</head>
+<body>
+    <h1>WCA Records Analyser</h1>
+    <h2>{{ event_name }} single record progression</h2>
+
+    {% if progression %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Single</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in progression %}
+                    <tr>
+                        <td>{{ record.date }}</td>
+                        <td>{{ record.single | single_time }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No personal records found for this event.</p>
+    {% endif %}
+
+    <p><a href="/">New search</a></p>
+</body>
+</html>

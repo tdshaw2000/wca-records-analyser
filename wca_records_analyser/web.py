@@ -7,23 +7,33 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from wca_records_analyser.events import named_events
+from wca_records_analyser.events import EVENT_NAMES, named_events
+from wca_records_analyser.formatting import format_single
+from wca_records_analyser.records import single_record_progression
 from wca_records_analyser.wca_client import (
     Person,
     get_competed_events,
+    get_competition_dates,
+    get_results,
     search_persons,
 )
 
 INDEX_ROUTE = "/"
 SEARCH_ROUTE = "/search"
+RECORDS_ROUTE = "/records"
 SEARCH_NAME_PARAMETER = "name"
 INDEX_TEMPLATE = "index.html"
+RECORDS_TEMPLATE = "records.html"
 TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
 RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
+EVENT_NAME_CONTEXT_KEY = "event_name"
+PROGRESSION_CONTEXT_KEY = "progression"
+SINGLE_TIME_FILTER = "single_time"
 
 app = FastAPI()
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
+templates.env.filters[SINGLE_TIME_FILTER] = format_single
 
 
 @dataclass(frozen=True)
@@ -46,6 +56,17 @@ def get_events_function():
         return named_events(get_competed_events(wca_id))
 
     return competitor_events
+
+
+def get_progression_function():
+    """Provide the function used to build a record progression (overridable in tests)."""
+
+    def record_progression(wca_id, event_id):
+        results = get_results(wca_id, event_id)
+        competition_dates = get_competition_dates(wca_id)
+        return single_record_progression(results, competition_dates)
+
+    return record_progression
 
 
 def _render_index(request, searched_name, results):
@@ -76,3 +97,21 @@ def search(
         for person in search_function(name)
     ]
     return _render_index(request, searched_name=name, results=results)
+
+
+@app.get(RECORDS_ROUTE, response_class=HTMLResponse)
+def records(
+    request: Request,
+    wca_id: str,
+    event_id: str,
+    progression_function=Depends(get_progression_function),
+):
+    progression = progression_function(wca_id, event_id)
+    return templates.TemplateResponse(
+        request=request,
+        name=RECORDS_TEMPLATE,
+        context={
+            EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
+            PROGRESSION_CONTEXT_KEY: progression,
+        },
+    )
