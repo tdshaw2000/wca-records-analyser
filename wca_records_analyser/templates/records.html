@@ -12,6 +12,9 @@
     {% if progression %}
         <canvas id="record-progression"></canvas>
         <script id="chart-data" type="application/json">{{ chart_series | tojson }}</script>
+        <script src="/static/vendor/chart.umd.js"></script>
+        <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
+        <script src="/static/records-chart.js"></script>
 
         <table>
             <thead>

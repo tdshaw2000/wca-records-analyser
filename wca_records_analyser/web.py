@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import to_single_record_series
@@ -26,6 +27,9 @@ SEARCH_NAME_PARAMETER = "name"
 INDEX_TEMPLATE = "index.html"
 RECORDS_TEMPLATE = "records.html"
 TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
+STATIC_ROUTE = "/static"
+STATIC_NAME = "static"
+STATIC_DIRECTORY = Path(__file__).parent / "static"
 RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 EVENT_NAME_CONTEXT_KEY = "event_name"
@@ -34,6 +38,11 @@ CHART_SERIES_CONTEXT_KEY = "chart_series"
 SINGLE_TIME_FILTER = "single_time"
 
 app = FastAPI()
+app.mount(
+    STATIC_ROUTE,
+    StaticFiles(directory=STATIC_DIRECTORY),
+    name=STATIC_NAME,
+)
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 templates.env.filters[SINGLE_TIME_FILTER] = format_single
 
