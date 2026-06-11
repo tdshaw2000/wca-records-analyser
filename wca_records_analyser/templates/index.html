@@ -17,8 +17,15 @@
     {% if results is not none %}
         {% if results %}
             <ul>
-                {% for person in results %}
-                    <li><a href="{{ person.profile_url }}">{{ person.name }}</a></li>
+                {% for competitor in results %}
+                    <li>
+                        <a href="{{ competitor.person.profile_url }}">{{ competitor.person.name }}</a>
+                        <select name="event_id">
+                            {% for event in competitor.events %}
+                                <option value="{{ event.event_id }}">{{ event.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </li>
                 {% endfor %}
             </ul>
         {% else %}
