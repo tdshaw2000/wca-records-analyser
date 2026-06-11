@@ -74,3 +74,28 @@ def test_single_record_progression_returns_chronological_records_only():
     )
 
     assert progression == EXPECTED_PROGRESSION
+
+
+SAME_DATE_FASTER_SINGLE = 1777
+
+RESULTS_WITH_TWO_RECORDS_ON_ONE_DATE = [
+    Result(single=EARLIEST_SINGLE, competition_id=EARLIEST_COMPETITION_ID),
+    Result(single=SAME_DATE_FASTER_SINGLE, competition_id=EARLIEST_COMPETITION_ID),
+    Result(single=LATEST_SINGLE, competition_id=LATEST_COMPETITION_ID),
+]
+COMPETITION_DATES_FOR_ONE_DATE = {
+    EARLIEST_COMPETITION_ID: EARLIEST_DATE,
+    LATEST_COMPETITION_ID: LATEST_DATE,
+}
+EXPECTED_PROGRESSION_ONE_PER_DATE = [
+    RecordPoint(date=EARLIEST_DATE, single=SAME_DATE_FASTER_SINGLE),
+    RecordPoint(date=LATEST_DATE, single=LATEST_SINGLE),
+]
+
+
+def test_single_record_progression_keeps_only_the_best_record_per_date():
+    progression = single_record_progression(
+        RESULTS_WITH_TWO_RECORDS_ON_ONE_DATE, COMPETITION_DATES_FOR_ONE_DATE
+    )
+
+    assert progression == EXPECTED_PROGRESSION_ONE_PER_DATE
