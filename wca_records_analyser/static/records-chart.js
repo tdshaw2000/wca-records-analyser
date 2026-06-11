@@ -13,7 +13,6 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
             {
                 label: SINGLE_LABEL,
                 data: series,
-                stepped: true,
             },
         ],
     },
