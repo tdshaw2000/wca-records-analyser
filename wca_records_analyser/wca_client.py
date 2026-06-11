@@ -6,10 +6,14 @@ import httpx
 
 WCA_API_BASE_URL = "https://www.worldcubeassociation.org/api/v0"
 PERSONS_SEARCH_ENDPOINT = "/persons"
+PERSON_RESULTS_ENDPOINT = "/persons/{wca_id}/results"
 SEARCH_QUERY_PARAMETER = "q"
+EVENT_QUERY_PARAMETER = "event_id"
 PERSON_KEY = "person"
 PERSON_NAME_KEY = "name"
 PERSON_PROFILE_URL_KEY = "url"
+RESULT_SINGLE_KEY = "best"
+RESULT_COMPETITION_KEY = "competition_id"
 
 
 @dataclass(frozen=True)
@@ -18,6 +22,14 @@ class Person:
 
     name: str
     profile_url: str
+
+
+@dataclass(frozen=True)
+class Result:
+    """A competitor's single for one round, tied to the competition it was set at."""
+
+    single: int
+    competition_id: str
 
 
 def search_persons(name, client=None):
@@ -38,9 +50,35 @@ def search_persons(name, client=None):
     return [_to_person(match) for match in matches]
 
 
+def get_results(wca_id, event_id, client=None):
+    """Return a competitor's results for one event, newest WCA order preserved."""
+    endpoint = PERSON_RESULTS_ENDPOINT.format(wca_id=wca_id)
+    owns_client = client is None
+    if owns_client:
+        client = httpx.Client(base_url=WCA_API_BASE_URL)
+    try:
+        response = client.get(
+            endpoint,
+            params={EVENT_QUERY_PARAMETER: event_id},
+        )
+        response.raise_for_status()
+        results = response.json()
+    finally:
+        if owns_client:
+            client.close()
+    return [_to_result(result) for result in results]
+
+
 def _to_person(match):
     person = match[PERSON_KEY]
     return Person(
         name=person[PERSON_NAME_KEY],
         profile_url=person[PERSON_PROFILE_URL_KEY],
+    )
+
+
+def _to_result(result):
+    return Result(
+        single=result[RESULT_SINGLE_KEY],
+        competition_id=result[RESULT_COMPETITION_KEY],
     )
