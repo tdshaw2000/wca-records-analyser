@@ -1,5 +1,6 @@
 from wca_records_analyser.records import (
     RecordPoint,
+    average_record_progression,
     personal_record_flags,
     single_record_progression,
 )
@@ -99,3 +100,38 @@ def test_single_record_progression_keeps_only_the_best_record_per_date():
     )
 
     assert progression == EXPECTED_PROGRESSION_ONE_PER_DATE
+
+
+EARLIEST_AVERAGE = 2456
+MIDDLE_AVERAGE = 2890
+LATEST_AVERAGE = 2012
+
+RESULTS_WITH_AVERAGES_OUT_OF_DATE_ORDER = [
+    Result(
+        single=MIDDLE_SINGLE,
+        average=MIDDLE_AVERAGE,
+        competition_id=MIDDLE_COMPETITION_ID,
+    ),
+    Result(
+        single=EARLIEST_SINGLE,
+        average=EARLIEST_AVERAGE,
+        competition_id=EARLIEST_COMPETITION_ID,
+    ),
+    Result(
+        single=LATEST_SINGLE,
+        average=LATEST_AVERAGE,
+        competition_id=LATEST_COMPETITION_ID,
+    ),
+]
+EXPECTED_AVERAGE_PROGRESSION = [
+    RecordPoint(date=EARLIEST_DATE, value=EARLIEST_AVERAGE),
+    RecordPoint(date=LATEST_DATE, value=LATEST_AVERAGE),
+]
+
+
+def test_average_record_progression_returns_chronological_average_records_only():
+    progression = average_record_progression(
+        RESULTS_WITH_AVERAGES_OUT_OF_DATE_ORDER, COMPETITION_DATES
+    )
+
+    assert progression == EXPECTED_AVERAGE_PROGRESSION
