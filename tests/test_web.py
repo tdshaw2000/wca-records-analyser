@@ -1,12 +1,26 @@
 from fastapi.testclient import TestClient
 
 from wca_records_analyser.events import Event
-from wca_records_analyser.web import app, get_events_function, get_search_function
+from wca_records_analyser.records import RecordPoint
+from wca_records_analyser.web import (
+    app,
+    get_events_function,
+    get_progression_function,
+    get_search_function,
+)
 from wca_records_analyser.wca_client import Person
 
 SEARCH_ROUTE = "/search"
+RECORDS_ROUTE = "/records"
 SEARCH_NAME_PARAMETER = "name"
 SEARCHED_NAME = "Mats Valk"
+EVENT_ID = "333"
+EVENT_NAME = "3x3x3 Cube"
+
+PROGRESSION = [
+    RecordPoint(date="2023-11-18", single=1777),
+    RecordPoint(date="2024-11-01", single=1498),
+]
 
 MATS_VALK = Person(
     name="Mats Valk",
@@ -31,6 +45,13 @@ def _events_returning(events_by_wca_id):
         return events_by_wca_id.get(wca_id, [])
 
     return _events
+
+
+def _progression_returning(progression):
+    def _progression(wca_id, event_id):
+        return progression
+
+    return _progression
 
 
 def test_index_page_shows_a_name_search_form():
@@ -96,3 +117,25 @@ def test_search_with_no_matches_shows_a_friendly_message():
 
     assert response.status_code == 200
     assert "No competitors found" in response.text
+
+
+def test_records_shows_a_table_of_the_record_progression():
+    app.dependency_overrides[get_progression_function] = (
+        lambda: _progression_returning(PROGRESSION)
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            RECORDS_ROUTE,
+            params={"wca_id": MATS_VALK.wca_id, "event_id": EVENT_ID},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert EVENT_NAME in response.text
+    assert "<table" in response.text
+    assert "2023-11-18" in response.text
+    assert "17.77" in response.text
+    assert "2024-11-01" in response.text
+    assert "14.98" in response.text
