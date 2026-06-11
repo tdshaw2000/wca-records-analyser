@@ -31,6 +31,13 @@ def single_record_progression(results, competition_dates):
     )
 
 
+def average_record_progression(results, competition_dates):
+    """Return the personal-record averages, with their dates, in chronological order."""
+    return _record_progression(
+        results, competition_dates, lambda result: result.average
+    )
+
+
 def _record_progression(results, competition_dates, metric):
     """Return the personal-record values of a metric, with their dates, chronologically."""
     dated_results = sorted(
