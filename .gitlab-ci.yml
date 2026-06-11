@@ -1,6 +1,7 @@
 stages:
   - test
   - deploy
+  - teardown
 
 variables:
   IMAGE_NAME: wca-records-analyser
@@ -41,3 +42,17 @@ deploy:
       -v "$HOST_CA_BUNDLE:$HOST_CA_BUNDLE:ro"
       -e "SSL_CERT_FILE=$HOST_CA_BUNDLE"
       "$IMAGE_NAME:latest"
+
+# Manually stop and remove the deployed container. Triggered on demand from the
+# GitLab pipeline UI (a play button); never runs automatically and does not
+# block the pipeline. "docker rm -f" overrides the "unless-stopped" restart
+# policy so the service stays down until the next deploy.
+teardown:
+  stage: teardown
+  tags:
+    - wsl-docker
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+  script:
+    - docker rm -f "$CONTAINER_NAME" || true
