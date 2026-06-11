@@ -7,6 +7,7 @@ import httpx
 WCA_API_BASE_URL = "https://www.worldcubeassociation.org/api/v0"
 PERSONS_SEARCH_ENDPOINT = "/persons"
 PERSON_RESULTS_ENDPOINT = "/persons/{wca_id}/results"
+PERSON_COMPETITIONS_ENDPOINT = "/persons/{wca_id}/competitions"
 SEARCH_QUERY_PARAMETER = "q"
 EVENT_QUERY_PARAMETER = "event_id"
 PERSON_KEY = "person"
@@ -14,6 +15,8 @@ PERSON_NAME_KEY = "name"
 PERSON_PROFILE_URL_KEY = "url"
 RESULT_SINGLE_KEY = "best"
 RESULT_COMPETITION_KEY = "competition_id"
+COMPETITION_ID_KEY = "id"
+COMPETITION_START_DATE_KEY = "start_date"
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,16 @@ def get_results(wca_id, event_id, client=None):
         client=client,
     )
     return [_to_result(result) for result in results]
+
+
+def get_competition_dates(wca_id, client=None):
+    """Return a competitor's competitions mapped to their start dates."""
+    endpoint = PERSON_COMPETITIONS_ENDPOINT.format(wca_id=wca_id)
+    competitions = _get_json(endpoint, params=None, client=client)
+    return {
+        competition[COMPETITION_ID_KEY]: competition[COMPETITION_START_DATE_KEY]
+        for competition in competitions
+    }
 
 
 def _get_json(endpoint, params, client):
