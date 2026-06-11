@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from wca_records_analyser.events import Event
 from wca_records_analyser.records import RecordPoint
 from wca_records_analyser.web import (
+    RecordProgressions,
     app,
     get_events_function,
     get_progression_function,
@@ -17,10 +18,17 @@ SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
 EVENT_NAME = "3x3x3 Cube"
 
-PROGRESSION = [
+SINGLE_PROGRESSION = [
     RecordPoint(date="2023-11-18", value=1777),
     RecordPoint(date="2024-11-01", value=1498),
 ]
+AVERAGE_PROGRESSION = [
+    RecordPoint(date="2023-11-18", value=2177),
+    RecordPoint(date="2024-11-01", value=1888),
+]
+PROGRESSIONS = RecordProgressions(
+    singles=SINGLE_PROGRESSION, averages=AVERAGE_PROGRESSION
+)
 
 MATS_VALK = Person(
     name="Mats Valk",
@@ -47,9 +55,9 @@ def _events_returning(events_by_wca_id):
     return _events
 
 
-def _progression_returning(progression):
+def _progression_returning(progressions):
     def _progression(wca_id, event_id):
-        return progression
+        return progressions
 
     return _progression
 
@@ -140,43 +148,49 @@ def test_search_with_no_matches_shows_a_friendly_message():
     assert "No competitors found" in response.text
 
 
-def test_records_embeds_the_progression_as_chart_data():
+def _get_records_page():
     app.dependency_overrides[get_progression_function] = (
-        lambda: _progression_returning(PROGRESSION)
+        lambda: _progression_returning(PROGRESSIONS)
     )
     try:
         client = TestClient(app)
-        response = client.get(
+        return client.get(
             RECORDS_ROUTE,
             params={"wca_id": MATS_VALK.wca_id, "event_id": EVENT_ID},
         )
     finally:
         app.dependency_overrides.clear()
+
+
+def test_records_embeds_both_single_and_average_progressions_as_chart_data():
+    response = _get_records_page()
 
     assert response.status_code == 200
     assert "<canvas" in response.text
-    assert '"x": "2024-11-01"' in response.text
+    assert 'id="single-chart-data"' in response.text
     assert '"y": 1498' in response.text
     assert '"display": "14.98"' in response.text
+    assert 'id="average-chart-data"' in response.text
+    assert '"y": 1888' in response.text
+    assert '"display": "18.88"' in response.text
 
 
-def test_records_shows_a_table_of_the_record_progression():
-    app.dependency_overrides[get_progression_function] = (
-        lambda: _progression_returning(PROGRESSION)
-    )
-    try:
-        client = TestClient(app)
-        response = client.get(
-            RECORDS_ROUTE,
-            params={"wca_id": MATS_VALK.wca_id, "event_id": EVENT_ID},
-        )
-    finally:
-        app.dependency_overrides.clear()
+def test_records_shows_a_table_of_the_single_record_progression():
+    response = _get_records_page()
 
     assert response.status_code == 200
     assert EVENT_NAME in response.text
-    assert "<table" in response.text
+    assert "single record progression" in response.text
     assert "2023-11-18" in response.text
     assert "17.77" in response.text
     assert "2024-11-01" in response.text
     assert "14.98" in response.text
+
+
+def test_records_shows_a_table_of_the_average_record_progression():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert "average record progression" in response.text
+    assert "21.77" in response.text
+    assert "18.88" in response.text
