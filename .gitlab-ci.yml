@@ -1,0 +1,43 @@
+stages:
+  - test
+  - deploy
+
+variables:
+  IMAGE_NAME: wca-records-analyser
+  CONTAINER_NAME: wca-records-analyser
+  HOST_PORT: "8000"
+  CONTAINER_PORT: "8000"
+  # Host CA bundle mounted into the container so it trusts the same
+  # certificate authorities as the host when calling the WCA API.
+  HOST_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+
+# Runs on the self-hosted WSL runner (shell executor) tagged "wsl-docker".
+test:
+  stage: test
+  tags:
+    - wsl-docker
+  script:
+    - python3 -m venv .venv
+    - .venv/bin/pip install --quiet --upgrade pip
+    - .venv/bin/pip install --quiet -e ".[dev]"
+    - .venv/bin/pytest
+
+# Builds the image and (re)starts the container in the WSL Docker daemon.
+# Runs only on the default branch, after the test stage passes.
+deploy:
+  stage: deploy
+  tags:
+    - wsl-docker
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - docker build -t "$IMAGE_NAME:$CI_COMMIT_SHORT_SHA" -t "$IMAGE_NAME:latest" .
+    - docker rm -f "$CONTAINER_NAME" || true
+    - >
+      docker run -d
+      --name "$CONTAINER_NAME"
+      --restart unless-stopped
+      -p "$HOST_PORT:$CONTAINER_PORT"
+      -v "$HOST_CA_BUNDLE:$HOST_CA_BUNDLE:ro"
+      -e "SSL_CERT_FILE=$HOST_CA_BUNDLE"
+      "$IMAGE_NAME:latest"
