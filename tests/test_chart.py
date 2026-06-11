@@ -1,4 +1,4 @@
-from wca_records_analyser.chart import to_single_record_series
+from wca_records_analyser.chart import to_record_series
 from wca_records_analyser.records import RecordPoint
 
 EARLIEST_DATE = "2023-11-18"
@@ -11,8 +11,8 @@ EARLIEST_DISPLAY = "18.07"
 LATEST_DISPLAY = "14.98"
 
 PROGRESSION = [
-    RecordPoint(date=EARLIEST_DATE, single=EARLIEST_SINGLE),
-    RecordPoint(date=LATEST_DATE, single=LATEST_SINGLE),
+    RecordPoint(date=EARLIEST_DATE, value=EARLIEST_SINGLE),
+    RecordPoint(date=LATEST_DATE, value=LATEST_SINGLE),
 ]
 EXPECTED_SERIES = [
     {"x": EARLIEST_DATE, "y": EARLIEST_SINGLE, "display": EARLIEST_DISPLAY},
@@ -20,9 +20,9 @@ EXPECTED_SERIES = [
 ]
 
 
-def test_to_single_record_series_carries_date_centiseconds_and_formatted_time():
-    assert to_single_record_series(PROGRESSION) == EXPECTED_SERIES
+def test_to_record_series_carries_date_centiseconds_and_formatted_time():
+    assert to_record_series(PROGRESSION) == EXPECTED_SERIES
 
 
-def test_to_single_record_series_of_empty_progression_is_empty():
-    assert to_single_record_series([]) == []
+def test_to_record_series_of_empty_progression_is_empty():
+    assert to_record_series([]) == []

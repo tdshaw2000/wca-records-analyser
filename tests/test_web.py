@@ -18,8 +18,8 @@ EVENT_ID = "333"
 EVENT_NAME = "3x3x3 Cube"
 
 PROGRESSION = [
-    RecordPoint(date="2023-11-18", single=1777),
-    RecordPoint(date="2024-11-01", single=1498),
+    RecordPoint(date="2023-11-18", value=1777),
+    RecordPoint(date="2024-11-01", value=1498),
 ]
 
 MATS_VALK = Person(
