@@ -18,7 +18,24 @@
 ## tech stack
 
 - **Language:** Python
+- **Web:** FastAPI + Jinja2 templates, served with uvicorn
+- **HTTP:** httpx (against the WCA public API at `https://www.worldcubeassociation.org/api/v0`)
 - **CI/CD:** gitlab
+
+## project structure
+
+Each module owns one concern; keep HTTP, analysis, presentation, and web wiring separate.
+
+- `wca_client.py` — WCA API access only. `search_persons`, `get_results`, `get_competition_dates`, `get_competed_events`; dataclasses `Person`, `Result`. Functions take an optional `client` for test injection.
+- `records.py` — PR analysis (no HTTP). `personal_record_flags`, `single_record_progression`; dataclass `RecordPoint`. Singles are centiseconds; non-positive values are DNF/DNS and are skipped.
+- `events.py` — event id → display name table (`EVENT_NAMES`) and `named_events`; dataclass `Event`.
+- `formatting.py` — `format_single` renders centiseconds as a cubing time string.
+- `web.py` — FastAPI routes (`/`, `/search`, `/records`) with injectable `Depends` seams (`get_search_function`, `get_events_function`, `get_progression_function`) so web tests never hit the network. Templates in `templates/`.
+
+## running and testing
+
+- **Tests:** `.venv/bin/python -m pytest`
+- **Run the app:** `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt .venv/bin/python -m uvicorn wca_records_analyser.web:app`. The `SSL_CERT_FILE` is required on this host or httpx fails TLS verification on live API calls (custom proxy CA absent from certifi).
 
 ## test-driven development
 
