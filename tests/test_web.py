@@ -140,6 +140,26 @@ def test_search_with_no_matches_shows_a_friendly_message():
     assert "No competitors found" in response.text
 
 
+def test_records_embeds_the_progression_as_chart_data():
+    app.dependency_overrides[get_progression_function] = (
+        lambda: _progression_returning(PROGRESSION)
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            RECORDS_ROUTE,
+            params={"wca_id": MATS_VALK.wca_id, "event_id": EVENT_ID},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "<canvas" in response.text
+    assert '"x": "2024-11-01"' in response.text
+    assert '"y": 1498' in response.text
+    assert '"display": "14.98"' in response.text
+
+
 def test_records_shows_a_table_of_the_record_progression():
     app.dependency_overrides[get_progression_function] = (
         lambda: _progression_returning(PROGRESSION)
