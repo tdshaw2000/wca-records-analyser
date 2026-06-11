@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from wca_records_analyser.chart import to_single_record_series
+from wca_records_analyser.chart import to_record_series
 from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import format_time
 from wca_records_analyser.records import single_record_progression
@@ -124,6 +124,6 @@ def records(
         context={
             EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
             PROGRESSION_CONTEXT_KEY: progression,
-            CHART_SERIES_CONTEXT_KEY: to_single_record_series(progression),
+            CHART_SERIES_CONTEXT_KEY: to_record_series(progression),
         },
     )

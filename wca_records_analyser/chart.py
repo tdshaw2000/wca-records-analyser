@@ -3,17 +3,17 @@
 from wca_records_analyser.formatting import format_time
 
 DATE_KEY = "x"
-SINGLE_KEY = "y"
+VALUE_KEY = "y"
 DISPLAY_KEY = "display"
 
 
-def to_single_record_series(progression):
+def to_record_series(progression):
     """Turn record points into chart points carrying date, centiseconds, and formatted time."""
     return [
         {
             DATE_KEY: record.date,
-            SINGLE_KEY: record.single,
-            DISPLAY_KEY: format_time(record.single),
+            VALUE_KEY: record.value,
+            DISPLAY_KEY: format_time(record.value),
         }
         for record in progression
     ]
