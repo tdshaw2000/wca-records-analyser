@@ -9,6 +9,7 @@ SEARCHED_NAME = "Mats Valk"
 
 MATS_VALK = Person(
     name="Mats Valk",
+    wca_id="2007VALK01",
     profile_url="https://www.worldcubeassociation.org/persons/2007VALK01",
 )
 
