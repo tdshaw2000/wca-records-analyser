@@ -1,5 +1,15 @@
 """Detection of personal records within a competitor's results."""
 
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class RecordPoint:
+    """A personal-record single and the date it was set."""
+
+    date: str
+    single: int
+
 
 def personal_record_flags(singles):
     """Flag each single that beats every preceding single in chronological order."""
@@ -12,3 +22,21 @@ def personal_record_flags(singles):
         if is_record:
             best_so_far = single
     return flags
+
+
+def single_record_progression(results, competition_dates):
+    """Return the personal-record singles, with their dates, in chronological order."""
+    dated_results = sorted(
+        results,
+        key=lambda result: competition_dates[result.competition_id],
+    )
+    singles = [result.single for result in dated_results]
+    flags = personal_record_flags(singles)
+    return [
+        RecordPoint(
+            date=competition_dates[result.competition_id],
+            single=result.single,
+        )
+        for result, is_record in zip(dated_results, flags)
+        if is_record
+    ]
