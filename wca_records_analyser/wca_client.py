@@ -12,6 +12,7 @@ SEARCH_QUERY_PARAMETER = "q"
 EVENT_QUERY_PARAMETER = "event_id"
 PERSON_KEY = "person"
 PERSON_NAME_KEY = "name"
+PERSON_WCA_ID_KEY = "wca_id"
 PERSON_PROFILE_URL_KEY = "url"
 RESULT_SINGLE_KEY = "best"
 RESULT_COMPETITION_KEY = "competition_id"
@@ -24,6 +25,7 @@ class Person:
     """A competitor returned by a WCA search."""
 
     name: str
+    wca_id: str
     profile_url: str
 
 
@@ -83,6 +85,7 @@ def _to_person(match):
     person = match[PERSON_KEY]
     return Person(
         name=person[PERSON_NAME_KEY],
+        wca_id=person[PERSON_WCA_ID_KEY],
         profile_url=person[PERSON_PROFILE_URL_KEY],
     )
 
