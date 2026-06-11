@@ -31,18 +31,20 @@ FIRST_COMPETITION_ID = "WestonsuperMareAutumn2023"
 SECOND_COMPETITION_ID = "RubiksUKChampionship2024"
 FIRST_SINGLE = 1807
 SECOND_SINGLE = 1498
+FIRST_AVERAGE = 2177
+SECOND_AVERAGE = 1646
 
 RESULTS_RESPONSE = [
     {
         "best": FIRST_SINGLE,
-        "average": 2177,
+        "average": FIRST_AVERAGE,
         "event_id": EVENT_ID,
         "competition_id": FIRST_COMPETITION_ID,
         "round_type_id": "d",
     },
     {
         "best": SECOND_SINGLE,
-        "average": 1646,
+        "average": SECOND_AVERAGE,
         "event_id": EVENT_ID,
         "competition_id": SECOND_COMPETITION_ID,
         "round_type_id": "f",
@@ -119,14 +121,22 @@ def test_search_persons_returns_empty_list_when_no_matches():
     assert search_persons("no such competitor", client=client) == []
 
 
-def test_get_results_returns_single_and_competition_for_each_result():
+def test_get_results_returns_single_average_and_competition_for_each_result():
     client = _client_returning(RESULTS_RESPONSE)
 
     results = get_results(WCA_ID, EVENT_ID, client=client)
 
     assert results == [
-        Result(single=FIRST_SINGLE, competition_id=FIRST_COMPETITION_ID),
-        Result(single=SECOND_SINGLE, competition_id=SECOND_COMPETITION_ID),
+        Result(
+            single=FIRST_SINGLE,
+            average=FIRST_AVERAGE,
+            competition_id=FIRST_COMPETITION_ID,
+        ),
+        Result(
+            single=SECOND_SINGLE,
+            average=SECOND_AVERAGE,
+            competition_id=SECOND_COMPETITION_ID,
+        ),
     ]
 
 
