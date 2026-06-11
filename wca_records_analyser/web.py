@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import to_single_record_series
 from wca_records_analyser.events import EVENT_NAMES, named_events
-from wca_records_analyser.formatting import format_single
+from wca_records_analyser.formatting import format_time
 from wca_records_analyser.records import single_record_progression
 from wca_records_analyser.wca_client import (
     Person,
@@ -35,7 +35,7 @@ SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 EVENT_NAME_CONTEXT_KEY = "event_name"
 PROGRESSION_CONTEXT_KEY = "progression"
 CHART_SERIES_CONTEXT_KEY = "chart_series"
-SINGLE_TIME_FILTER = "single_time"
+TIME_FILTER = "time"
 
 app = FastAPI()
 app.mount(
@@ -44,7 +44,7 @@ app.mount(
     name=STATIC_NAME,
 )
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
-templates.env.filters[SINGLE_TIME_FILTER] = format_single
+templates.env.filters[TIME_FILTER] = format_time
 
 
 @dataclass(frozen=True)

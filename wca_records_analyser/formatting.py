@@ -5,8 +5,8 @@ SECONDS_PER_MINUTE = 60
 CENTISECONDS_PER_MINUTE = CENTISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 
-def format_single(centiseconds):
-    """Render a single in centiseconds as a cubing time string."""
+def format_time(centiseconds):
+    """Render a result in centiseconds as a cubing time string."""
     minutes = centiseconds // CENTISECONDS_PER_MINUTE
     within_minute = centiseconds % CENTISECONDS_PER_MINUTE
     seconds = within_minute // CENTISECONDS_PER_SECOND

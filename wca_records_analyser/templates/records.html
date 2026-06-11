@@ -27,7 +27,7 @@
                 {% for record in progression %}
                     <tr>
                         <td>{{ record.date }}</td>
-                        <td>{{ record.single | single_time }}</td>
+                        <td>{{ record.single | time }}</td>
                     </tr>
                 {% endfor %}
             </tbody>
