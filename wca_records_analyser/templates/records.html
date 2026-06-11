@@ -10,6 +10,9 @@
     <h2>{{ event_name }} single record progression</h2>
 
     {% if progression %}
+        <canvas id="record-progression"></canvas>
+        <script id="chart-data" type="application/json">{{ chart_series | tojson }}</script>
+
         <table>
             <thead>
                 <tr>
