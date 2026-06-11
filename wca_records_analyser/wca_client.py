@@ -16,6 +16,7 @@ PERSON_NAME_KEY = "name"
 PERSON_WCA_ID_KEY = "wca_id"
 PERSON_PROFILE_URL_KEY = "url"
 RESULT_SINGLE_KEY = "best"
+RESULT_AVERAGE_KEY = "average"
 RESULT_COMPETITION_KEY = "competition_id"
 COMPETITION_ID_KEY = "id"
 COMPETITION_START_DATE_KEY = "start_date"
@@ -33,10 +34,11 @@ class Person:
 
 @dataclass(frozen=True)
 class Result:
-    """A competitor's single for one round, tied to the competition it was set at."""
+    """A competitor's single and average for one round, tied to its competition."""
 
     single: int
     competition_id: str
+    average: int = 0
 
 
 def search_persons(name, client=None):
@@ -102,5 +104,6 @@ def _to_person(match):
 def _to_result(result):
     return Result(
         single=result[RESULT_SINGLE_KEY],
+        average=result[RESULT_AVERAGE_KEY],
         competition_id=result[RESULT_COMPETITION_KEY],
     )
