@@ -4,6 +4,7 @@ from wca_records_analyser.wca_client import (
     Person,
     Result,
     WCA_API_BASE_URL,
+    get_competed_events,
     get_competition_dates,
     get_results,
     search_persons,
@@ -63,6 +64,20 @@ COMPETITIONS_RESPONSE = [
         "end_date": "2024-11-03",
     },
 ]
+
+COMPETED_EVENT_IDS = ["333", "222", "pyram"]
+PERSON_DETAIL_RESPONSE = {
+    "person": {
+        "name": "Tim Shaw",
+        "wca_id": WCA_ID,
+        "url": f"https://www.worldcubeassociation.org/persons/{WCA_ID}",
+    },
+    "personal_records": {
+        "333": {"single": {"best": 1355}, "average": {"best": 1646}},
+        "222": {"single": {"best": 585}, "average": {"best": 708}},
+        "pyram": {"single": {"best": 911}, "average": {"best": 1147}},
+    },
+}
 
 
 def _client_returning(payload, recorded_requests=None):
@@ -146,3 +161,22 @@ def test_get_competition_dates_requests_the_competitions_for_the_competitor():
     assert (
         recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}/competitions"
     )
+
+
+def test_get_competed_events_returns_the_events_the_competitor_has_records_in():
+    client = _client_returning(PERSON_DETAIL_RESPONSE)
+
+    events = get_competed_events(WCA_ID, client=client)
+
+    assert events == COMPETED_EVENT_IDS
+
+
+def test_get_competed_events_requests_the_competitor_profile():
+    recorded_requests = []
+    client = _client_returning(
+        PERSON_DETAIL_RESPONSE, recorded_requests=recorded_requests
+    )
+
+    get_competed_events(WCA_ID, client=client)
+
+    assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
