@@ -4,6 +4,7 @@ from wca_records_analyser.wca_client import (
     Person,
     Result,
     WCA_API_BASE_URL,
+    get_competition_dates,
     get_results,
     search_persons,
 )
@@ -43,6 +44,22 @@ RESULTS_RESPONSE = [
         "event_id": EVENT_ID,
         "competition_id": SECOND_COMPETITION_ID,
         "round_type_id": "f",
+    },
+]
+
+FIRST_COMPETITION_START_DATE = "2023-11-18"
+SECOND_COMPETITION_START_DATE = "2024-11-01"
+
+COMPETITIONS_RESPONSE = [
+    {
+        "id": FIRST_COMPETITION_ID,
+        "start_date": FIRST_COMPETITION_START_DATE,
+        "end_date": "2023-11-19",
+    },
+    {
+        "id": SECOND_COMPETITION_ID,
+        "start_date": SECOND_COMPETITION_START_DATE,
+        "end_date": "2024-11-03",
     },
 ]
 
@@ -102,3 +119,25 @@ def test_get_results_requests_the_event_results_for_the_competitor():
     request = recorded_requests[0]
     assert request.url.path == f"/api/v0/persons/{WCA_ID}/results"
     assert request.url.params["event_id"] == EVENT_ID
+
+
+def test_get_competition_dates_maps_each_competition_to_its_start_date():
+    client = _client_returning(COMPETITIONS_RESPONSE)
+
+    dates = get_competition_dates(WCA_ID, client=client)
+
+    assert dates == {
+        FIRST_COMPETITION_ID: FIRST_COMPETITION_START_DATE,
+        SECOND_COMPETITION_ID: SECOND_COMPETITION_START_DATE,
+    }
+
+
+def test_get_competition_dates_requests_the_competitions_for_the_competitor():
+    recorded_requests = []
+    client = _client_returning([], recorded_requests=recorded_requests)
+
+    get_competition_dates(WCA_ID, client=client)
+
+    assert (
+        recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}/competitions"
+    )
