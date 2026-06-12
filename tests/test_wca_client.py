@@ -6,6 +6,7 @@ from wca_records_analyser.wca_client import (
     WCA_API_BASE_URL,
     get_competed_events,
     get_competition_dates,
+    get_person,
     get_results,
     search_persons,
 )
@@ -188,5 +189,28 @@ def test_get_competed_events_requests_the_competitor_profile():
     )
 
     get_competed_events(WCA_ID, client=client)
+
+    assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
+
+
+def test_get_person_returns_the_competitor_identity():
+    client = _client_returning(PERSON_DETAIL_RESPONSE)
+
+    person = get_person(WCA_ID, client=client)
+
+    assert person == Person(
+        name="Tim Shaw",
+        wca_id=WCA_ID,
+        profile_url=f"https://www.worldcubeassociation.org/persons/{WCA_ID}",
+    )
+
+
+def test_get_person_requests_the_competitor_profile():
+    recorded_requests = []
+    client = _client_returning(
+        PERSON_DETAIL_RESPONSE, recorded_requests=recorded_requests
+    )
+
+    get_person(WCA_ID, client=client)
 
     assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
