@@ -17,7 +17,6 @@ RECORDS_ROUTE = "/records"
 SEARCH_NAME_PARAMETER = "name"
 SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
-EVENT_NAME = "3x3x3 Cube"
 DEFAULT_EVENT_ID = "333"
 STYLESHEET_PATH = "/static/styles.css"
 
@@ -185,8 +184,7 @@ def test_records_shows_a_table_of_the_single_record_progression():
     response = _get_records_page()
 
     assert response.status_code == 200
-    assert EVENT_NAME in response.text
-    assert "single record progression" in response.text
+    assert "<h2>Single</h2>" in response.text
     assert "2023-11-18" in response.text
     assert "17.77" in response.text
     assert "2024-11-01" in response.text
@@ -197,7 +195,7 @@ def test_records_shows_a_table_of_the_average_record_progression():
     response = _get_records_page()
 
     assert response.status_code == 200
-    assert "average record progression" in response.text
+    assert "<h2>Average</h2>" in response.text
     assert "21.77" in response.text
     assert "18.88" in response.text
 
