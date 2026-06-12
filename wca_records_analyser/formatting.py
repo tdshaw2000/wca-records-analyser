@@ -3,6 +3,10 @@
 CENTISECONDS_PER_SECOND = 100
 SECONDS_PER_MINUTE = 60
 CENTISECONDS_PER_MINUTE = CENTISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+FEWEST_MOVES_EVENT_ID = "333fm"
+CENTI_MOVES_PER_MOVE = 100
+TIME_UNIT = "time"
+MOVES_UNIT = "moves"
 
 
 def format_time(centiseconds):
@@ -14,3 +18,24 @@ def format_time(centiseconds):
     if minutes:
         return f"{minutes}:{seconds:02d}.{hundredths:02d}"
     return f"{seconds}.{hundredths:02d}"
+
+
+def format_single(value, event_id):
+    """Render a single result, as a move count for Fewest Moves or a time otherwise."""
+    if event_id == FEWEST_MOVES_EVENT_ID:
+        return str(value)
+    return format_time(value)
+
+
+def format_average(value, event_id):
+    """Render an average result; Fewest Moves averages are stored as moves times 100."""
+    if event_id == FEWEST_MOVES_EVENT_ID:
+        return f"{value / CENTI_MOVES_PER_MOVE:.2f}"
+    return format_time(value)
+
+
+def result_unit(event_id):
+    """Return the unit a competitor's results are measured in for this event."""
+    if event_id == FEWEST_MOVES_EVENT_ID:
+        return MOVES_UNIT
+    return TIME_UNIT
