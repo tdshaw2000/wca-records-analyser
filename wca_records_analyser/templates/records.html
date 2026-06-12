@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
+    <section class="competitor">
+        <h1 class="competitor-name">{{ name }}</h1>
+        <p class="competitor-meta">
+            <span class="competitor-id">{{ wca_id }}</span>
+            <a class="profile-link" href="{{ profile_url }}" target="_blank" rel="noopener noreferrer">View WCA profile <span class="external-icon" aria-hidden="true">↗</span></a>
+        </p>
+    </section>
+
     <form class="event-form" action="/records" method="get">
         <input type="hidden" name="wca_id" value="{{ wca_id }}">
         <label class="field-label" for="event_id">Puzzle</label>
@@ -11,8 +19,6 @@
         </select>
         <noscript><button type="submit">Show records</button></noscript>
     </form>
-
-    <p class="profile-link"><a href="{{ profile_url }}">View WCA profile</a></p>
 
     {% if single_progression or average_progression %}
         <section class="chart-card">

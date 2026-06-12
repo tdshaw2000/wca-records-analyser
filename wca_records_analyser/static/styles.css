@@ -167,27 +167,67 @@ button:hover {
     color: var(--muted-text);
 }
 
-/* Profile + navigation links */
+/* Competitor identity */
 
-.profile-link,
-.new-search {
-    margin-top: 1rem;
+.competitor {
+    margin-bottom: 1.5rem;
 }
 
-.profile-link a,
+.competitor-name {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.competitor-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    margin: 0.3rem 0 0;
+    color: var(--muted-text);
+    font-size: 0.95rem;
+}
+
+.competitor-id {
+    font-family: var(--time-font);
+    letter-spacing: 0.02em;
+}
+
+.profile-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.profile-link:hover {
+    text-decoration: underline;
+}
+
+.profile-link::before {
+    content: "·";
+    margin-right: 0.55rem;
+    color: var(--border);
+}
+
+.external-icon {
+    font-size: 0.85em;
+}
+
+/* Navigation links */
+
+.new-search {
+    margin-top: 2.5rem;
+}
+
 .new-search a {
     color: var(--accent);
     text-decoration: none;
     font-weight: 500;
 }
 
-.profile-link a:hover,
 .new-search a:hover {
     text-decoration: underline;
-}
-
-.new-search {
-    margin-top: 2.5rem;
 }
 
 /* Chart */
