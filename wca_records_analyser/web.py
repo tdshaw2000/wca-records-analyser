@@ -9,13 +9,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import to_record_series
-from wca_records_analyser.events import EVENT_NAMES
+from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import format_time
 from wca_records_analyser.records import (
     average_record_progression,
     single_record_progression,
 )
 from wca_records_analyser.wca_client import (
+    get_competed_events,
     get_competition_dates,
     get_results,
     search_persons,
@@ -31,10 +32,18 @@ TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
 STATIC_ROUTE = "/static"
 STATIC_NAME = "static"
 STATIC_DIRECTORY = Path(__file__).parent / "static"
+# TODO: handle competitors with no DEFAULT_EVENT_ID results — the search link sends
+# every competitor to 333, which yields empty progressions for those who have never
+# competed in 3x3x3. Revisit (e.g. pick their first competed event as the default).
 DEFAULT_EVENT_ID = "333"
+WCA_PROFILE_URL_TEMPLATE = "https://www.worldcubeassociation.org/persons/{wca_id}"
 RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 DEFAULT_EVENT_ID_CONTEXT_KEY = "default_event_id"
+WCA_ID_CONTEXT_KEY = "wca_id"
+EVENT_ID_CONTEXT_KEY = "event_id"
+EVENTS_CONTEXT_KEY = "events"
+PROFILE_URL_CONTEXT_KEY = "profile_url"
 EVENT_NAME_CONTEXT_KEY = "event_name"
 SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
@@ -63,6 +72,15 @@ class RecordProgressions:
 def get_search_function():
     """Provide the function used to search for competitors (overridable in tests)."""
     return search_persons
+
+
+def get_events_function():
+    """Provide the function used to look up a competitor's events (overridable in tests)."""
+
+    def competitor_events(wca_id):
+        return named_events(get_competed_events(wca_id))
+
+    return competitor_events
 
 
 def get_progression_function():
@@ -112,12 +130,17 @@ def records(
     wca_id: str,
     event_id: str,
     progression_function=Depends(get_progression_function),
+    events_function=Depends(get_events_function),
 ):
     progressions = progression_function(wca_id, event_id)
     return templates.TemplateResponse(
         request=request,
         name=RECORDS_TEMPLATE,
         context={
+            WCA_ID_CONTEXT_KEY: wca_id,
+            EVENT_ID_CONTEXT_KEY: event_id,
+            EVENTS_CONTEXT_KEY: events_function(wca_id),
+            PROFILE_URL_CONTEXT_KEY: WCA_PROFILE_URL_TEMPLATE.format(wca_id=wca_id),
             EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
             SINGLE_PROGRESSION_CONTEXT_KEY: progressions.singles,
             AVERAGE_PROGRESSION_CONTEXT_KEY: progressions.averages,

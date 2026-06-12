@@ -8,6 +8,19 @@
 <body>
     <h1>WCA Records Analyser</h1>
 
+    <form action="/records" method="get">
+        <input type="hidden" name="wca_id" value="{{ wca_id }}">
+        <label for="event_id">Puzzle</label>
+        <select id="event_id" name="event_id" onchange="this.form.submit()">
+            {% for event in events %}
+                <option value="{{ event.event_id }}" {% if event.event_id == event_id %}selected{% endif %}>{{ event.name }}</option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit">Show records</button></noscript>
+    </form>
+
+    <p><a href="{{ profile_url }}">View WCA profile</a></p>
+
     {% if single_progression or average_progression %}
         <canvas id="record-progression"></canvas>
         <script id="single-chart-data" type="application/json">{{ single_chart_series | tojson }}</script>
