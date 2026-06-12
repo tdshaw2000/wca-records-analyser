@@ -49,6 +49,19 @@ MATS_VALK_EVENT_IDS = [event.event_id for event in MATS_VALK_EVENTS]
 MATS_VALK_PROFILE = Profile(person=MATS_VALK, event_ids=MATS_VALK_EVENT_IDS)
 WCA_PROFILE_URL = "https://www.worldcubeassociation.org/persons/2007VALK01"
 
+FEWEST_MOVES_EVENT_ID = "333fm"
+FEWEST_MOVES_SINGLE_MOVES = 24
+FEWEST_MOVES_AVERAGE_CENTI_MOVES = 2733
+FEWEST_MOVES_PROGRESSIONS = RecordProgressions(
+    singles=[RecordPoint(date="2024-01-06", value=FEWEST_MOVES_SINGLE_MOVES)],
+    averages=[
+        RecordPoint(date="2024-01-06", value=FEWEST_MOVES_AVERAGE_CENTI_MOVES)
+    ],
+)
+FEWEST_MOVES_PROFILE = Profile(
+    person=MATS_VALK, event_ids=[FEWEST_MOVES_EVENT_ID]
+)
+
 
 def _search_returning(persons):
     def _search(name):
@@ -146,18 +159,20 @@ def test_search_with_no_matches_shows_a_friendly_message():
     assert "No competitors found" in response.text
 
 
-def _get_records_page():
+def _get_records_page(
+    event_id=EVENT_ID, progressions=PROGRESSIONS, profile=MATS_VALK_PROFILE
+):
     app.dependency_overrides[get_progression_function] = (
-        lambda: _progression_returning(PROGRESSIONS)
+        lambda: _progression_returning(progressions)
     )
     app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
-        MATS_VALK_PROFILE
+        profile
     )
     try:
         client = TestClient(app)
         return client.get(
             RECORDS_ROUTE,
-            params={"wca_id": MATS_VALK.wca_id, "event_id": EVENT_ID},
+            params={"wca_id": profile.person.wca_id, "event_id": event_id},
         )
     finally:
         app.dependency_overrides.clear()
@@ -174,6 +189,21 @@ def test_records_embeds_both_single_and_average_progressions_as_chart_data():
     assert 'id="average-chart-data"' in response.text
     assert '"y": 1888' in response.text
     assert '"display": "18.88"' in response.text
+
+
+def test_records_formats_fewest_moves_as_move_counts():
+    response = _get_records_page(
+        event_id=FEWEST_MOVES_EVENT_ID,
+        progressions=FEWEST_MOVES_PROGRESSIONS,
+        profile=FEWEST_MOVES_PROFILE,
+    )
+
+    assert response.status_code == 200
+    assert "<td>24</td>" in response.text
+    assert "<td>27.33</td>" in response.text
+    assert 'data-result-unit="moves"' in response.text
+    assert '"y": 27.33' in response.text
+    assert '"display": "24"' in response.text
 
 
 def test_records_titles_the_chart_with_the_event_name():
