@@ -36,6 +36,7 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
                 type: "time",
                 title: { display: true, text: TIME_PROGRESSION_AXIS_LABEL },
                 ticks: { display: false },
+                grid: { display: false },
             },
             y: {
                 title: { display: true, text: TIME_AXIS_LABEL },
