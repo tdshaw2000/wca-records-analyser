@@ -18,6 +18,7 @@ SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
 EVENT_NAME = "3x3x3 Cube"
 DEFAULT_EVENT_ID = "333"
+STYLESHEET_PATH = "/static/styles.css"
 
 SINGLE_PROGRESSION = [
     RecordPoint(date="2023-11-18", value=1777),
@@ -80,6 +81,30 @@ def test_index_page_labels_the_search_field_as_name_or_wca_id():
 
     assert response.status_code == 200
     assert "Competitor (name or WCA ID)" in response.text
+
+
+def test_index_page_links_the_stylesheet():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert STYLESHEET_PATH in response.text
+
+
+def test_records_page_links_the_stylesheet():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert STYLESHEET_PATH in response.text
+
+
+def test_stylesheet_is_served():
+    client = TestClient(app)
+
+    response = client.get(STYLESHEET_PATH)
+
+    assert response.status_code == 200
 
 
 def test_search_links_each_competitor_to_their_default_event_records():
