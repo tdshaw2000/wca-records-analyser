@@ -16,9 +16,8 @@ from wca_records_analyser.records import (
     single_record_progression,
 )
 from wca_records_analyser.wca_client import (
-    get_competed_events,
     get_competition_dates,
-    get_person,
+    get_profile,
     get_results,
     search_persons,
 )
@@ -76,18 +75,9 @@ def get_search_function():
     return search_persons
 
 
-def get_events_function():
-    """Provide the function used to look up a competitor's events (overridable in tests)."""
-
-    def competitor_events(wca_id):
-        return named_events(get_competed_events(wca_id))
-
-    return competitor_events
-
-
-def get_person_function():
-    """Provide the function used to look up a competitor's identity (overridable in tests)."""
-    return get_person
+def get_profile_function():
+    """Provide the function used to look up a competitor's profile (overridable in tests)."""
+    return get_profile
 
 
 def get_progression_function():
@@ -137,11 +127,11 @@ def records(
     wca_id: str,
     event_id: str,
     progression_function=Depends(get_progression_function),
-    events_function=Depends(get_events_function),
-    person_function=Depends(get_person_function),
+    profile_function=Depends(get_profile_function),
 ):
     progressions = progression_function(wca_id, event_id)
-    person = person_function(wca_id)
+    profile = profile_function(wca_id)
+    person = profile.person
     return templates.TemplateResponse(
         request=request,
         name=RECORDS_TEMPLATE,
@@ -150,7 +140,7 @@ def records(
             NAME_CONTEXT_KEY: person.name,
             AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             EVENT_ID_CONTEXT_KEY: event_id,
-            EVENTS_CONTEXT_KEY: events_function(wca_id),
+            EVENTS_CONTEXT_KEY: named_events(profile.event_ids),
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
             EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
             SINGLE_PROGRESSION_CONTEXT_KEY: progressions.singles,
