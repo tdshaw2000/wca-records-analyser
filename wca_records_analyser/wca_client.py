@@ -15,6 +15,8 @@ PERSON_KEY = "person"
 PERSON_NAME_KEY = "name"
 PERSON_WCA_ID_KEY = "wca_id"
 PERSON_PROFILE_URL_KEY = "url"
+PERSON_AVATAR_KEY = "avatar"
+AVATAR_THUMBNAIL_URL_KEY = "thumb_url"
 RESULT_SINGLE_KEY = "best"
 RESULT_AVERAGE_KEY = "average"
 RESULT_COMPETITION_KEY = "competition_id"
@@ -30,6 +32,7 @@ class Person:
     name: str
     wca_id: str
     profile_url: str
+    avatar_thumb_url: str = ""
 
 
 @dataclass(frozen=True)
@@ -105,6 +108,7 @@ def _to_person(match):
         name=person[PERSON_NAME_KEY],
         wca_id=person[PERSON_WCA_ID_KEY],
         profile_url=person[PERSON_PROFILE_URL_KEY],
+        avatar_thumb_url=person[PERSON_AVATAR_KEY][AVATAR_THUMBNAIL_URL_KEY],
     )
 
 
