@@ -24,6 +24,7 @@
     </form>
 
     {% if single_progression or average_progression %}
+        <h2 class="chart-title">{{ event_name }}</h2>
         <section class="chart-card">
             <div class="chart-wrap">
                 <canvas id="record-progression"></canvas>

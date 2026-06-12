@@ -242,8 +242,12 @@ button:hover {
 
 /* Chart */
 
+.chart-title {
+    margin: 1.5rem 0 0.75rem;
+}
+
 .chart-card {
-    margin-top: 1.5rem;
+    margin-top: 0;
     padding: 1.25rem;
     background: var(--surface);
     border: 1px solid var(--border);

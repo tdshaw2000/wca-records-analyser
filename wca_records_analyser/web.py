@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import to_record_series
-from wca_records_analyser.events import named_events
+from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import format_time
 from wca_records_analyser.records import (
     average_record_progression,
@@ -45,6 +45,7 @@ NAME_CONTEXT_KEY = "name"
 EVENT_ID_CONTEXT_KEY = "event_id"
 EVENTS_CONTEXT_KEY = "events"
 PROFILE_URL_CONTEXT_KEY = "profile_url"
+EVENT_NAME_CONTEXT_KEY = "event_name"
 SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
 SINGLE_CHART_SERIES_CONTEXT_KEY = "single_chart_series"
@@ -149,6 +150,7 @@ def records(
             EVENT_ID_CONTEXT_KEY: event_id,
             EVENTS_CONTEXT_KEY: events_function(wca_id),
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
+            EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
             SINGLE_PROGRESSION_CONTEXT_KEY: progressions.singles,
             AVERAGE_PROGRESSION_CONTEXT_KEY: progressions.averages,
             SINGLE_CHART_SERIES_CONTEXT_KEY: to_record_series(progressions.singles),
