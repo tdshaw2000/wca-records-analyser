@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 
+from wca_records_analyser.events import Event
 from wca_records_analyser.records import RecordPoint
 from wca_records_analyser.web import (
     RecordProgressions,
     app,
+    get_events_function,
     get_progression_function,
     get_search_function,
 )
@@ -34,6 +36,11 @@ MATS_VALK = Person(
     wca_id="2007VALK01",
     profile_url="https://www.worldcubeassociation.org/persons/2007VALK01",
 )
+MATS_VALK_EVENTS = [
+    Event(event_id="222", name="2x2x2 Cube"),
+    Event(event_id="333", name="3x3x3 Cube"),
+]
+WCA_PROFILE_URL = "https://www.worldcubeassociation.org/persons/2007VALK01"
 
 
 def _search_returning(persons):
@@ -41,6 +48,13 @@ def _search_returning(persons):
         return persons
 
     return _search
+
+
+def _events_returning(events):
+    def _events(wca_id):
+        return events
+
+    return _events
 
 
 def _progression_returning(progressions):
@@ -96,6 +110,9 @@ def _get_records_page():
     app.dependency_overrides[get_progression_function] = (
         lambda: _progression_returning(PROGRESSIONS)
     )
+    app.dependency_overrides[get_events_function] = lambda: _events_returning(
+        MATS_VALK_EVENTS
+    )
     try:
         client = TestClient(app)
         return client.get(
@@ -138,3 +155,37 @@ def test_records_shows_a_table_of_the_average_record_progression():
     assert "average record progression" in response.text
     assert "21.77" in response.text
     assert "18.88" in response.text
+
+
+def test_records_shows_an_event_dropdown_posting_back_to_the_records_route():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert f'action="{RECORDS_ROUTE}"' in response.text
+    assert 'name="wca_id"' in response.text
+    assert f'value="{MATS_VALK.wca_id}"' in response.text
+    assert 'name="event_id"' in response.text
+    for event in MATS_VALK_EVENTS:
+        assert f'value="{event.event_id}"' in response.text
+        assert event.name in response.text
+
+
+def test_records_dropdown_preselects_the_current_event():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert f'value="{EVENT_ID}" selected' in response.text
+
+
+def test_records_dropdown_auto_submits_when_the_event_changes():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert "this.form.submit()" in response.text
+
+
+def test_records_links_to_the_competitors_wca_profile():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert WCA_PROFILE_URL in response.text
