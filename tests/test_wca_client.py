@@ -2,11 +2,13 @@ import httpx
 
 from wca_records_analyser.wca_client import (
     Person,
+    Profile,
     Result,
     WCA_API_BASE_URL,
     get_competed_events,
     get_competition_dates,
     get_person,
+    get_profile,
     get_results,
     search_persons,
 )
@@ -223,4 +225,32 @@ def test_get_person_requests_the_competitor_profile():
 
     get_person(WCA_ID, client=client)
 
+    assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
+
+
+def test_get_profile_returns_the_person_and_competed_events():
+    client = _client_returning(PERSON_DETAIL_RESPONSE)
+
+    profile = get_profile(WCA_ID, client=client)
+
+    assert profile == Profile(
+        person=Person(
+            name="Tim Shaw",
+            wca_id=WCA_ID,
+            profile_url=f"https://www.worldcubeassociation.org/persons/{WCA_ID}",
+            avatar_thumb_url=DETAIL_AVATAR_THUMB_URL,
+        ),
+        event_ids=COMPETED_EVENT_IDS,
+    )
+
+
+def test_get_profile_fetches_the_competitor_profile_once():
+    recorded_requests = []
+    client = _client_returning(
+        PERSON_DETAIL_RESPONSE, recorded_requests=recorded_requests
+    )
+
+    get_profile(WCA_ID, client=client)
+
+    assert len(recorded_requests) == 1
     assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
