@@ -17,6 +17,7 @@ RECORDS_ROUTE = "/records"
 SEARCH_NAME_PARAMETER = "name"
 SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
+EVENT_NAME = "3x3x3 Cube"
 DEFAULT_EVENT_ID = "333"
 STYLESHEET_PATH = "/static/styles.css"
 
@@ -178,6 +179,13 @@ def test_records_embeds_both_single_and_average_progressions_as_chart_data():
     assert 'id="average-chart-data"' in response.text
     assert '"y": 1888' in response.text
     assert '"display": "18.88"' in response.text
+
+
+def test_records_titles_the_chart_with_the_event_name():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert f'<h2 class="chart-title">{EVENT_NAME}</h2>' in response.text
 
 
 def test_records_shows_a_table_of_the_single_record_progression():
