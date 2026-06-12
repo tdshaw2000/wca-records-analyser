@@ -73,6 +73,15 @@ def test_index_page_shows_a_name_search_form():
     assert f'name="{SEARCH_NAME_PARAMETER}"' in response.text
 
 
+def test_index_page_labels_the_search_field_as_name_or_wca_id():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Competitor (name or WCA ID)" in response.text
+
+
 def test_search_links_each_competitor_to_their_default_event_records():
     app.dependency_overrides[get_search_function] = lambda: _search_returning(
         [MATS_VALK]
