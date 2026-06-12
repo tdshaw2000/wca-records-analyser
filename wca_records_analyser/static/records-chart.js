@@ -7,6 +7,7 @@ const SINGLE_COLOUR = "#2563eb";
 const AVERAGE_COLOUR = "#15803d";
 const DATE_AXIS_LABEL = "Date";
 const TIME_AXIS_LABEL = "Time";
+const DATE_AXIS_UNIT = "year";
 
 function readSeries(elementId) {
     return JSON.parse(document.getElementById(elementId).textContent);
@@ -34,6 +35,7 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
         scales: {
             x: {
                 type: "time",
+                time: { unit: DATE_AXIS_UNIT },
                 title: { display: true, text: DATE_AXIS_LABEL },
             },
             y: {
