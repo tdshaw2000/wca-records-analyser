@@ -42,6 +42,7 @@ SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 DEFAULT_EVENT_ID_CONTEXT_KEY = "default_event_id"
 WCA_ID_CONTEXT_KEY = "wca_id"
 NAME_CONTEXT_KEY = "name"
+AVATAR_THUMB_URL_CONTEXT_KEY = "avatar_thumb_url"
 EVENT_ID_CONTEXT_KEY = "event_id"
 EVENTS_CONTEXT_KEY = "events"
 PROFILE_URL_CONTEXT_KEY = "profile_url"
@@ -147,6 +148,7 @@ def records(
         context={
             WCA_ID_CONTEXT_KEY: wca_id,
             NAME_CONTEXT_KEY: person.name,
+            AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             EVENT_ID_CONTEXT_KEY: event_id,
             EVENTS_CONTEXT_KEY: events_function(wca_id),
             PROFILE_URL_CONTEXT_KEY: person.profile_url,

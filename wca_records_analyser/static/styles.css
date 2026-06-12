@@ -172,9 +172,25 @@ button:hover {
 .competitor {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 1rem;
     margin-bottom: 1.5rem;
+}
+
+.competitor-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.competitor-avatar {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    background: var(--accent-soft);
 }
 
 .competitor-name {
