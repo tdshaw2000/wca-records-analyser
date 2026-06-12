@@ -6,6 +6,7 @@ from wca_records_analyser.web import (
     RecordProgressions,
     app,
     get_events_function,
+    get_person_function,
     get_progression_function,
     get_search_function,
 )
@@ -63,6 +64,13 @@ def _progression_returning(progressions):
         return progressions
 
     return _progression
+
+
+def _person_returning(person):
+    def _person(wca_id):
+        return person
+
+    return _person
 
 
 def test_index_page_shows_a_name_search_form():
@@ -147,6 +155,9 @@ def _get_records_page():
     app.dependency_overrides[get_events_function] = lambda: _events_returning(
         MATS_VALK_EVENTS
     )
+    app.dependency_overrides[get_person_function] = lambda: _person_returning(
+        MATS_VALK
+    )
     try:
         client = TestClient(app)
         return client.get(
@@ -223,3 +234,19 @@ def test_records_links_to_the_competitors_wca_profile():
 
     assert response.status_code == 200
     assert WCA_PROFILE_URL in response.text
+
+
+def test_records_shows_the_competitor_identity():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert MATS_VALK.name in response.text
+    assert MATS_VALK.wca_id in response.text
+
+
+def test_records_opens_the_wca_profile_in_a_new_tab_safely():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert 'target="_blank"' in response.text
+    assert 'rel="noopener noreferrer"' in response.text
