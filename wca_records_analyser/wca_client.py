@@ -36,6 +36,14 @@ class Person:
 
 
 @dataclass(frozen=True)
+class Profile:
+    """A competitor's identity and the events they hold a personal record in."""
+
+    person: Person
+    event_ids: list
+
+
+@dataclass(frozen=True)
 class Result:
     """A competitor's single and average for one round, tied to its competition."""
 
@@ -87,6 +95,16 @@ def get_person(wca_id, client=None):
     endpoint = PERSON_PROFILE_ENDPOINT.format(wca_id=wca_id)
     profile = _get_json(endpoint, params=None, client=client)
     return _to_person(profile)
+
+
+def get_profile(wca_id, client=None):
+    """Return a competitor's identity and competed events from one profile fetch."""
+    endpoint = PERSON_PROFILE_ENDPOINT.format(wca_id=wca_id)
+    profile = _get_json(endpoint, params=None, client=client)
+    return Profile(
+        person=_to_person(profile),
+        event_ids=list(profile[PERSONAL_RECORDS_KEY]),
+    )
 
 
 def _get_json(endpoint, params, client):
