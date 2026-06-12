@@ -5,12 +5,11 @@ from wca_records_analyser.records import RecordPoint
 from wca_records_analyser.web import (
     RecordProgressions,
     app,
-    get_events_function,
-    get_person_function,
+    get_profile_function,
     get_progression_function,
     get_search_function,
 )
-from wca_records_analyser.wca_client import Person
+from wca_records_analyser.wca_client import Person, Profile
 
 SEARCH_ROUTE = "/search"
 RECORDS_ROUTE = "/records"
@@ -46,6 +45,8 @@ MATS_VALK_EVENTS = [
     Event(event_id="222", name="2x2x2 Cube"),
     Event(event_id="333", name="3x3x3 Cube"),
 ]
+MATS_VALK_EVENT_IDS = [event.event_id for event in MATS_VALK_EVENTS]
+MATS_VALK_PROFILE = Profile(person=MATS_VALK, event_ids=MATS_VALK_EVENT_IDS)
 WCA_PROFILE_URL = "https://www.worldcubeassociation.org/persons/2007VALK01"
 
 
@@ -56,13 +57,6 @@ def _search_returning(persons):
     return _search
 
 
-def _events_returning(events):
-    def _events(wca_id):
-        return events
-
-    return _events
-
-
 def _progression_returning(progressions):
     def _progression(wca_id, event_id):
         return progressions
@@ -70,11 +64,11 @@ def _progression_returning(progressions):
     return _progression
 
 
-def _person_returning(person):
-    def _person(wca_id):
-        return person
+def _profile_returning(profile):
+    def _profile(wca_id):
+        return profile
 
-    return _person
+    return _profile
 
 
 def test_index_page_shows_a_name_search_form():
@@ -156,11 +150,8 @@ def _get_records_page():
     app.dependency_overrides[get_progression_function] = (
         lambda: _progression_returning(PROGRESSIONS)
     )
-    app.dependency_overrides[get_events_function] = lambda: _events_returning(
-        MATS_VALK_EVENTS
-    )
-    app.dependency_overrides[get_person_function] = lambda: _person_returning(
-        MATS_VALK
+    app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
+        MATS_VALK_PROFILE
     )
     try:
         client = TestClient(app)
