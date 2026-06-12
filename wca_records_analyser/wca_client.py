@@ -83,20 +83,6 @@ def get_competition_dates(wca_id, client=None):
     }
 
 
-def get_competed_events(wca_id, client=None):
-    """Return the events a competitor holds a personal record in."""
-    endpoint = PERSON_PROFILE_ENDPOINT.format(wca_id=wca_id)
-    profile = _get_json(endpoint, params=None, client=client)
-    return list(profile[PERSONAL_RECORDS_KEY])
-
-
-def get_person(wca_id, client=None):
-    """Return a competitor's identity (name, WCA ID, profile URL)."""
-    endpoint = PERSON_PROFILE_ENDPOINT.format(wca_id=wca_id)
-    profile = _get_json(endpoint, params=None, client=client)
-    return _to_person(profile)
-
-
 def get_profile(wca_id, client=None):
     """Return a competitor's identity and competed events from one profile fetch."""
     endpoint = PERSON_PROFILE_ENDPOINT.format(wca_id=wca_id)
