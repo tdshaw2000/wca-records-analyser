@@ -43,6 +43,7 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
         plugins: {
             tooltip: {
                 callbacks: {
+                    title: (items) => items[0].raw.x,
                     label: (context) => context.raw.display,
                 },
             },
