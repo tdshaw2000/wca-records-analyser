@@ -18,6 +18,7 @@ from wca_records_analyser.records import (
 from wca_records_analyser.wca_client import (
     get_competed_events,
     get_competition_dates,
+    get_person,
     get_results,
     search_persons,
 )
@@ -36,11 +37,11 @@ STATIC_DIRECTORY = Path(__file__).parent / "static"
 # every competitor to 333, which yields empty progressions for those who have never
 # competed in 3x3x3. Revisit (e.g. pick their first competed event as the default).
 DEFAULT_EVENT_ID = "333"
-WCA_PROFILE_URL_TEMPLATE = "https://www.worldcubeassociation.org/persons/{wca_id}"
 RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 DEFAULT_EVENT_ID_CONTEXT_KEY = "default_event_id"
 WCA_ID_CONTEXT_KEY = "wca_id"
+NAME_CONTEXT_KEY = "name"
 EVENT_ID_CONTEXT_KEY = "event_id"
 EVENTS_CONTEXT_KEY = "events"
 PROFILE_URL_CONTEXT_KEY = "profile_url"
@@ -81,6 +82,11 @@ def get_events_function():
         return named_events(get_competed_events(wca_id))
 
     return competitor_events
+
+
+def get_person_function():
+    """Provide the function used to look up a competitor's identity (overridable in tests)."""
+    return get_person
 
 
 def get_progression_function():
@@ -131,16 +137,19 @@ def records(
     event_id: str,
     progression_function=Depends(get_progression_function),
     events_function=Depends(get_events_function),
+    person_function=Depends(get_person_function),
 ):
     progressions = progression_function(wca_id, event_id)
+    person = person_function(wca_id)
     return templates.TemplateResponse(
         request=request,
         name=RECORDS_TEMPLATE,
         context={
             WCA_ID_CONTEXT_KEY: wca_id,
+            NAME_CONTEXT_KEY: person.name,
             EVENT_ID_CONTEXT_KEY: event_id,
             EVENTS_CONTEXT_KEY: events_function(wca_id),
-            PROFILE_URL_CONTEXT_KEY: WCA_PROFILE_URL_TEMPLATE.format(wca_id=wca_id),
+            PROFILE_URL_CONTEXT_KEY: person.profile_url,
             EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
             SINGLE_PROGRESSION_CONTEXT_KEY: progressions.singles,
             AVERAGE_PROGRESSION_CONTEXT_KEY: progressions.averages,
