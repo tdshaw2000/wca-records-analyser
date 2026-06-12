@@ -1,22 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>WCA Records Analyser</title>
-</head>
-<body>
-    <h1>WCA Records Analyser</h1>
+{% extends "base.html" %}
 
-    <form action="/search" method="get">
-        <label for="name">Competitor (name or WCA ID)</label>
-        <input type="text" id="name" name="name" value="{{ searched_name or '' }}">
-        <button type="submit">Search</button>
+{% block content %}
+    <form class="search-form" action="/search" method="get">
+        <label class="field-label" for="name">Competitor (name or WCA ID)</label>
+        <div class="search-row">
+            <input type="text" id="name" name="name" value="{{ searched_name or '' }}">
+            <button type="submit">Search</button>
+        </div>
     </form>
 
     {% if results is not none %}
         {% if results %}
-            <ul>
+            <ul class="result-list">
                 {% for person in results %}
                     <li>
                         <a href="/records?wca_id={{ person.wca_id }}&event_id={{ default_event_id }}">{{ person.name }}</a>
@@ -24,8 +19,7 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>No competitors found for "{{ searched_name }}".</p>
+            <p class="empty-message">No competitors found for "{{ searched_name }}".</p>
         {% endif %}
     {% endif %}
-</body>
-</html>
+{% endblock %}

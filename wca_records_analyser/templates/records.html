@@ -1,16 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>WCA Records Analyser</title>
-</head>
-<body>
-    <h1>WCA Records Analyser</h1>
+{% extends "base.html" %}
 
-    <form action="/records" method="get">
+{% block content %}
+    <form class="event-form" action="/records" method="get">
         <input type="hidden" name="wca_id" value="{{ wca_id }}">
-        <label for="event_id">Puzzle</label>
+        <label class="field-label" for="event_id">Puzzle</label>
         <select id="event_id" name="event_id" onchange="this.form.submit()">
             {% for event in events %}
                 <option value="{{ event.event_id }}" {% if event.event_id == event_id %}selected{% endif %}>{{ event.name }}</option>
@@ -19,61 +12,71 @@
         <noscript><button type="submit">Show records</button></noscript>
     </form>
 
-    <p><a href="{{ profile_url }}">View WCA profile</a></p>
+    <p class="profile-link"><a href="{{ profile_url }}">View WCA profile</a></p>
 
     {% if single_progression or average_progression %}
-        <canvas id="record-progression"></canvas>
+        <section class="chart-card">
+            <canvas id="record-progression"></canvas>
+        </section>
         <script id="single-chart-data" type="application/json">{{ single_chart_series | tojson }}</script>
         <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
-        <script src="/static/vendor/chart.umd.js"></script>
-        <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
-        <script src="/static/records-chart.js"></script>
     {% endif %}
 
     <h2>{{ event_name }} single record progression</h2>
     {% if single_progression %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Single</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for record in single_progression %}
+        <div class="table-wrap">
+            <table>
+                <thead>
                     <tr>
-                        <td>{{ record.date }}</td>
-                        <td>{{ record.value | time }}</td>
+                        <th>Date</th>
+                        <th>Single</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for record in single_progression %}
+                        <tr>
+                            <td>{{ record.date }}</td>
+                            <td>{{ record.value | time }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% else %}
-        <p>No single personal records found for this event.</p>
+        <p class="empty-message">No single personal records found for this event.</p>
     {% endif %}
 
     <h2>{{ event_name }} average record progression</h2>
     {% if average_progression %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Average</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for record in average_progression %}
+        <div class="table-wrap">
+            <table>
+                <thead>
                     <tr>
-                        <td>{{ record.date }}</td>
-                        <td>{{ record.value | time }}</td>
+                        <th>Date</th>
+                        <th>Average</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for record in average_progression %}
+                        <tr>
+                            <td>{{ record.date }}</td>
+                            <td>{{ record.value | time }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% else %}
-        <p>No average personal records found for this event.</p>
+        <p class="empty-message">No average personal records found for this event.</p>
     {% endif %}
 
-    <p><a href="/">New search</a></p>
-</body>
-</html>
+    <p class="new-search"><a href="/">New search</a></p>
+{% endblock %}
+
+{% block scripts %}
+    {% if single_progression or average_progression %}
+        <script src="/static/vendor/chart.umd.js"></script>
+        <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
+        <script src="/static/records-chart.js"></script>
+    {% endif %}
+{% endblock %}
