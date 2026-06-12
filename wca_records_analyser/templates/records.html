@@ -15,7 +15,7 @@
     <form class="event-form" action="/records" method="get">
         <input type="hidden" name="wca_id" value="{{ wca_id }}">
         <label class="field-label" for="event_id">Puzzle</label>
-        <select id="event_id" name="event_id" onchange="this.form.submit()">
+        <select id="event_id" name="event_id" onchange="showChartLoading(); this.form.submit()">
             {% for event in events %}
                 <option value="{{ event.event_id }}" {% if event.event_id == event_id %}selected{% endif %}>{{ event.name }}</option>
             {% endfor %}
@@ -28,6 +28,9 @@
         <section class="chart-card">
             <div class="chart-wrap">
                 <canvas id="record-progression"></canvas>
+                <div class="chart-loading" id="chart-loading" aria-hidden="true">
+                    <div class="spinner"></div>
+                </div>
             </div>
         </section>
         <script id="single-chart-data" type="application/json">{{ single_chart_series | tojson }}</script>
@@ -90,6 +93,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="/static/records-loading.js"></script>
     {% if single_progression or average_progression %}
         <script src="/static/vendor/chart.umd.js"></script>
         <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
