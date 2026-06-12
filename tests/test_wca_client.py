@@ -15,6 +15,9 @@ SEARCH_NAME = "Mats Valk"
 EXPECTED_NAME = "Mats Valk"
 EXPECTED_WCA_ID = "2007VALK01"
 EXPECTED_PROFILE_URL = "https://www.worldcubeassociation.org/persons/2007VALK01"
+EXPECTED_AVATAR_THUMB_URL = (
+    "https://avatars.worldcubeassociation.org/2007VALK01_thumb.jpg"
+)
 
 SINGLE_PERSON_RESPONSE = [
     {
@@ -22,6 +25,7 @@ SINGLE_PERSON_RESPONSE = [
             "name": EXPECTED_NAME,
             "wca_id": EXPECTED_WCA_ID,
             "url": EXPECTED_PROFILE_URL,
+            "avatar": {"thumb_url": EXPECTED_AVATAR_THUMB_URL},
         }
     }
 ]
@@ -69,11 +73,15 @@ COMPETITIONS_RESPONSE = [
 ]
 
 COMPETED_EVENT_IDS = ["333", "222", "pyram"]
+DETAIL_AVATAR_THUMB_URL = (
+    f"https://avatars.worldcubeassociation.org/{WCA_ID}_thumb.jpg"
+)
 PERSON_DETAIL_RESPONSE = {
     "person": {
         "name": "Tim Shaw",
         "wca_id": WCA_ID,
         "url": f"https://www.worldcubeassociation.org/persons/{WCA_ID}",
+        "avatar": {"thumb_url": DETAIL_AVATAR_THUMB_URL},
     },
     "personal_records": {
         "333": {"single": {"best": 1355}, "average": {"best": 1646}},
@@ -103,6 +111,7 @@ def test_search_persons_returns_person_name_wca_id_and_profile_url():
             name=EXPECTED_NAME,
             wca_id=EXPECTED_WCA_ID,
             profile_url=EXPECTED_PROFILE_URL,
+            avatar_thumb_url=EXPECTED_AVATAR_THUMB_URL,
         )
     ]
 
@@ -202,6 +211,7 @@ def test_get_person_returns_the_competitor_identity():
         name="Tim Shaw",
         wca_id=WCA_ID,
         profile_url=f"https://www.worldcubeassociation.org/persons/{WCA_ID}",
+        avatar_thumb_url=DETAIL_AVATAR_THUMB_URL,
     )
 
 
