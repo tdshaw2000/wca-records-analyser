@@ -4,7 +4,7 @@ const CANVAS_ELEMENT_ID = "record-progression";
 const SINGLE_LABEL = "Personal record single";
 const AVERAGE_LABEL = "Personal record average";
 const SINGLE_COLOUR = "#2563eb";
-const AVERAGE_COLOUR = "#f59e0b";
+const AVERAGE_COLOUR = "#15803d";
 const DATE_AXIS_LABEL = "Date";
 const TIME_AXIS_LABEL = "Time";
 
