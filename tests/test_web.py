@@ -33,10 +33,14 @@ PROGRESSIONS = RecordProgressions(
     singles=SINGLE_PROGRESSION, averages=AVERAGE_PROGRESSION
 )
 
+MATS_VALK_AVATAR_THUMB_URL = (
+    "https://avatars.worldcubeassociation.org/2007VALK01_thumb.jpg"
+)
 MATS_VALK = Person(
     name="Mats Valk",
     wca_id="2007VALK01",
     profile_url="https://www.worldcubeassociation.org/persons/2007VALK01",
+    avatar_thumb_url=MATS_VALK_AVATAR_THUMB_URL,
 )
 MATS_VALK_EVENTS = [
     Event(event_id="222", name="2x2x2 Cube"),
@@ -248,6 +252,13 @@ def test_records_shows_the_competitor_identity():
     assert response.status_code == 200
     assert MATS_VALK.name in response.text
     assert MATS_VALK.wca_id in response.text
+
+
+def test_records_shows_the_competitor_avatar():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert f'src="{MATS_VALK_AVATAR_THUMB_URL}"' in response.text
 
 
 def test_records_opens_the_wca_profile_in_a_new_tab_safely():
