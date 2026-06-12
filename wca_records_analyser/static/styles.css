@@ -241,6 +241,25 @@ button:hover {
     box-shadow: var(--shadow);
 }
 
+/* Progression tables, side by side */
+
+.progressions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.progression h2 {
+    margin-top: 0;
+}
+
+@media (max-width: 560px) {
+    .progressions {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Tables */
 
 .table-wrap {

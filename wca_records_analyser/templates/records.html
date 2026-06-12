@@ -28,53 +28,59 @@
         <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
     {% endif %}
 
-    <h2>Single</h2>
-    {% if single_progression %}
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Single</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in single_progression %}
-                        <tr>
-                            <td>{{ record.date }}</td>
-                            <td>{{ record.value | time }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-message">No single personal records found for this event.</p>
-    {% endif %}
+    <div class="progressions">
+        <section class="progression">
+            <h2>Single</h2>
+            {% if single_progression %}
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Single</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in single_progression %}
+                                <tr>
+                                    <td>{{ record.date }}</td>
+                                    <td>{{ record.value | time }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-message">No single personal records found for this event.</p>
+            {% endif %}
+        </section>
 
-    <h2>Average</h2>
-    {% if average_progression %}
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Average</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in average_progression %}
-                        <tr>
-                            <td>{{ record.date }}</td>
-                            <td>{{ record.value | time }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <p class="empty-message">No average personal records found for this event.</p>
-    {% endif %}
+        <section class="progression">
+            <h2>Average</h2>
+            {% if average_progression %}
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Average</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in average_progression %}
+                                <tr>
+                                    <td>{{ record.date }}</td>
+                                    <td>{{ record.value | time }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="empty-message">No average personal records found for this event.</p>
+            {% endif %}
+        </section>
+    </div>
 
     <p class="new-search"><a href="/">New search</a></p>
 {% endblock %}
