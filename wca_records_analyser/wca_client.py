@@ -79,6 +79,13 @@ def get_competed_events(wca_id, client=None):
     return list(profile[PERSONAL_RECORDS_KEY])
 
 
+def get_person(wca_id, client=None):
+    """Return a competitor's identity (name, WCA ID, profile URL)."""
+    endpoint = PERSON_PROFILE_ENDPOINT.format(wca_id=wca_id)
+    profile = _get_json(endpoint, params=None, client=client)
+    return _to_person(profile)
+
+
 def _get_json(endpoint, params, client):
     owns_client = client is None
     if owns_client:
