@@ -5,9 +5,7 @@ from wca_records_analyser.wca_client import (
     Profile,
     Result,
     WCA_API_BASE_URL,
-    get_competed_events,
     get_competition_dates,
-    get_person,
     get_profile,
     get_results,
     search_persons,
@@ -183,49 +181,6 @@ def test_get_competition_dates_requests_the_competitions_for_the_competitor():
     assert (
         recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}/competitions"
     )
-
-
-def test_get_competed_events_returns_the_events_the_competitor_has_records_in():
-    client = _client_returning(PERSON_DETAIL_RESPONSE)
-
-    events = get_competed_events(WCA_ID, client=client)
-
-    assert events == COMPETED_EVENT_IDS
-
-
-def test_get_competed_events_requests_the_competitor_profile():
-    recorded_requests = []
-    client = _client_returning(
-        PERSON_DETAIL_RESPONSE, recorded_requests=recorded_requests
-    )
-
-    get_competed_events(WCA_ID, client=client)
-
-    assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
-
-
-def test_get_person_returns_the_competitor_identity():
-    client = _client_returning(PERSON_DETAIL_RESPONSE)
-
-    person = get_person(WCA_ID, client=client)
-
-    assert person == Person(
-        name="Tim Shaw",
-        wca_id=WCA_ID,
-        profile_url=f"https://www.worldcubeassociation.org/persons/{WCA_ID}",
-        avatar_thumb_url=DETAIL_AVATAR_THUMB_URL,
-    )
-
-
-def test_get_person_requests_the_competitor_profile():
-    recorded_requests = []
-    client = _client_returning(
-        PERSON_DETAIL_RESPONSE, recorded_requests=recorded_requests
-    )
-
-    get_person(WCA_ID, client=client)
-
-    assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
 
 
 def test_get_profile_returns_the_person_and_competed_events():
