@@ -3,8 +3,8 @@ const AVERAGE_CHART_DATA_ELEMENT_ID = "average-chart-data";
 const CANVAS_ELEMENT_ID = "record-progression";
 const SINGLE_LABEL = "Personal record single";
 const AVERAGE_LABEL = "Personal record average";
-const SINGLE_COLOUR = "#1f77b4";
-const AVERAGE_COLOUR = "#ff7f0e";
+const SINGLE_COLOUR = "#2563eb";
+const AVERAGE_COLOUR = "#f59e0b";
 const DATE_AXIS_LABEL = "Date";
 const TIME_AXIS_LABEL = "Time";
 
