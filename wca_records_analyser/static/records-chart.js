@@ -11,6 +11,7 @@ const CENTISECONDS_PER_SECOND = 100;
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PAD = 2;
 const RESULT_AXIS_PADDING_FRACTION = 0.05;
+const FADED_LEGEND_COLOUR = "rgba(31, 41, 51, 0.35)";
 
 function readSeries(elementId) {
     return JSON.parse(document.getElementById(elementId).textContent);
@@ -28,6 +29,19 @@ function resultBounds(points) {
 function dateBounds(points) {
     const dates = points.map((point) => point.x).sort();
     return { min: dates[0], max: dates[dates.length - 1] };
+}
+
+function fadeHiddenLegendLabels(chart) {
+    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+    for (const label of labels) {
+        if (!chart.isDatasetVisible(label.datasetIndex)) {
+            label.hidden = false;
+            label.fontColor = FADED_LEGEND_COLOUR;
+            label.fillStyle = FADED_LEGEND_COLOUR;
+            label.strokeStyle = FADED_LEGEND_COLOUR;
+        }
+    }
+    return labels;
 }
 
 function formatAxisTick(centiseconds) {
@@ -84,6 +98,9 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
             },
         },
         plugins: {
+            legend: {
+                labels: { generateLabels: fadeHiddenLegendLabels },
+            },
             tooltip: {
                 callbacks: {
                     title: (items) => items[0].raw.x,
