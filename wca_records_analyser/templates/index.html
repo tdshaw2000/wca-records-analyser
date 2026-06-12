@@ -17,18 +17,9 @@
     {% if results is not none %}
         {% if results %}
             <ul>
-                {% for competitor in results %}
+                {% for person in results %}
                     <li>
-                        <a href="{{ competitor.person.profile_url }}">{{ competitor.person.name }}</a>
-                        <form action="/records" method="get">
-                            <input type="hidden" name="wca_id" value="{{ competitor.person.wca_id }}">
-                            <select name="event_id">
-                                {% for event in competitor.events %}
-                                    <option value="{{ event.event_id }}">{{ event.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit">Show records</button>
-                        </form>
+                        <a href="/records?wca_id={{ person.wca_id }}&event_id={{ default_event_id }}">{{ person.name }}</a>
                     </li>
                 {% endfor %}
             </ul>

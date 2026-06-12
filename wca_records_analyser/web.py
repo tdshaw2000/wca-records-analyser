@@ -9,15 +9,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import to_record_series
-from wca_records_analyser.events import EVENT_NAMES, named_events
+from wca_records_analyser.events import EVENT_NAMES
 from wca_records_analyser.formatting import format_time
 from wca_records_analyser.records import (
     average_record_progression,
     single_record_progression,
 )
 from wca_records_analyser.wca_client import (
-    Person,
-    get_competed_events,
     get_competition_dates,
     get_results,
     search_persons,
@@ -33,8 +31,10 @@ TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
 STATIC_ROUTE = "/static"
 STATIC_NAME = "static"
 STATIC_DIRECTORY = Path(__file__).parent / "static"
+DEFAULT_EVENT_ID = "333"
 RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
+DEFAULT_EVENT_ID_CONTEXT_KEY = "default_event_id"
 EVENT_NAME_CONTEXT_KEY = "event_name"
 SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
@@ -53,14 +53,6 @@ templates.env.filters[TIME_FILTER] = format_time
 
 
 @dataclass(frozen=True)
-class CompetitorResult:
-    """A matching competitor together with the events they can be graphed on."""
-
-    person: Person
-    events: list
-
-
-@dataclass(frozen=True)
 class RecordProgressions:
     """A competitor's single and average PR progressions for one event."""
 
@@ -71,15 +63,6 @@ class RecordProgressions:
 def get_search_function():
     """Provide the function used to search for competitors (overridable in tests)."""
     return search_persons
-
-
-def get_events_function():
-    """Provide the function used to look up a competitor's events (overridable in tests)."""
-
-    def competitor_events(wca_id):
-        return named_events(get_competed_events(wca_id))
-
-    return competitor_events
 
 
 def get_progression_function():
@@ -103,6 +86,7 @@ def _render_index(request, searched_name, results):
         context={
             SEARCHED_NAME_CONTEXT_KEY: searched_name,
             RESULTS_CONTEXT_KEY: results,
+            DEFAULT_EVENT_ID_CONTEXT_KEY: DEFAULT_EVENT_ID,
         },
     )
 
@@ -117,12 +101,8 @@ def search(
     request: Request,
     name: str,
     search_function=Depends(get_search_function),
-    events_function=Depends(get_events_function),
 ):
-    results = [
-        CompetitorResult(person=person, events=events_function(person.wca_id))
-        for person in search_function(name)
-    ]
+    results = search_function(name)
     return _render_index(request, searched_name=name, results=results)
 
 
