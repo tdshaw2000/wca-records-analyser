@@ -28,7 +28,7 @@
         <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
     {% endif %}
 
-    <h2>{{ event_name }} single record progression</h2>
+    <h2>Single</h2>
     {% if single_progression %}
         <div class="table-wrap">
             <table>
@@ -52,7 +52,7 @@
         <p class="empty-message">No single personal records found for this event.</p>
     {% endif %}
 
-    <h2>{{ event_name }} average record progression</h2>
+    <h2>Average</h2>
     {% if average_progression %}
         <div class="table-wrap">
             <table>
