@@ -44,6 +44,8 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
         ],
     },
     options: {
+        responsive: true,
+        maintainAspectRatio: false,
         scales: {
             x: {
                 type: "time",

@@ -251,6 +251,11 @@ button:hover {
     box-shadow: var(--shadow);
 }
 
+.chart-wrap {
+    position: relative;
+    height: 360px;
+}
+
 /* Progression tables, side by side */
 
 .progressions {

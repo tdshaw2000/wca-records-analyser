@@ -25,7 +25,9 @@
 
     {% if single_progression or average_progression %}
         <section class="chart-card">
-            <canvas id="record-progression"></canvas>
+            <div class="chart-wrap">
+                <canvas id="record-progression"></canvas>
+            </div>
         </section>
         <script id="single-chart-data" type="application/json">{{ single_chart_series | tojson }}</script>
         <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
