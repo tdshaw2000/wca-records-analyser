@@ -145,7 +145,11 @@ def records(
             EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
             SINGLE_PROGRESSION_CONTEXT_KEY: progressions.singles,
             AVERAGE_PROGRESSION_CONTEXT_KEY: progressions.averages,
-            SINGLE_CHART_SERIES_CONTEXT_KEY: to_record_series(progressions.singles),
-            AVERAGE_CHART_SERIES_CONTEXT_KEY: to_record_series(progressions.averages),
+            SINGLE_CHART_SERIES_CONTEXT_KEY: to_record_series(
+                progressions.singles, event_id, is_average=False
+            ),
+            AVERAGE_CHART_SERIES_CONTEXT_KEY: to_record_series(
+                progressions.averages, event_id, is_average=True
+            ),
         },
     )
