@@ -10,9 +10,24 @@ const RESULT_AXIS_LABEL = "Result";
 const CENTISECONDS_PER_SECOND = 100;
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PAD = 2;
+const RESULT_AXIS_PADDING_FRACTION = 0.05;
 
 function readSeries(elementId) {
     return JSON.parse(document.getElementById(elementId).textContent);
+}
+
+function resultBounds(points) {
+    const values = points.map((point) => point.y);
+    const lowest = Math.min(...values);
+    const highest = Math.max(...values);
+    const range = highest - lowest;
+    const padding = (range || highest) * RESULT_AXIS_PADDING_FRACTION;
+    return { min: Math.max(0, lowest - padding), max: highest + padding };
+}
+
+function dateBounds(points) {
+    const dates = points.map((point) => point.x).sort();
+    return { min: dates[0], max: dates[dates.length - 1] };
 }
 
 function formatAxisTick(centiseconds) {
@@ -25,19 +40,25 @@ function formatAxisTick(centiseconds) {
     return String(seconds);
 }
 
+const singleSeries = readSeries(SINGLE_CHART_DATA_ELEMENT_ID);
+const averageSeries = readSeries(AVERAGE_CHART_DATA_ELEMENT_ID);
+const allPoints = [...singleSeries, ...averageSeries];
+const resultRange = resultBounds(allPoints);
+const dateRange = dateBounds(allPoints);
+
 new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
     type: "line",
     data: {
         datasets: [
             {
                 label: SINGLE_LABEL,
-                data: readSeries(SINGLE_CHART_DATA_ELEMENT_ID),
+                data: singleSeries,
                 borderColor: SINGLE_COLOUR,
                 backgroundColor: SINGLE_COLOUR,
             },
             {
                 label: AVERAGE_LABEL,
-                data: readSeries(AVERAGE_CHART_DATA_ELEMENT_ID),
+                data: averageSeries,
                 borderColor: AVERAGE_COLOUR,
                 backgroundColor: AVERAGE_COLOUR,
             },
@@ -49,11 +70,15 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
         scales: {
             x: {
                 type: "time",
+                min: dateRange.min,
+                max: dateRange.max,
                 title: { display: true, text: TIME_PROGRESSION_AXIS_LABEL },
                 ticks: { display: false },
                 grid: { display: false },
             },
             y: {
+                min: resultRange.min,
+                max: resultRange.max,
                 title: { display: true, text: RESULT_AXIS_LABEL },
                 ticks: { callback: (value) => formatAxisTick(value) },
             },
