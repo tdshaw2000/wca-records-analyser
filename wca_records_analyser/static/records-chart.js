@@ -7,9 +7,28 @@ const SINGLE_COLOUR = "#2563eb";
 const AVERAGE_COLOUR = "#15803d";
 const TIME_PROGRESSION_AXIS_LABEL = "Time →";
 const RESULT_AXIS_LABEL = "Result";
+const CENTISECONDS_PER_SECOND = 100;
+const SECONDS_PER_MINUTE = 60;
+const CENTISECONDS_PER_MINUTE = CENTISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+const HUNDREDTHS_PAD = 2;
+const SECONDS_PAD = 2;
 
 function readSeries(elementId) {
     return JSON.parse(document.getElementById(elementId).textContent);
+}
+
+function formatResult(centiseconds) {
+    const total = Math.round(centiseconds);
+    const minutes = Math.floor(total / CENTISECONDS_PER_MINUTE);
+    const withinMinute = total % CENTISECONDS_PER_MINUTE;
+    const seconds = Math.floor(withinMinute / CENTISECONDS_PER_SECOND);
+    const hundredths = withinMinute % CENTISECONDS_PER_SECOND;
+    const paddedHundredths = String(hundredths).padStart(HUNDREDTHS_PAD, "0");
+    if (minutes) {
+        const paddedSeconds = String(seconds).padStart(SECONDS_PAD, "0");
+        return `${minutes}:${paddedSeconds}.${paddedHundredths}`;
+    }
+    return `${seconds}.${paddedHundredths}`;
 }
 
 new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
@@ -40,6 +59,7 @@ new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
             },
             y: {
                 title: { display: true, text: RESULT_AXIS_LABEL },
+                ticks: { callback: (value) => formatResult(value) },
             },
         },
         plugins: {
