@@ -10,7 +10,11 @@ from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import to_record_series
 from wca_records_analyser.events import EVENT_NAMES, named_events
-from wca_records_analyser.formatting import format_time
+from wca_records_analyser.formatting import (
+    format_average,
+    format_single,
+    result_unit,
+)
 from wca_records_analyser.records import (
     average_record_progression,
     single_record_progression,
@@ -50,7 +54,9 @@ SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
 SINGLE_CHART_SERIES_CONTEXT_KEY = "single_chart_series"
 AVERAGE_CHART_SERIES_CONTEXT_KEY = "average_chart_series"
-TIME_FILTER = "time"
+RESULT_UNIT_CONTEXT_KEY = "result_unit"
+SINGLE_FILTER = "single"
+AVERAGE_FILTER = "average"
 
 app = FastAPI()
 app.mount(
@@ -59,7 +65,8 @@ app.mount(
     name=STATIC_NAME,
 )
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
-templates.env.filters[TIME_FILTER] = format_time
+templates.env.filters[SINGLE_FILTER] = format_single
+templates.env.filters[AVERAGE_FILTER] = format_average
 
 
 @dataclass(frozen=True)
@@ -151,5 +158,6 @@ def records(
             AVERAGE_CHART_SERIES_CONTEXT_KEY: to_record_series(
                 progressions.averages, event_id, is_average=True
             ),
+            RESULT_UNIT_CONTEXT_KEY: result_unit(event_id),
         },
     )

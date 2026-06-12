@@ -30,7 +30,7 @@
         <h2 class="chart-title">{{ event_name }}</h2>
         <section class="chart-card">
             <div class="chart-wrap">
-                <canvas id="record-progression"></canvas>
+                <canvas id="record-progression" data-result-unit="{{ result_unit }}"></canvas>
                 <div class="chart-loading" id="chart-loading" aria-hidden="true">
                     <div class="spinner"></div>
                 </div>
@@ -56,7 +56,7 @@
                             {% for record in single_progression %}
                                 <tr>
                                     <td>{{ record.date }}</td>
-                                    <td>{{ record.value | time }}</td>
+                                    <td>{{ record.value | single(event_id) }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -82,7 +82,7 @@
                             {% for record in average_progression %}
                                 <tr>
                                     <td>{{ record.date }}</td>
-                                    <td>{{ record.value | time }}</td>
+                                    <td>{{ record.value | average(event_id) }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>

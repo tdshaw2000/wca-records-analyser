@@ -12,6 +12,7 @@ const SECONDS_PER_MINUTE = 60;
 const SECONDS_PAD = 2;
 const RESULT_AXIS_PADDING_FRACTION = 0.05;
 const FADED_LEGEND_COLOUR = "rgba(31, 41, 51, 0.35)";
+const MOVES_UNIT = "moves";
 
 function readSeries(elementId) {
     return JSON.parse(document.getElementById(elementId).textContent);
@@ -44,8 +45,11 @@ function fadeHiddenLegendLabels(chart) {
     return labels;
 }
 
-function formatAxisTick(centiseconds) {
-    const totalSeconds = Math.round(centiseconds / CENTISECONDS_PER_SECOND);
+function formatAxisTick(value) {
+    if (resultUnit === MOVES_UNIT) {
+        return String(Math.round(value));
+    }
+    const totalSeconds = Math.round(value / CENTISECONDS_PER_SECOND);
     const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE);
     const seconds = totalSeconds % SECONDS_PER_MINUTE;
     if (minutes) {
@@ -54,13 +58,15 @@ function formatAxisTick(centiseconds) {
     return String(seconds);
 }
 
+const canvas = document.getElementById(CANVAS_ELEMENT_ID);
+const resultUnit = canvas.dataset.resultUnit;
 const singleSeries = readSeries(SINGLE_CHART_DATA_ELEMENT_ID);
 const averageSeries = readSeries(AVERAGE_CHART_DATA_ELEMENT_ID);
 const allPoints = [...singleSeries, ...averageSeries];
 const resultRange = resultBounds(allPoints);
 const dateRange = dateBounds(allPoints);
 
-new Chart(document.getElementById(CANVAS_ELEMENT_ID), {
+new Chart(canvas, {
     type: "line",
     data: {
         datasets: [
