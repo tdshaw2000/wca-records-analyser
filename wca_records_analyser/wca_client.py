@@ -34,6 +34,7 @@ PERSON_AVATAR_KEY = "avatar"
 AVATAR_THUMBNAIL_URL_KEY = "thumb_url"
 RESULT_SINGLE_KEY = "best"
 RESULT_AVERAGE_KEY = "average"
+RESULT_ATTEMPTS_KEY = "attempts"
 RESULT_COMPETITION_KEY = "competition_id"
 COMPETITION_ID_KEY = "id"
 COMPETITION_START_DATE_KEY = "start_date"
@@ -60,11 +61,16 @@ class Profile:
 
 @dataclass(frozen=True)
 class Result:
-    """A competitor's single and average for one round, tied to its competition."""
+    """A competitor's round result, tied to its competition.
+
+    ``single`` is the round's best solve and ``average`` its average; ``solves``
+    holds every individual attempt (raw centiseconds, including DNF/DNS sentinels).
+    """
 
     single: int
     competition_id: str
     average: int = 0
+    solves: tuple = ()
 
 
 def search_persons(name, client=None):
@@ -136,4 +142,5 @@ def _to_result(result):
         single=result[RESULT_SINGLE_KEY],
         average=result[RESULT_AVERAGE_KEY],
         competition_id=result[RESULT_COMPETITION_KEY],
+        solves=tuple(result[RESULT_ATTEMPTS_KEY]),
     )
