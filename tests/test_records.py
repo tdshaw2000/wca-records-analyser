@@ -1,6 +1,8 @@
 from wca_records_analyser.records import (
+    ConsistencyPoint,
     RecordPoint,
     average_record_progression,
+    consistency_over_time,
     personal_record_flags,
     single_record_progression,
 )
@@ -135,3 +137,76 @@ def test_average_record_progression_returns_chronological_average_records_only()
     )
 
     assert progression == EXPECTED_AVERAGE_PROGRESSION
+
+
+CONSISTENCY_EARLIEST_SINGLE = 1807
+CONSISTENCY_EARLIEST_AVERAGE = 2456
+CONSISTENCY_LATEST_SINGLE = 1498
+CONSISTENCY_LATEST_AVERAGE = 2012
+
+RESULTS_FOR_CONSISTENCY_OUT_OF_DATE_ORDER = [
+    Result(
+        single=CONSISTENCY_LATEST_SINGLE,
+        average=CONSISTENCY_LATEST_AVERAGE,
+        competition_id=LATEST_COMPETITION_ID,
+    ),
+    Result(
+        single=CONSISTENCY_EARLIEST_SINGLE,
+        average=CONSISTENCY_EARLIEST_AVERAGE,
+        competition_id=EARLIEST_COMPETITION_ID,
+    ),
+]
+EXPECTED_CONSISTENCY = [
+    ConsistencyPoint(
+        date=EARLIEST_DATE,
+        single=CONSISTENCY_EARLIEST_SINGLE,
+        average=CONSISTENCY_EARLIEST_AVERAGE,
+    ),
+    ConsistencyPoint(
+        date=LATEST_DATE,
+        single=CONSISTENCY_LATEST_SINGLE,
+        average=CONSISTENCY_LATEST_AVERAGE,
+    ),
+]
+
+
+def test_consistency_over_time_returns_a_chronological_point_per_full_result():
+    points = consistency_over_time(
+        RESULTS_FOR_CONSISTENCY_OUT_OF_DATE_ORDER, COMPETITION_DATES
+    )
+
+    assert points == EXPECTED_CONSISTENCY
+
+
+RESULTS_WITH_MISSING_METRICS = [
+    Result(
+        single=DID_NOT_FINISH,
+        average=CONSISTENCY_EARLIEST_AVERAGE,
+        competition_id=EARLIEST_COMPETITION_ID,
+    ),
+    Result(
+        single=CONSISTENCY_LATEST_SINGLE,
+        average=DID_NOT_FINISH,
+        competition_id=LATEST_COMPETITION_ID,
+    ),
+    Result(
+        single=CONSISTENCY_LATEST_SINGLE,
+        average=CONSISTENCY_LATEST_AVERAGE,
+        competition_id=MIDDLE_COMPETITION_ID,
+    ),
+]
+EXPECTED_CONSISTENCY_AFTER_SKIPPING = [
+    ConsistencyPoint(
+        date=MIDDLE_DATE,
+        single=CONSISTENCY_LATEST_SINGLE,
+        average=CONSISTENCY_LATEST_AVERAGE,
+    ),
+]
+
+
+def test_consistency_over_time_skips_results_missing_a_single_or_average():
+    points = consistency_over_time(
+        RESULTS_WITH_MISSING_METRICS, COMPETITION_DATES
+    )
+
+    assert points == EXPECTED_CONSISTENCY_AFTER_SKIPPING
