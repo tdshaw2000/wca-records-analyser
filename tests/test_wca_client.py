@@ -42,11 +42,14 @@ FIRST_SINGLE = 1807
 SECOND_SINGLE = 1498
 FIRST_AVERAGE = 2177
 SECOND_AVERAGE = 1646
+FIRST_ATTEMPTS = [FIRST_SINGLE, 2100, 1950, 2200, 2050]
+SECOND_ATTEMPTS = [SECOND_SINGLE, 1600, 1700, 1550, 1650]
 
 RESULTS_RESPONSE = [
     {
         "best": FIRST_SINGLE,
         "average": FIRST_AVERAGE,
+        "attempts": FIRST_ATTEMPTS,
         "event_id": EVENT_ID,
         "competition_id": FIRST_COMPETITION_ID,
         "round_type_id": "d",
@@ -54,6 +57,7 @@ RESULTS_RESPONSE = [
     {
         "best": SECOND_SINGLE,
         "average": SECOND_AVERAGE,
+        "attempts": SECOND_ATTEMPTS,
         "event_id": EVENT_ID,
         "competition_id": SECOND_COMPETITION_ID,
         "round_type_id": "f",
@@ -145,11 +149,13 @@ def test_get_results_returns_single_average_and_competition_for_each_result():
             single=FIRST_SINGLE,
             average=FIRST_AVERAGE,
             competition_id=FIRST_COMPETITION_ID,
+            solves=tuple(FIRST_ATTEMPTS),
         ),
         Result(
             single=SECOND_SINGLE,
             average=SECOND_AVERAGE,
             competition_id=SECOND_COMPETITION_ID,
+            solves=tuple(SECOND_ATTEMPTS),
         ),
     ]
 
