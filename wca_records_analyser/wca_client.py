@@ -3,6 +3,21 @@
 from dataclasses import dataclass
 
 import httpx
+import truststore
+
+
+def use_operating_system_trust_store() -> None:
+    """Verify TLS against the OS certificate store rather than certifi's bundle.
+
+    httpx defaults to certifi's public root list, which omits any private root a
+    TLS-inspecting proxy presents (e.g. a corporate Zscaler CA installed into the
+    OS store). Honouring the OS store lets verification succeed wherever the host
+    trusts the issuer, with no environment variables to set.
+    """
+    truststore.inject_into_ssl()
+
+
+use_operating_system_trust_store()
 
 WCA_API_BASE_URL = "https://www.worldcubeassociation.org/api/v0"
 PERSONS_SEARCH_ENDPOINT = "/persons"
