@@ -226,6 +226,8 @@ button:hover {
 
 .profile-link::before {
     content: "·";
+    /* inline-block keeps the separator out of the link's hover underline. */
+    display: inline-block;
     margin-right: 0.55rem;
     color: var(--border);
 }
