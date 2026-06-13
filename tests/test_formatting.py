@@ -1,5 +1,6 @@
 from wca_records_analyser.formatting import (
     format_average,
+    format_consistency,
     format_single,
     format_time,
     result_unit,
@@ -47,3 +48,15 @@ def test_result_unit_is_time_for_timed_events():
 
 def test_result_unit_is_moves_for_fewest_moves():
     assert result_unit(FEWEST_MOVES_EVENT_ID) == "moves"
+
+
+PERFECT_CONSISTENCY_RATIO = 1.0
+SPIKY_CONSISTENCY_RATIO = 1.359158
+
+
+def test_format_consistency_shows_the_ratio_to_two_decimals_with_a_times_sign():
+    assert format_consistency(SPIKY_CONSISTENCY_RATIO) == "1.36×"
+
+
+def test_format_consistency_of_a_perfectly_consistent_ratio():
+    assert format_consistency(PERFECT_CONSISTENCY_RATIO) == "1.00×"
