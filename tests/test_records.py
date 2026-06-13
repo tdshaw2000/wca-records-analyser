@@ -1,12 +1,12 @@
 from wca_records_analyser.records import (
     ConsistencyPoint,
     RecordPoint,
+    all_solves_over_time,
     average_record_progression,
     average_results_over_time,
     consistency_over_time,
     personal_record_flags,
     single_record_progression,
-    single_results_over_time,
 )
 from wca_records_analyser.wca_client import Result
 
@@ -214,19 +214,58 @@ def test_consistency_over_time_skips_results_missing_a_single_or_average():
     assert points == EXPECTED_CONSISTENCY_AFTER_SKIPPING
 
 
-EXPECTED_ALL_SINGLES = [
+EARLIEST_SOLVES = (EARLIEST_SINGLE, 2100, DID_NOT_FINISH, 1950, 2050)
+LATEST_SOLVES = (LATEST_SINGLE, 1600, 1700)
+RESULTS_WITH_SOLVES_OUT_OF_DATE_ORDER = [
+    Result(
+        single=LATEST_SINGLE,
+        competition_id=LATEST_COMPETITION_ID,
+        solves=LATEST_SOLVES,
+    ),
+    Result(
+        single=EARLIEST_SINGLE,
+        competition_id=EARLIEST_COMPETITION_ID,
+        solves=EARLIEST_SOLVES,
+    ),
+]
+EXPECTED_ALL_SOLVES = [
     RecordPoint(date=EARLIEST_DATE, value=EARLIEST_SINGLE),
-    RecordPoint(date=MIDDLE_DATE, value=MIDDLE_SINGLE),
+    RecordPoint(date=EARLIEST_DATE, value=2100),
+    RecordPoint(date=EARLIEST_DATE, value=1950),
+    RecordPoint(date=EARLIEST_DATE, value=2050),
     RecordPoint(date=LATEST_DATE, value=LATEST_SINGLE),
+    RecordPoint(date=LATEST_DATE, value=1600),
+    RecordPoint(date=LATEST_DATE, value=1700),
 ]
 
 
-def test_single_results_over_time_keeps_every_attempt_including_non_records():
-    points = single_results_over_time(
-        RESULTS_OUT_OF_DATE_ORDER, COMPETITION_DATES
+def test_all_solves_over_time_keeps_every_solve_chronologically():
+    points = all_solves_over_time(
+        RESULTS_WITH_SOLVES_OUT_OF_DATE_ORDER, COMPETITION_DATES_FOR_ONE_DATE
     )
 
-    assert points == EXPECTED_ALL_SINGLES
+    assert points == EXPECTED_ALL_SOLVES
+
+
+SOLVES_WITH_NON_RESULTS = (DID_NOT_FINISH, DID_NOT_START, 0, EARLIEST_SINGLE)
+RESULTS_WITH_NON_RESULT_SOLVES = [
+    Result(
+        single=EARLIEST_SINGLE,
+        competition_id=EARLIEST_COMPETITION_ID,
+        solves=SOLVES_WITH_NON_RESULTS,
+    ),
+]
+EXPECTED_SOLVES_AFTER_SKIPPING = [
+    RecordPoint(date=EARLIEST_DATE, value=EARLIEST_SINGLE),
+]
+
+
+def test_all_solves_over_time_skips_did_not_finish_did_not_start_and_unused():
+    points = all_solves_over_time(
+        RESULTS_WITH_NON_RESULT_SOLVES, COMPETITION_DATES_FOR_ONE_DATE
+    )
+
+    assert points == EXPECTED_SOLVES_AFTER_SKIPPING
 
 
 EXPECTED_ALL_AVERAGES = [
@@ -244,22 +283,10 @@ def test_average_results_over_time_keeps_every_attempt_including_non_records():
     assert points == EXPECTED_ALL_AVERAGES
 
 
-EXPECTED_ALL_SINGLES_AFTER_SKIPPING = [
-    RecordPoint(date=MIDDLE_DATE, value=CONSISTENCY_LATEST_SINGLE),
-    RecordPoint(date=LATEST_DATE, value=CONSISTENCY_LATEST_SINGLE),
-]
 EXPECTED_ALL_AVERAGES_AFTER_SKIPPING = [
     RecordPoint(date=EARLIEST_DATE, value=CONSISTENCY_EARLIEST_AVERAGE),
     RecordPoint(date=MIDDLE_DATE, value=CONSISTENCY_LATEST_AVERAGE),
 ]
-
-
-def test_single_results_over_time_skips_did_not_finish_singles():
-    points = single_results_over_time(
-        RESULTS_WITH_MISSING_METRICS, COMPETITION_DATES
-    )
-
-    assert points == EXPECTED_ALL_SINGLES_AFTER_SKIPPING
 
 
 def test_average_results_over_time_skips_did_not_finish_averages():
