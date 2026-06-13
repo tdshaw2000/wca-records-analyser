@@ -1,5 +1,5 @@
-from wca_records_analyser.chart import to_record_series
-from wca_records_analyser.records import RecordPoint
+from wca_records_analyser.chart import to_consistency_series, to_record_series
+from wca_records_analyser.records import ConsistencyPoint, RecordPoint
 
 THREE_BY_THREE_EVENT_ID = "333"
 FEWEST_MOVES_EVENT_ID = "333fm"
@@ -60,4 +60,56 @@ def test_to_record_series_scales_fewest_moves_average_to_moves():
             "y": FEWEST_MOVES_AVERAGE_MOVES,
             "display": "27.33",
         }
+    ]
+
+
+CONSISTENCY_EARLIEST_SINGLE = 1807
+CONSISTENCY_EARLIEST_AVERAGE = 2456
+CONSISTENCY_LATEST_SINGLE = 1498
+CONSISTENCY_LATEST_AVERAGE = 2012
+
+CONSISTENCY_POINTS = [
+    ConsistencyPoint(
+        date=EARLIEST_DATE,
+        single=CONSISTENCY_EARLIEST_SINGLE,
+        average=CONSISTENCY_EARLIEST_AVERAGE,
+    ),
+    ConsistencyPoint(
+        date=LATEST_DATE,
+        single=CONSISTENCY_LATEST_SINGLE,
+        average=CONSISTENCY_LATEST_AVERAGE,
+    ),
+]
+EXPECTED_CONSISTENCY_SERIES = [
+    {"x": EARLIEST_DATE, "y": 1.359, "display": "1.36×"},
+    {"x": LATEST_DATE, "y": 1.343, "display": "1.34×"},
+]
+
+
+def test_to_consistency_series_plots_the_average_to_single_ratio():
+    assert (
+        to_consistency_series(CONSISTENCY_POINTS, THREE_BY_THREE_EVENT_ID)
+        == EXPECTED_CONSISTENCY_SERIES
+    )
+
+
+def test_to_consistency_series_of_no_points_is_empty():
+    assert to_consistency_series([], THREE_BY_THREE_EVENT_ID) == []
+
+
+FEWEST_MOVES_CONSISTENCY_SINGLE_MOVES = 24
+FEWEST_MOVES_CONSISTENCY_AVERAGE_CENTI_MOVES = 2733
+
+
+def test_to_consistency_series_scales_fewest_moves_average_before_the_ratio():
+    points = [
+        ConsistencyPoint(
+            date=FEWEST_MOVES_DATE,
+            single=FEWEST_MOVES_CONSISTENCY_SINGLE_MOVES,
+            average=FEWEST_MOVES_CONSISTENCY_AVERAGE_CENTI_MOVES,
+        )
+    ]
+
+    assert to_consistency_series(points, FEWEST_MOVES_EVENT_ID) == [
+        {"x": FEWEST_MOVES_DATE, "y": 1.139, "display": "1.14×"}
     ]
