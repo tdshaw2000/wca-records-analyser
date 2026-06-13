@@ -1,6 +1,6 @@
 """Web page for searching World Cube Association competitors by name."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from wca_records_analyser.chart import to_record_series
+from wca_records_analyser.chart import to_consistency_series, to_record_series
 from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import (
     format_average,
@@ -17,6 +17,7 @@ from wca_records_analyser.formatting import (
 )
 from wca_records_analyser.records import (
     average_record_progression,
+    consistency_over_time,
     single_record_progression,
 )
 from wca_records_analyser.wca_client import (
@@ -54,6 +55,7 @@ SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
 SINGLE_CHART_SERIES_CONTEXT_KEY = "single_chart_series"
 AVERAGE_CHART_SERIES_CONTEXT_KEY = "average_chart_series"
+CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
 RESULT_UNIT_CONTEXT_KEY = "result_unit"
 SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
@@ -71,10 +73,11 @@ templates.env.filters[AVERAGE_FILTER] = format_average
 
 @dataclass(frozen=True)
 class RecordProgressions:
-    """A competitor's single and average PR progressions for one event."""
+    """A competitor's single and average PR progressions, plus per-sitting consistency."""
 
     singles: list
     averages: list
+    consistency: list = field(default_factory=list)
 
 
 def get_search_function():
@@ -96,6 +99,7 @@ def get_progression_function():
         return RecordProgressions(
             singles=single_record_progression(results, competition_dates),
             averages=average_record_progression(results, competition_dates),
+            consistency=consistency_over_time(results, competition_dates),
         )
 
     return record_progression
@@ -157,6 +161,9 @@ def records(
             ),
             AVERAGE_CHART_SERIES_CONTEXT_KEY: to_record_series(
                 progressions.averages, event_id, is_average=True
+            ),
+            CONSISTENCY_SERIES_CONTEXT_KEY: to_consistency_series(
+                progressions.consistency, event_id
             ),
             RESULT_UNIT_CONTEXT_KEY: result_unit(event_id),
         },

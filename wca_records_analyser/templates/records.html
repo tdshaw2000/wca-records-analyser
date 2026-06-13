@@ -40,6 +40,17 @@
         <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
     {% endif %}
 
+    {% if consistency_series %}
+        <h2 class="chart-title">Consistency</h2>
+        <p class="chart-subtitle">How close each average was to its single — lower (nearer 1.00×) means a more reliable set of solves.</p>
+        <section class="chart-card">
+            <div class="chart-wrap">
+                <canvas id="consistency-progression"></canvas>
+            </div>
+        </section>
+        <script id="consistency-chart-data" type="application/json">{{ consistency_series | tojson }}</script>
+    {% endif %}
+
     <div class="progressions">
         <section class="progression">
             <h2>Single</h2>
