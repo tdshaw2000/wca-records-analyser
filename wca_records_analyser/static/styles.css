@@ -262,6 +262,12 @@ button:hover {
     margin: 1.5rem 0 0.75rem;
 }
 
+.chart-subtitle {
+    margin: -0.5rem 0 0.75rem;
+    color: var(--muted-text);
+    font-size: 0.9rem;
+}
+
 .chart-card {
     margin-top: 0;
     padding: 1.25rem;
