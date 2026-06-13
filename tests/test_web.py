@@ -1,7 +1,9 @@
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from wca_records_analyser.events import Event
-from wca_records_analyser.records import RecordPoint
+from wca_records_analyser.records import ConsistencyPoint, RecordPoint
 from wca_records_analyser.web import (
     RecordProgressions,
     app,
@@ -31,6 +33,17 @@ AVERAGE_PROGRESSION = [
 PROGRESSIONS = RecordProgressions(
     singles=SINGLE_PROGRESSION, averages=AVERAGE_PROGRESSION
 )
+
+CONSISTENCY_POINTS = [
+    ConsistencyPoint(date="2023-11-18", single=1777, average=2177),
+    ConsistencyPoint(date="2024-11-01", single=1498, average=1888),
+]
+PROGRESSIONS_WITH_CONSISTENCY = SimpleNamespace(
+    singles=SINGLE_PROGRESSION,
+    averages=AVERAGE_PROGRESSION,
+    consistency=CONSISTENCY_POINTS,
+)
+EXPECTED_CONSISTENCY_RATIO = 1.26
 
 MATS_VALK_AVATAR_THUMB_URL = (
     "https://avatars.worldcubeassociation.org/2007VALK01_thumb.jpg"
@@ -288,3 +301,12 @@ def test_records_opens_the_wca_profile_in_a_new_tab_safely():
     assert response.status_code == 200
     assert 'target="_blank"' in response.text
     assert 'rel="noopener noreferrer"' in response.text
+
+
+def test_records_embeds_the_consistency_series_as_chart_data():
+    response = _get_records_page(progressions=PROGRESSIONS_WITH_CONSISTENCY)
+
+    assert response.status_code == 200
+    assert 'id="consistency-chart-data"' in response.text
+    assert 'id="consistency-progression"' in response.text
+    assert f'"y": {EXPECTED_CONSISTENCY_RATIO}' in response.text
