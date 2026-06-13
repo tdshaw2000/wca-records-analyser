@@ -16,6 +16,8 @@
     const RESULT_AXIS_PADDING_FRACTION = 0.05;
     const FADED_LEGEND_COLOUR = "rgba(31, 41, 51, 0.35)";
     const MOVES_UNIT = "moves";
+    const POINT_RADIUS = 3;
+    const POINT_HOVER_RADIUS = 5;
 
     const canvas = document.getElementById(SCATTER_CANVAS_ELEMENT_ID);
     const singleDataElement = document.getElementById(
@@ -81,8 +83,11 @@
     const resultRange = resultBounds(allPoints);
     const dateRange = dateBounds(allPoints);
 
+    // Drawn as a line chart with the connecting line hidden: this reuses the
+    // record chart's proven config, whereas Chart.js's scatter controller
+    // mis-parses the string dates on a time axis and silently drops points.
     new Chart(canvas, {
-        type: "scatter",
+        type: "line",
         data: {
             datasets: [
                 {
@@ -90,12 +95,18 @@
                     data: singleSeries,
                     borderColor: SINGLE_COLOUR,
                     backgroundColor: SINGLE_COLOUR,
+                    showLine: false,
+                    pointRadius: POINT_RADIUS,
+                    pointHoverRadius: POINT_HOVER_RADIUS,
                 },
                 {
                     label: AVERAGE_LABEL,
                     data: averageSeries,
                     borderColor: AVERAGE_COLOUR,
                     backgroundColor: AVERAGE_COLOUR,
+                    showLine: false,
+                    pointRadius: POINT_RADIUS,
+                    pointHoverRadius: POINT_HOVER_RADIUS,
                 },
             ],
         },
