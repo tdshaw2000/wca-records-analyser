@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: wca-records-analyser
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./Dockerfile
+    # The app reads $PORT (Render injects it) and serves the homepage at /,
+    # which doubles as the health check. No env vars are required: truststore
+    # verifies TLS against the container's OS trust store at import.
+    healthCheckPath: /
+    autoDeploy: true
