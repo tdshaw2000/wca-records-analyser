@@ -37,7 +37,7 @@ Each module owns one concern; keep HTTP, analysis, presentation, and web wiring 
 ## running and testing
 
 - **Tests:** `.venv/bin/python -m pytest`
-- **Run the app:** `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt .venv/bin/python -m uvicorn wca_records_analyser.web:app`. The `SSL_CERT_FILE` is required on this host or httpx fails TLS verification on live API calls (custom proxy CA absent from certifi).
+- **Run the app:** `.venv/bin/python -m uvicorn wca_records_analyser.web:app`. TLS to the live API works without any extra environment: `wca_client` calls `truststore.inject_into_ssl()` at import, so httpx verifies against the OS trust store (which holds the host's Zscaler proxy CA) instead of certifi's bundle.
 
 ## test-driven development
 
