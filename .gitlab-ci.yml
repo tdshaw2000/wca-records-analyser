@@ -43,20 +43,6 @@ deploy:
       -e "SSL_CERT_FILE=$HOST_CA_BUNDLE"
       "$IMAGE_NAME:latest"
 
-# Triggers a Render deploy via its Deploy Hook, but only after the test stage
-# passes on the default branch — so a red pipeline cannot reach the live Render
-# site. Render's own push auto-deploy is OFF (autoDeploy: false in render.yaml),
-# making this the single gated path to production. RENDER_DEPLOY_HOOK_URL is a
-# masked CI/CD variable holding the hook URL (Render service > Settings > Deploy Hook).
-deploy_render:
-  stage: deploy
-  tags:
-    - wsl-docker
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  script:
-    - curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
-
 # Manually stop and remove the deployed container. Triggered on demand from the
 # GitLab pipeline UI (a play button); never runs automatically and does not
 # block the pipeline. "docker rm -f" overrides the "unless-stopped" restart
