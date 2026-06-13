@@ -41,9 +41,31 @@ CONSISTENCY_POINTS = [
 PROGRESSIONS_WITH_CONSISTENCY = SimpleNamespace(
     singles=SINGLE_PROGRESSION,
     averages=AVERAGE_PROGRESSION,
+    all_singles=[],
+    all_averages=[],
     consistency=CONSISTENCY_POINTS,
 )
 EXPECTED_CONSISTENCY_RATIO = 1.26
+
+NON_RECORD_SINGLE = 2050
+NON_RECORD_AVERAGE = 2400
+ALL_SINGLES = [
+    RecordPoint(date="2023-11-18", value=1777),
+    RecordPoint(date="2024-06-01", value=NON_RECORD_SINGLE),
+    RecordPoint(date="2024-11-01", value=1498),
+]
+ALL_AVERAGES = [
+    RecordPoint(date="2023-11-18", value=2177),
+    RecordPoint(date="2024-06-01", value=NON_RECORD_AVERAGE),
+    RecordPoint(date="2024-11-01", value=1888),
+]
+PROGRESSIONS_WITH_ALL_RESULTS = SimpleNamespace(
+    singles=SINGLE_PROGRESSION,
+    averages=AVERAGE_PROGRESSION,
+    all_singles=ALL_SINGLES,
+    all_averages=ALL_AVERAGES,
+    consistency=[],
+)
 
 MATS_VALK_AVATAR_THUMB_URL = (
     "https://avatars.worldcubeassociation.org/2007VALK01_thumb.jpg"
@@ -301,6 +323,17 @@ def test_records_opens_the_wca_profile_in_a_new_tab_safely():
     assert response.status_code == 200
     assert 'target="_blank"' in response.text
     assert 'rel="noopener noreferrer"' in response.text
+
+
+def test_records_embeds_all_results_as_scatter_chart_data():
+    response = _get_records_page(progressions=PROGRESSIONS_WITH_ALL_RESULTS)
+
+    assert response.status_code == 200
+    assert 'id="all-results-scatter"' in response.text
+    assert 'id="all-singles-scatter-data"' in response.text
+    assert 'id="all-averages-scatter-data"' in response.text
+    assert f'"y": {NON_RECORD_SINGLE}' in response.text
+    assert f'"y": {NON_RECORD_AVERAGE}' in response.text
 
 
 def test_records_embeds_the_consistency_series_as_chart_data():
