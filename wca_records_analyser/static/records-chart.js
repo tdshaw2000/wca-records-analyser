@@ -1,8 +1,8 @@
 const SINGLE_CHART_DATA_ELEMENT_ID = "single-chart-data";
 const AVERAGE_CHART_DATA_ELEMENT_ID = "average-chart-data";
 const CANVAS_ELEMENT_ID = "record-progression";
-const SINGLE_LABEL = "Personal record single";
-const AVERAGE_LABEL = "Personal record average";
+const SINGLE_LABEL = "Single";
+const AVERAGE_LABEL = "Average";
 const SINGLE_COLOUR = "#2563eb";
 const AVERAGE_COLOUR = "#449964";
 const TIME_PROGRESSION_AXIS_LABEL = "Time →";
