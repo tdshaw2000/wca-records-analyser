@@ -24,7 +24,7 @@ dev = [
 include = ["wca_records_analyser*"]
 
 [tool.setuptools.package-data]
-wca_records_analyser = ["templates/*.html"]
+wca_records_analyser = ["templates/*.html", "static/*", "static/vendor/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
