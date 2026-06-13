@@ -16,11 +16,11 @@ from wca_records_analyser.formatting import (
     result_unit,
 )
 from wca_records_analyser.records import (
+    all_solves_over_time,
     average_record_progression,
     average_results_over_time,
     consistency_over_time,
     single_record_progression,
-    single_results_over_time,
 )
 from wca_records_analyser.wca_client import (
     get_competition_dates,
@@ -105,7 +105,7 @@ def get_progression_function():
         return RecordProgressions(
             singles=single_record_progression(results, competition_dates),
             averages=average_record_progression(results, competition_dates),
-            all_singles=single_results_over_time(results, competition_dates),
+            all_singles=all_solves_over_time(results, competition_dates),
             all_averages=average_results_over_time(results, competition_dates),
             consistency=consistency_over_time(results, competition_dates),
         )

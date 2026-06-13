@@ -51,11 +51,25 @@ def average_record_progression(results, competition_dates):
     )
 
 
-def single_results_over_time(results, competition_dates):
-    """Return every attempted single, with its date, in chronological order."""
-    return _results_over_time(
-        results, competition_dates, lambda result: result.single
+def all_solves_over_time(results, competition_dates):
+    """Return every individual solve, with its date, in chronological order.
+
+    Each result contributes all of its attempts (not just the round's best),
+    keeping their order within the round. Non-positive solves (DNF/DNS, or unused
+    attempt slots) are skipped.
+    """
+    dated_results = sorted(
+        results,
+        key=lambda result: competition_dates[result.competition_id],
     )
+    return [
+        RecordPoint(
+            date=competition_dates[result.competition_id], value=solve
+        )
+        for result in dated_results
+        for solve in result.solves
+        if solve > 0
+    ]
 
 
 def average_results_over_time(results, competition_dates):
