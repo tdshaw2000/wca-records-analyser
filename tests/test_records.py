@@ -2,9 +2,11 @@ from wca_records_analyser.records import (
     ConsistencyPoint,
     RecordPoint,
     average_record_progression,
+    average_results_over_time,
     consistency_over_time,
     personal_record_flags,
     single_record_progression,
+    single_results_over_time,
 )
 from wca_records_analyser.wca_client import Result
 
@@ -210,3 +212,59 @@ def test_consistency_over_time_skips_results_missing_a_single_or_average():
     )
 
     assert points == EXPECTED_CONSISTENCY_AFTER_SKIPPING
+
+
+EXPECTED_ALL_SINGLES = [
+    RecordPoint(date=EARLIEST_DATE, value=EARLIEST_SINGLE),
+    RecordPoint(date=MIDDLE_DATE, value=MIDDLE_SINGLE),
+    RecordPoint(date=LATEST_DATE, value=LATEST_SINGLE),
+]
+
+
+def test_single_results_over_time_keeps_every_attempt_including_non_records():
+    points = single_results_over_time(
+        RESULTS_OUT_OF_DATE_ORDER, COMPETITION_DATES
+    )
+
+    assert points == EXPECTED_ALL_SINGLES
+
+
+EXPECTED_ALL_AVERAGES = [
+    RecordPoint(date=EARLIEST_DATE, value=EARLIEST_AVERAGE),
+    RecordPoint(date=MIDDLE_DATE, value=MIDDLE_AVERAGE),
+    RecordPoint(date=LATEST_DATE, value=LATEST_AVERAGE),
+]
+
+
+def test_average_results_over_time_keeps_every_attempt_including_non_records():
+    points = average_results_over_time(
+        RESULTS_WITH_AVERAGES_OUT_OF_DATE_ORDER, COMPETITION_DATES
+    )
+
+    assert points == EXPECTED_ALL_AVERAGES
+
+
+EXPECTED_ALL_SINGLES_AFTER_SKIPPING = [
+    RecordPoint(date=MIDDLE_DATE, value=CONSISTENCY_LATEST_SINGLE),
+    RecordPoint(date=LATEST_DATE, value=CONSISTENCY_LATEST_SINGLE),
+]
+EXPECTED_ALL_AVERAGES_AFTER_SKIPPING = [
+    RecordPoint(date=EARLIEST_DATE, value=CONSISTENCY_EARLIEST_AVERAGE),
+    RecordPoint(date=MIDDLE_DATE, value=CONSISTENCY_LATEST_AVERAGE),
+]
+
+
+def test_single_results_over_time_skips_did_not_finish_singles():
+    points = single_results_over_time(
+        RESULTS_WITH_MISSING_METRICS, COMPETITION_DATES
+    )
+
+    assert points == EXPECTED_ALL_SINGLES_AFTER_SKIPPING
+
+
+def test_average_results_over_time_skips_did_not_finish_averages():
+    points = average_results_over_time(
+        RESULTS_WITH_MISSING_METRICS, COMPETITION_DATES
+    )
+
+    assert points == EXPECTED_ALL_AVERAGES_AFTER_SKIPPING
