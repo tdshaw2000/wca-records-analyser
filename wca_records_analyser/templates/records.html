@@ -94,6 +94,18 @@
         </section>
     </div>
 
+    {% if all_singles_chart_series or all_averages_chart_series %}
+        <h2 class="chart-title">All results</h2>
+        <p class="chart-subtitle">Every single and average recorded for this event, not just personal records.</p>
+        <section class="chart-card">
+            <div class="chart-wrap">
+                <canvas id="all-results-scatter" data-result-unit="{{ result_unit }}"></canvas>
+            </div>
+        </section>
+        <script id="all-singles-scatter-data" type="application/json">{{ all_singles_chart_series | tojson }}</script>
+        <script id="all-averages-scatter-data" type="application/json">{{ all_averages_chart_series | tojson }}</script>
+    {% endif %}
+
     {% if consistency_series %}
         <h2 class="chart-title">Consistency</h2>
         <p class="chart-subtitle">How close each average was to its single — lower (nearer 1.00×) means a more reliable set of solves.</p>
@@ -112,6 +124,9 @@
         <script src="/static/vendor/chart.umd.js"></script>
         <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
         <script src="/static/records-chart.js"></script>
+    {% endif %}
+    {% if all_singles_chart_series or all_averages_chart_series %}
+        <script src="/static/scatter-chart.js"></script>
     {% endif %}
     {% if consistency_series %}
         <script src="/static/consistency-chart.js"></script>

@@ -17,8 +17,10 @@ from wca_records_analyser.formatting import (
 )
 from wca_records_analyser.records import (
     average_record_progression,
+    average_results_over_time,
     consistency_over_time,
     single_record_progression,
+    single_results_over_time,
 )
 from wca_records_analyser.wca_client import (
     get_competition_dates,
@@ -55,6 +57,8 @@ SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
 SINGLE_CHART_SERIES_CONTEXT_KEY = "single_chart_series"
 AVERAGE_CHART_SERIES_CONTEXT_KEY = "average_chart_series"
+ALL_SINGLES_CHART_SERIES_CONTEXT_KEY = "all_singles_chart_series"
+ALL_AVERAGES_CHART_SERIES_CONTEXT_KEY = "all_averages_chart_series"
 CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
 RESULT_UNIT_CONTEXT_KEY = "result_unit"
 SINGLE_FILTER = "single"
@@ -77,6 +81,8 @@ class RecordProgressions:
 
     singles: list
     averages: list
+    all_singles: list = field(default_factory=list)
+    all_averages: list = field(default_factory=list)
     consistency: list = field(default_factory=list)
 
 
@@ -99,6 +105,8 @@ def get_progression_function():
         return RecordProgressions(
             singles=single_record_progression(results, competition_dates),
             averages=average_record_progression(results, competition_dates),
+            all_singles=single_results_over_time(results, competition_dates),
+            all_averages=average_results_over_time(results, competition_dates),
             consistency=consistency_over_time(results, competition_dates),
         )
 
@@ -161,6 +169,12 @@ def records(
             ),
             AVERAGE_CHART_SERIES_CONTEXT_KEY: to_record_series(
                 progressions.averages, event_id, is_average=True
+            ),
+            ALL_SINGLES_CHART_SERIES_CONTEXT_KEY: to_record_series(
+                progressions.all_singles, event_id, is_average=False
+            ),
+            ALL_AVERAGES_CHART_SERIES_CONTEXT_KEY: to_record_series(
+                progressions.all_averages, event_id, is_average=True
             ),
             CONSISTENCY_SERIES_CONTEXT_KEY: to_consistency_series(
                 progressions.consistency, event_id
