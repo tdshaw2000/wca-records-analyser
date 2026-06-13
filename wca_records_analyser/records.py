@@ -11,6 +11,19 @@ class RecordPoint:
     value: int
 
 
+@dataclass(frozen=True)
+class ConsistencyPoint:
+    """A single result's single and average, with the date it was set.
+
+    Holds the raw centisecond values; the average-to-single ratio that measures
+    consistency is derived later, where the event's units are known.
+    """
+
+    date: str
+    single: int
+    average: int
+
+
 def personal_record_flags(values):
     """Flag each value that beats every preceding value in chronological order."""
     flags = []
@@ -36,6 +49,33 @@ def average_record_progression(results, competition_dates):
     return _record_progression(
         results, competition_dates, lambda result: result.average
     )
+
+
+def consistency_over_time(results, competition_dates):
+    """Return a consistency point per result that has both a single and average.
+
+    Unlike the record progressions, this keeps every qualifying result (not just
+    record-setters), since consistency is a property of each individual sitting.
+    Results missing a single or average (DNF/DNS, or formats without an average)
+    are skipped.
+    """
+    full_results = [
+        result
+        for result in results
+        if result.single > 0 and result.average > 0
+    ]
+    dated_results = sorted(
+        full_results,
+        key=lambda result: competition_dates[result.competition_id],
+    )
+    return [
+        ConsistencyPoint(
+            date=competition_dates[result.competition_id],
+            single=result.single,
+            average=result.average,
+        )
+        for result in dated_results
+    ]
 
 
 def _record_progression(results, competition_dates, metric):
