@@ -318,6 +318,8 @@ button:hover {
     grid-template-columns: 1fr 1fr;
     gap: 1.25rem;
     align-items: start;
+    /* Match the breathing room .chart-title gives the Consistency heading. */
+    margin-top: 1.5rem;
 }
 
 .progression h2 {
