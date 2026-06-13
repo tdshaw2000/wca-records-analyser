@@ -7,6 +7,8 @@ FEWEST_MOVES_EVENT_ID = "333fm"
 CENTI_MOVES_PER_MOVE = 100
 TIME_UNIT = "time"
 MOVES_UNIT = "moves"
+CONSISTENCY_DECIMAL_PLACES = 2
+CONSISTENCY_RATIO_SUFFIX = "×"
 
 
 def format_time(centiseconds):
@@ -32,6 +34,11 @@ def format_average(value, event_id):
     if event_id == FEWEST_MOVES_EVENT_ID:
         return f"{value / CENTI_MOVES_PER_MOVE:.2f}"
     return format_time(value)
+
+
+def format_consistency(ratio):
+    """Render an average-to-single ratio; 1.00× means every solve was identical."""
+    return f"{ratio:.{CONSISTENCY_DECIMAL_PLACES}f}{CONSISTENCY_RATIO_SUFFIX}"
 
 
 def result_unit(event_id):
