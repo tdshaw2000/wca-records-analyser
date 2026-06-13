@@ -1,4 +1,7 @@
+import ssl
+
 import httpx
+import truststore
 
 from wca_records_analyser.wca_client import (
     Person,
@@ -9,6 +12,7 @@ from wca_records_analyser.wca_client import (
     get_profile,
     get_results,
     search_persons,
+    use_operating_system_trust_store,
 )
 
 SEARCH_NAME = "Mats Valk"
@@ -209,3 +213,15 @@ def test_get_profile_fetches_the_competitor_profile_once():
 
     assert len(recorded_requests) == 1
     assert recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}"
+
+
+def test_use_operating_system_trust_store_routes_ssl_through_os_certificates():
+    truststore.extract_from_ssl()
+    try:
+        assert ssl.SSLContext is not truststore.SSLContext
+
+        use_operating_system_trust_store()
+
+        assert ssl.SSLContext is truststore.SSLContext
+    finally:
+        use_operating_system_trust_store()
