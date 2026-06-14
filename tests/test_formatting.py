@@ -1,5 +1,6 @@
 from wca_records_analyser.formatting import (
     decode_multi_blind,
+    event_has_average,
     format_average,
     format_consistency,
     format_multi_blind,
@@ -132,3 +133,15 @@ def test_format_single_renders_multi_blind_as_solved_over_attempted():
 
 def test_result_unit_is_points_for_multi_blind():
     assert result_unit(MULTI_BLIND_EVENT_ID) == "points"
+
+
+def test_event_has_average_is_true_for_timed_events():
+    assert event_has_average(THREE_BY_THREE_EVENT_ID) is True
+
+
+def test_event_has_average_is_true_for_fewest_moves():
+    assert event_has_average(FEWEST_MOVES_EVENT_ID) is True
+
+
+def test_event_has_average_is_false_for_multi_blind():
+    assert event_has_average(MULTI_BLIND_EVENT_ID) is False
