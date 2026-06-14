@@ -103,6 +103,8 @@ MULTI_BLIND_SINGLE = 930206102  # 8/10 in 34:21 (6 pts)
 MULTI_BLIND_PROGRESSIONS = RecordProgressions(
     singles=[RecordPoint(date="2024-01-06", value=MULTI_BLIND_SINGLE)],
     averages=[],
+    all_singles=[RecordPoint(date="2024-01-06", value=MULTI_BLIND_SINGLE)],
+    all_averages=[],
 )
 MULTI_BLIND_PROFILE = Profile(person=MATS_VALK, event_ids=[MULTI_BLIND_EVENT_ID])
 
@@ -262,6 +264,22 @@ def test_records_renders_multi_blind_as_points_and_solved_over_attempted():
     assert '"y": 6' in response.text
     assert "8/10 in 34:21 (6 pts)" in response.text
     assert "<td>8/10 34:21</td>" in response.text
+
+
+def test_records_omits_every_mention_of_average_for_multi_blind():
+    response = _get_records_page(
+        event_id=MULTI_BLIND_EVENT_ID,
+        progressions=MULTI_BLIND_PROGRESSIONS,
+        profile=MULTI_BLIND_PROFILE,
+    )
+
+    assert response.status_code == 200
+    assert "<h2>Average</h2>" not in response.text
+    assert "No average personal records found" not in response.text
+    assert 'id="average-chart-data"' not in response.text
+    assert 'id="all-averages-scatter-data"' not in response.text
+    assert "average" not in response.text
+    assert 'id="all-singles-scatter-data"' in response.text
 
 
 def test_records_titles_the_chart_with_the_event_name():
