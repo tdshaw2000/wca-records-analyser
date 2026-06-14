@@ -237,6 +237,15 @@ def test_records_embeds_both_single_and_average_progressions_as_chart_data():
     assert '"display": "18.88"' in response.text
 
 
+def test_records_embeds_the_average_minus_single_gap_as_chart_data():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert 'id="gap-chart-data"' in response.text
+    assert '"y": 390' in response.text
+    assert '"display": "3.90"' in response.text
+
+
 def test_records_formats_fewest_moves_as_move_counts():
     response = _get_records_page(
         event_id=FEWEST_MOVES_EVENT_ID,
@@ -278,6 +287,7 @@ def test_records_omits_every_mention_of_average_for_multi_blind():
     assert "No average personal records found" not in response.text
     assert 'id="average-chart-data"' not in response.text
     assert 'id="all-averages-scatter-data"' not in response.text
+    assert 'id="gap-chart-data"' not in response.text
     assert "average" not in response.text
     assert 'id="all-singles-scatter-data"' in response.text
 
