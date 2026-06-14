@@ -98,6 +98,15 @@ FEWEST_MOVES_PROFILE = Profile(
 )
 
 
+MULTI_BLIND_EVENT_ID = "333mbf"
+MULTI_BLIND_SINGLE = 930206102  # 8/10 in 34:21 (6 pts)
+MULTI_BLIND_PROGRESSIONS = RecordProgressions(
+    singles=[RecordPoint(date="2024-01-06", value=MULTI_BLIND_SINGLE)],
+    averages=[],
+)
+MULTI_BLIND_PROFILE = Profile(person=MATS_VALK, event_ids=[MULTI_BLIND_EVENT_ID])
+
+
 def _search_returning(persons):
     def _search(name):
         return persons
@@ -239,6 +248,20 @@ def test_records_formats_fewest_moves_as_move_counts():
     assert 'data-result-unit="moves"' in response.text
     assert '"y": 27.33' in response.text
     assert '"display": "24"' in response.text
+
+
+def test_records_renders_multi_blind_as_points_and_solved_over_attempted():
+    response = _get_records_page(
+        event_id=MULTI_BLIND_EVENT_ID,
+        progressions=MULTI_BLIND_PROGRESSIONS,
+        profile=MULTI_BLIND_PROFILE,
+    )
+
+    assert response.status_code == 200
+    assert 'data-result-unit="points"' in response.text
+    assert '"y": 6' in response.text
+    assert "8/10 in 34:21 (6 pts)" in response.text
+    assert "<td>8/10 34:21</td>" in response.text
 
 
 def test_records_titles_the_chart_with_the_event_name():

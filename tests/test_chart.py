@@ -3,6 +3,7 @@ from wca_records_analyser.records import ConsistencyPoint, RecordPoint
 
 THREE_BY_THREE_EVENT_ID = "333"
 FEWEST_MOVES_EVENT_ID = "333fm"
+MULTI_BLIND_EVENT_ID = "333mbf"
 
 EARLIEST_DATE = "2023-11-18"
 LATEST_DATE = "2024-11-01"
@@ -61,6 +62,48 @@ def test_to_record_series_scales_fewest_moves_average_to_moves():
             "display": "27.33",
         }
     ]
+
+
+# Encoded Multi-Blind singles (see test_formatting for the encoding).
+MULTI_BLIND_EIGHT_OF_TEN = 930206102  # 8/10 in 34:21 (6 pts)
+MULTI_BLIND_TEN_OF_TEN = 890300000  # 10/10 in 50:00 (10 pts)
+MULTI_BLIND_ONE_OF_THREE = 1000060002  # 1/3, -1 pts: a DNF
+
+MULTI_BLIND_PROGRESSION = [
+    RecordPoint(date=EARLIEST_DATE, value=MULTI_BLIND_EIGHT_OF_TEN),
+    RecordPoint(date=LATEST_DATE, value=MULTI_BLIND_TEN_OF_TEN),
+]
+EXPECTED_MULTI_BLIND_SERIES = [
+    {"x": EARLIEST_DATE, "y": 6, "display": "8/10 in 34:21 (6 pts)"},
+    {"x": LATEST_DATE, "y": 10, "display": "10/10 in 50:00 (10 pts)"},
+]
+
+
+def test_to_record_series_plots_multi_blind_points_with_full_display():
+    assert (
+        to_record_series(
+            MULTI_BLIND_PROGRESSION, MULTI_BLIND_EVENT_ID, is_average=False
+        )
+        == EXPECTED_MULTI_BLIND_SERIES
+    )
+
+
+MULTI_BLIND_PROGRESSION_WITH_DNF = [
+    RecordPoint(date=EARLIEST_DATE, value=MULTI_BLIND_ONE_OF_THREE),
+    RecordPoint(date=LATEST_DATE, value=MULTI_BLIND_EIGHT_OF_TEN),
+]
+EXPECTED_MULTI_BLIND_SERIES_WITHOUT_DNF = [
+    {"x": LATEST_DATE, "y": 6, "display": "8/10 in 34:21 (6 pts)"},
+]
+
+
+def test_to_record_series_excludes_multi_blind_dnf_results():
+    assert (
+        to_record_series(
+            MULTI_BLIND_PROGRESSION_WITH_DNF, MULTI_BLIND_EVENT_ID, is_average=False
+        )
+        == EXPECTED_MULTI_BLIND_SERIES_WITHOUT_DNF
+    )
 
 
 CONSISTENCY_EARLIEST_SINGLE = 1807
