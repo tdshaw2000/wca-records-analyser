@@ -3,7 +3,7 @@ from wca_records_analyser.formatting import (
     event_has_average,
     format_average,
     format_consistency,
-    format_gap,
+    format_midpoint,
     format_multi_blind,
     format_multi_blind_full,
     format_single,
@@ -148,9 +148,13 @@ def test_event_has_average_is_false_for_multi_blind():
     assert event_has_average(MULTI_BLIND_EVENT_ID) is False
 
 
-def test_format_gap_renders_a_timed_difference_as_a_time():
-    assert format_gap(390, THREE_BY_THREE_EVENT_ID) == "3.90"
+def test_format_midpoint_renders_a_timed_value_as_a_time():
+    assert format_midpoint(1755, THREE_BY_THREE_EVENT_ID) == "17.55"
 
 
-def test_format_gap_renders_a_fewest_moves_difference_to_two_decimals():
-    assert format_gap(3.5, FEWEST_MOVES_EVENT_ID) == "3.50"
+def test_format_midpoint_rounds_a_half_centisecond_to_a_whole_time():
+    assert format_midpoint(1693.5, THREE_BY_THREE_EVENT_ID) == "16.94"
+
+
+def test_format_midpoint_renders_a_fewest_moves_value_to_two_decimals():
+    assert format_midpoint(3.5, FEWEST_MOVES_EVENT_ID) == "3.50"
