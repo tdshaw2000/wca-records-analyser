@@ -10,6 +10,7 @@ from wca_records_analyser.web import (
     get_profile_function,
     get_progression_function,
     get_search_function,
+    static_asset_version,
 )
 from wca_records_analyser.wca_client import Person, Profile
 
@@ -21,6 +22,7 @@ EVENT_ID = "333"
 EVENT_NAME = "3x3x3 Cube"
 DEFAULT_EVENT_ID = "333"
 STYLESHEET_PATH = "/static/styles.css"
+STYLESHEET_FILENAME = "styles.css"
 
 SINGLE_PROGRESSION = [
     RecordPoint(date="2023-11-18", value=1777),
@@ -162,6 +164,28 @@ def test_records_page_links_the_stylesheet():
 
     assert response.status_code == 200
     assert STYLESHEET_PATH in response.text
+
+
+def test_index_stylesheet_link_is_cache_busted():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    version = static_asset_version(STYLESHEET_FILENAME)
+    assert f"{STYLESHEET_PATH}?v={version}" in response.text
+
+
+def test_records_stylesheet_link_is_cache_busted():
+    response = _get_records_page()
+
+    version = static_asset_version(STYLESHEET_FILENAME)
+    assert f"{STYLESHEET_PATH}?v={version}" in response.text
+
+
+def test_static_asset_version_changes_with_file_contents():
+    assert static_asset_version("styles.css") != static_asset_version(
+        "records-chart.js"
+    )
 
 
 def test_stylesheet_is_served():
