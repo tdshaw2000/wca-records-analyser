@@ -13,6 +13,9 @@ MOVES_UNIT = "moves"
 POINTS_UNIT = "points"
 CONSISTENCY_DECIMAL_PLACES = 2
 CONSISTENCY_RATIO_SUFFIX = "×"
+# Events scored by a single attempt rather than an average of several. Multi-Blind
+# ranks one sitting by points, so it has no average to progress or chart.
+EVENT_IDS_WITHOUT_AVERAGE = frozenset({MULTI_BLIND_EVENT_ID})
 
 # The WCA API encodes a Multi-Blind result as one integer:
 #   value = (99 - points) * MULTI_BLIND_DIFFERENCE_FACTOR
@@ -108,6 +111,11 @@ def format_average(value, event_id):
 def format_consistency(ratio):
     """Render an average-to-single ratio; 1.00× means every solve was identical."""
     return f"{ratio:.{CONSISTENCY_DECIMAL_PLACES}f}{CONSISTENCY_RATIO_SUFFIX}"
+
+
+def event_has_average(event_id):
+    """Whether this event is scored by an average rather than a single attempt."""
+    return event_id not in EVENT_IDS_WITHOUT_AVERAGE
 
 
 def result_unit(event_id):
