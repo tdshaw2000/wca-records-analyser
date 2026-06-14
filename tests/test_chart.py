@@ -1,4 +1,8 @@
-from wca_records_analyser.chart import to_consistency_series, to_record_series
+from wca_records_analyser.chart import (
+    to_consistency_series,
+    to_gap_series,
+    to_record_series,
+)
 from wca_records_analyser.records import ConsistencyPoint, RecordPoint
 
 THREE_BY_THREE_EVENT_ID = "333"
@@ -138,6 +142,62 @@ def test_to_consistency_series_plots_the_average_to_single_ratio():
 
 def test_to_consistency_series_of_no_points_is_empty():
     assert to_consistency_series([], THREE_BY_THREE_EVENT_ID) == []
+
+
+GAP_SINGLE_SERIES = [
+    {"x": EARLIEST_DATE, "y": 1807, "display": "18.07"},
+    {"x": LATEST_DATE, "y": 1498, "display": "14.98"},
+]
+GAP_AVERAGE_SERIES = [
+    {"x": EARLIEST_DATE, "y": 2456, "display": "24.56"},
+    {"x": LATEST_DATE, "y": 2012, "display": "20.12"},
+]
+EXPECTED_GAP_SERIES = [
+    {"x": EARLIEST_DATE, "y": 649, "display": "6.49"},
+    {"x": LATEST_DATE, "y": 514, "display": "5.14"},
+]
+
+
+def test_to_gap_series_subtracts_the_best_single_from_the_best_average():
+    assert (
+        to_gap_series(
+            GAP_SINGLE_SERIES, GAP_AVERAGE_SERIES, THREE_BY_THREE_EVENT_ID
+        )
+        == EXPECTED_GAP_SERIES
+    )
+
+
+# A single PR on its own date, then an average PR, then another single PR: the gap
+# only appears once both exist, and carries the unchanged record forward each step.
+GAP_FIRST_SINGLE_DATE = "2023-01-01"
+GAP_AVERAGE_DATE = "2023-02-01"
+GAP_SECOND_SINGLE_DATE = "2023-03-01"
+STAGGERED_SINGLE_SERIES = [
+    {"x": GAP_FIRST_SINGLE_DATE, "y": 2000, "display": "20.00"},
+    {"x": GAP_SECOND_SINGLE_DATE, "y": 1500, "display": "15.00"},
+]
+STAGGERED_AVERAGE_SERIES = [
+    {"x": GAP_AVERAGE_DATE, "y": 2600, "display": "26.00"},
+]
+EXPECTED_STAGGERED_GAP_SERIES = [
+    {"x": GAP_AVERAGE_DATE, "y": 600, "display": "6.00"},
+    {"x": GAP_SECOND_SINGLE_DATE, "y": 1100, "display": "11.00"},
+]
+
+
+def test_to_gap_series_starts_once_both_records_exist_and_carries_forward():
+    assert (
+        to_gap_series(
+            STAGGERED_SINGLE_SERIES,
+            STAGGERED_AVERAGE_SERIES,
+            THREE_BY_THREE_EVENT_ID,
+        )
+        == EXPECTED_STAGGERED_GAP_SERIES
+    )
+
+
+def test_to_gap_series_is_empty_when_there_is_no_average():
+    assert to_gap_series(GAP_SINGLE_SERIES, [], THREE_BY_THREE_EVENT_ID) == []
 
 
 FEWEST_MOVES_CONSISTENCY_SINGLE_MOVES = 24
