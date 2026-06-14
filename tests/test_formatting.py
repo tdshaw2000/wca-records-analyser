@@ -1,4 +1,5 @@
 from wca_records_analyser.formatting import (
+    decode_multi_blind,
     format_average,
     format_consistency,
     format_single,
@@ -8,6 +9,7 @@ from wca_records_analyser.formatting import (
 
 THREE_BY_THREE_EVENT_ID = "333"
 FEWEST_MOVES_EVENT_ID = "333fm"
+MULTI_BLIND_EVENT_ID = "333mbf"
 
 
 def test_format_time_shows_seconds_and_hundredths_under_a_minute():
@@ -60,3 +62,49 @@ def test_format_consistency_shows_the_ratio_to_two_decimals_with_a_times_sign():
 
 def test_format_consistency_of_a_perfectly_consistent_ratio():
     assert format_consistency(PERFECT_CONSISTENCY_RATIO) == "1.00×"
+
+
+# Multi-Blind results are stored by the WCA API as a single encoded integer:
+#   value = (99 - points) * 10_000_000 + time_in_seconds * 100 + missed
+# where points = solved - missed. The example below is "8/10 in 34:21 (6 pts)".
+MULTI_BLIND_EIGHT_OF_TEN = 930206102
+MULTI_BLIND_EIGHT_OF_TEN_SOLVED = 8
+MULTI_BLIND_EIGHT_OF_TEN_ATTEMPTED = 10
+MULTI_BLIND_EIGHT_OF_TEN_MISSED = 2
+MULTI_BLIND_EIGHT_OF_TEN_POINTS = 6
+MULTI_BLIND_EIGHT_OF_TEN_TIME_SECONDS = 34 * 60 + 21
+
+
+def test_decode_multi_blind_recovers_solved_attempted_and_points():
+    decoded = decode_multi_blind(MULTI_BLIND_EIGHT_OF_TEN)
+
+    assert decoded.solved == MULTI_BLIND_EIGHT_OF_TEN_SOLVED
+    assert decoded.attempted == MULTI_BLIND_EIGHT_OF_TEN_ATTEMPTED
+    assert decoded.missed == MULTI_BLIND_EIGHT_OF_TEN_MISSED
+    assert decoded.points == MULTI_BLIND_EIGHT_OF_TEN_POINTS
+    assert decoded.time_seconds == MULTI_BLIND_EIGHT_OF_TEN_TIME_SECONDS
+
+
+MULTI_BLIND_PERFECT_THREE = 960030000
+
+
+def test_decode_multi_blind_handles_a_flawless_attempt_with_no_misses():
+    decoded = decode_multi_blind(MULTI_BLIND_PERFECT_THREE)
+
+    assert decoded.solved == 3
+    assert decoded.attempted == 3
+    assert decoded.missed == 0
+    assert decoded.points == 3
+    assert decoded.time_seconds == 300
+
+
+# One cube solved of three attempted: 1 - 2 = -1 points, which scores as a DNF.
+MULTI_BLIND_ONE_OF_THREE = 1000060002
+
+
+def test_decode_multi_blind_reports_non_positive_points_for_a_failed_attempt():
+    decoded = decode_multi_blind(MULTI_BLIND_ONE_OF_THREE)
+
+    assert decoded.solved == 1
+    assert decoded.attempted == 3
+    assert decoded.points == -1
