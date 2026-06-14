@@ -3,8 +3,11 @@
 from wca_records_analyser.formatting import (
     CENTI_MOVES_PER_MOVE,
     FEWEST_MOVES_EVENT_ID,
+    MULTI_BLIND_EVENT_ID,
+    decode_multi_blind,
     format_average,
     format_consistency,
+    format_multi_blind_full,
     format_single,
 )
 
@@ -12,10 +15,13 @@ DATE_KEY = "x"
 VALUE_KEY = "y"
 DISPLAY_KEY = "display"
 CONSISTENCY_RATIO_DECIMAL_PLACES = 3
+DNF_POINTS_THRESHOLD = 0
 
 
 def to_record_series(progression, event_id, is_average):
     """Turn record points into chart points carrying date, plotted value, and display."""
+    if event_id == MULTI_BLIND_EVENT_ID and not is_average:
+        return _to_multi_blind_series(progression)
     formatter = format_average if is_average else format_single
     return [
         {
@@ -25,6 +31,27 @@ def to_record_series(progression, event_id, is_average):
         }
         for record in progression
     ]
+
+
+def _to_multi_blind_series(progression):
+    """Plot Multi-Blind records by points (higher is better), excluding DNFs.
+
+    Each point carries the full result string for the tooltip; the raw encoded
+    value is decoded here so the chart's Y axis can show points directly.
+    """
+    series = []
+    for record in progression:
+        decoded = decode_multi_blind(record.value)
+        if decoded.points <= DNF_POINTS_THRESHOLD:
+            continue
+        series.append(
+            {
+                DATE_KEY: record.date,
+                VALUE_KEY: decoded.points,
+                DISPLAY_KEY: format_multi_blind_full(record.value),
+            }
+        )
+    return series
 
 
 def to_consistency_series(points, event_id):
