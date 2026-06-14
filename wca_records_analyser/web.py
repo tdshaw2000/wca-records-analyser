@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import (
     to_consistency_series,
-    to_gap_series,
+    to_midpoint_series,
     to_record_series,
 )
 from wca_records_analyser.events import EVENT_NAMES, named_events
@@ -62,7 +62,7 @@ SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
 SINGLE_CHART_SERIES_CONTEXT_KEY = "single_chart_series"
 AVERAGE_CHART_SERIES_CONTEXT_KEY = "average_chart_series"
-GAP_CHART_SERIES_CONTEXT_KEY = "gap_chart_series"
+MIDPOINT_CHART_SERIES_CONTEXT_KEY = "midpoint_chart_series"
 ALL_SINGLES_CHART_SERIES_CONTEXT_KEY = "all_singles_chart_series"
 ALL_AVERAGES_CHART_SERIES_CONTEXT_KEY = "all_averages_chart_series"
 CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
@@ -179,7 +179,7 @@ def records(
             AVERAGE_PROGRESSION_CONTEXT_KEY: progressions.averages,
             SINGLE_CHART_SERIES_CONTEXT_KEY: single_chart_series,
             AVERAGE_CHART_SERIES_CONTEXT_KEY: average_chart_series,
-            GAP_CHART_SERIES_CONTEXT_KEY: to_gap_series(
+            MIDPOINT_CHART_SERIES_CONTEXT_KEY: to_midpoint_series(
                 single_chart_series, average_chart_series, event_id
             ),
             ALL_SINGLES_CHART_SERIES_CONTEXT_KEY: to_record_series(
