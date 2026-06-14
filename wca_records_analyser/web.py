@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from wca_records_analyser.chart import to_consistency_series, to_record_series
 from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import (
+    event_has_average,
     format_average,
     format_single,
     result_unit,
@@ -61,6 +62,7 @@ ALL_SINGLES_CHART_SERIES_CONTEXT_KEY = "all_singles_chart_series"
 ALL_AVERAGES_CHART_SERIES_CONTEXT_KEY = "all_averages_chart_series"
 CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
 RESULT_UNIT_CONTEXT_KEY = "result_unit"
+EVENT_HAS_AVERAGE_CONTEXT_KEY = "event_has_average"
 SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
 
@@ -180,5 +182,6 @@ def records(
                 progressions.consistency, event_id
             ),
             RESULT_UNIT_CONTEXT_KEY: result_unit(event_id),
+            EVENT_HAS_AVERAGE_CONTEXT_KEY: event_has_average(event_id),
         },
     )

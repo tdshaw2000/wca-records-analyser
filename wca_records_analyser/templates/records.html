@@ -37,7 +37,9 @@
             </div>
         </section>
         <script id="single-chart-data" type="application/json">{{ single_chart_series | tojson }}</script>
-        <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
+        {% if event_has_average %}
+            <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
+        {% endif %}
     {% endif %}
 
     <div class="progressions">
@@ -67,43 +69,51 @@
             {% endif %}
         </section>
 
-        <section class="progression">
-            <h2>Average</h2>
-            {% if average_progression %}
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Average</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for record in average_progression %}
+        {% if event_has_average %}
+            <section class="progression">
+                <h2>Average</h2>
+                {% if average_progression %}
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td>{{ record.date }}</td>
-                                    <td>{{ record.value | average(event_id) }}</td>
+                                    <th>Date</th>
+                                    <th>Average</th>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <p class="empty-message">No average personal records found for this event.</p>
-            {% endif %}
-        </section>
+                            </thead>
+                            <tbody>
+                                {% for record in average_progression %}
+                                    <tr>
+                                        <td>{{ record.date }}</td>
+                                        <td>{{ record.value | average(event_id) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="empty-message">No average personal records found for this event.</p>
+                {% endif %}
+            </section>
+        {% endif %}
     </div>
 
     {% if all_singles_chart_series or all_averages_chart_series %}
         <h2 class="chart-title">All results</h2>
-        <p class="chart-subtitle">Every single and average. Click the legend to remove</p>
+        {% if event_has_average %}
+            <p class="chart-subtitle">Every single and average. Click the legend to remove</p>
+        {% else %}
+            <p class="chart-subtitle">Every result over time.</p>
+        {% endif %}
         <section class="chart-card">
             <div class="chart-wrap">
                 <canvas id="all-results-scatter" data-result-unit="{{ result_unit }}"></canvas>
             </div>
         </section>
         <script id="all-singles-scatter-data" type="application/json">{{ all_singles_chart_series | tojson }}</script>
-        <script id="all-averages-scatter-data" type="application/json">{{ all_averages_chart_series | tojson }}</script>
+        {% if event_has_average %}
+            <script id="all-averages-scatter-data" type="application/json">{{ all_averages_chart_series | tojson }}</script>
+        {% endif %}
     {% endif %}
 
     {% if consistency_series %}

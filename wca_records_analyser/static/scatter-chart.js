@@ -87,33 +87,37 @@
     const resultRange = resultBounds(allPoints);
     const dateRange = dateBounds(allPoints);
 
+    // The average dataset (and its legend entry) is omitted entirely for events
+    // that have no average, such as Multi-Blind, where the data element is absent.
+    const datasets = [
+        {
+            label: SINGLE_LABEL,
+            data: singleSeries,
+            borderColor: SINGLE_COLOUR,
+            backgroundColor: SINGLE_COLOUR,
+            showLine: false,
+            pointRadius: POINT_RADIUS,
+            pointHoverRadius: POINT_HOVER_RADIUS,
+        },
+    ];
+    if (averageDataElement) {
+        datasets.push({
+            label: AVERAGE_LABEL,
+            data: averageSeries,
+            borderColor: AVERAGE_COLOUR,
+            backgroundColor: AVERAGE_COLOUR,
+            showLine: false,
+            pointRadius: POINT_RADIUS,
+            pointHoverRadius: POINT_HOVER_RADIUS,
+        });
+    }
+
     // Drawn as a line chart with the connecting line hidden: this reuses the
     // record chart's proven config, whereas Chart.js's scatter controller
     // mis-parses the string dates on a time axis and silently drops points.
     new Chart(canvas, {
         type: "line",
-        data: {
-            datasets: [
-                {
-                    label: SINGLE_LABEL,
-                    data: singleSeries,
-                    borderColor: SINGLE_COLOUR,
-                    backgroundColor: SINGLE_COLOUR,
-                    showLine: false,
-                    pointRadius: POINT_RADIUS,
-                    pointHoverRadius: POINT_HOVER_RADIUS,
-                },
-                {
-                    label: AVERAGE_LABEL,
-                    data: averageSeries,
-                    borderColor: AVERAGE_COLOUR,
-                    backgroundColor: AVERAGE_COLOUR,
-                    showLine: false,
-                    pointRadius: POINT_RADIUS,
-                    pointHoverRadius: POINT_HOVER_RADIUS,
-                },
-            ],
-        },
+        data: { datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,

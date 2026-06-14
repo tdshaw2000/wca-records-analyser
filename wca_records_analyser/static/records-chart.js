@@ -17,7 +17,8 @@ const MOVES_UNIT = "moves";
 const POINTS_UNIT = "points";
 
 function readSeries(elementId) {
-    return JSON.parse(document.getElementById(elementId).textContent);
+    const element = document.getElementById(elementId);
+    return element ? JSON.parse(element.textContent) : [];
 }
 
 function resultBounds(points) {
@@ -70,24 +71,28 @@ const allPoints = [...singleSeries, ...averageSeries];
 const resultRange = resultBounds(allPoints);
 const dateRange = dateBounds(allPoints);
 
+// The average dataset (and its legend entry) is omitted entirely for events
+// that have no average, such as Multi-Blind, where the data element is absent.
+const datasets = [
+    {
+        label: SINGLE_LABEL,
+        data: singleSeries,
+        borderColor: SINGLE_COLOUR,
+        backgroundColor: SINGLE_COLOUR,
+    },
+];
+if (document.getElementById(AVERAGE_CHART_DATA_ELEMENT_ID)) {
+    datasets.push({
+        label: AVERAGE_LABEL,
+        data: averageSeries,
+        borderColor: AVERAGE_COLOUR,
+        backgroundColor: AVERAGE_COLOUR,
+    });
+}
+
 new Chart(canvas, {
     type: "line",
-    data: {
-        datasets: [
-            {
-                label: SINGLE_LABEL,
-                data: singleSeries,
-                borderColor: SINGLE_COLOUR,
-                backgroundColor: SINGLE_COLOUR,
-            },
-            {
-                label: AVERAGE_LABEL,
-                data: averageSeries,
-                borderColor: AVERAGE_COLOUR,
-                backgroundColor: AVERAGE_COLOUR,
-            },
-        ],
-    },
+    data: { datasets },
     options: {
         responsive: true,
         maintainAspectRatio: false,
