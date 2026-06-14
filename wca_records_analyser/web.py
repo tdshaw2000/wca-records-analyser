@@ -1,5 +1,6 @@
 """Web page for searching World Cube Association competitors by name."""
 
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -70,6 +71,8 @@ RESULT_UNIT_CONTEXT_KEY = "result_unit"
 EVENT_HAS_AVERAGE_CONTEXT_KEY = "event_has_average"
 SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
+STATIC_VERSION_GLOBAL = "static_version"
+VERSION_HASH_LENGTH = 8
 
 app = FastAPI()
 app.mount(
@@ -77,9 +80,16 @@ app.mount(
     StaticFiles(directory=STATIC_DIRECTORY),
     name=STATIC_NAME,
 )
+def static_asset_version(filename):
+    """Return a short content hash of a static file, for cache-busting its URL."""
+    contents = (STATIC_DIRECTORY / filename).read_bytes()
+    return hashlib.sha256(contents).hexdigest()[:VERSION_HASH_LENGTH]
+
+
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 templates.env.filters[SINGLE_FILTER] = format_single
 templates.env.filters[AVERAGE_FILTER] = format_average
+templates.env.globals[STATIC_VERSION_GLOBAL] = static_asset_version
 
 
 @dataclass(frozen=True)
