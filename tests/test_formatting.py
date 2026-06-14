@@ -2,6 +2,8 @@ from wca_records_analyser.formatting import (
     decode_multi_blind,
     format_average,
     format_consistency,
+    format_multi_blind,
+    format_multi_blind_full,
     format_single,
     format_time,
     result_unit,
@@ -108,3 +110,25 @@ def test_decode_multi_blind_reports_non_positive_points_for_a_failed_attempt():
     assert decoded.solved == 1
     assert decoded.attempted == 3
     assert decoded.points == -1
+
+
+def test_format_multi_blind_shows_solved_over_attempted_and_minutes_seconds():
+    assert format_multi_blind(MULTI_BLIND_EIGHT_OF_TEN) == "8/10 34:21"
+
+
+def test_format_multi_blind_pads_the_seconds_to_two_digits():
+    assert format_multi_blind(MULTI_BLIND_PERFECT_THREE) == "3/3 5:00"
+
+
+def test_format_multi_blind_full_adds_the_word_in_and_the_points():
+    assert (
+        format_multi_blind_full(MULTI_BLIND_EIGHT_OF_TEN) == "8/10 in 34:21 (6 pts)"
+    )
+
+
+def test_format_single_renders_multi_blind_as_solved_over_attempted():
+    assert format_single(MULTI_BLIND_EIGHT_OF_TEN, MULTI_BLIND_EVENT_ID) == "8/10 34:21"
+
+
+def test_result_unit_is_points_for_multi_blind():
+    assert result_unit(MULTI_BLIND_EVENT_ID) == "points"
