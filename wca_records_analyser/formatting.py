@@ -64,10 +64,37 @@ def format_time(centiseconds):
     return f"{seconds}.{hundredths:02d}"
 
 
+def format_minutes_seconds(total_seconds):
+    """Render a whole-second duration as minutes and zero-padded seconds."""
+    minutes = total_seconds // SECONDS_PER_MINUTE
+    seconds = total_seconds % SECONDS_PER_MINUTE
+    return f"{minutes}:{seconds:02d}"
+
+
+def format_multi_blind(value):
+    """Render a Multi-Blind result as ``solved/attempted MM:SS`` (e.g. ``8/10 34:21``)."""
+    result = decode_multi_blind(value)
+    return (
+        f"{result.solved}/{result.attempted} "
+        f"{format_minutes_seconds(result.time_seconds)}"
+    )
+
+
+def format_multi_blind_full(value):
+    """Render a Multi-Blind result in full (e.g. ``8/10 in 34:21 (6 pts)``)."""
+    result = decode_multi_blind(value)
+    return (
+        f"{result.solved}/{result.attempted} in "
+        f"{format_minutes_seconds(result.time_seconds)} ({result.points} pts)"
+    )
+
+
 def format_single(value, event_id):
-    """Render a single result, as a move count for Fewest Moves or a time otherwise."""
+    """Render a single result per its event's units (time, moves, or Multi-Blind)."""
     if event_id == FEWEST_MOVES_EVENT_ID:
         return str(value)
+    if event_id == MULTI_BLIND_EVENT_ID:
+        return format_multi_blind(value)
     return format_time(value)
 
 
@@ -87,4 +114,6 @@ def result_unit(event_id):
     """Return the unit a competitor's results are measured in for this event."""
     if event_id == FEWEST_MOVES_EVENT_ID:
         return MOVES_UNIT
+    if event_id == MULTI_BLIND_EVENT_ID:
+        return POINTS_UNIT
     return TIME_UNIT
