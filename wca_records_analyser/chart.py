@@ -7,6 +7,7 @@ from wca_records_analyser.formatting import (
     decode_multi_blind,
     format_average,
     format_consistency,
+    format_gap,
     format_multi_blind_full,
     format_single,
 )
@@ -15,6 +16,7 @@ DATE_KEY = "x"
 VALUE_KEY = "y"
 DISPLAY_KEY = "display"
 CONSISTENCY_RATIO_DECIMAL_PLACES = 3
+GAP_PLOT_DECIMAL_PLACES = 2
 DNF_POINTS_THRESHOLD = 0
 
 
@@ -31,6 +33,41 @@ def to_record_series(progression, event_id, is_average):
         }
         for record in progression
     ]
+
+
+def to_gap_series(single_series, average_series, event_id):
+    """Plot the gap between the best average and best single as the records fall.
+
+    Both inputs already carry plotted values (Fewest Moves averages scaled to
+    moves), so the difference shares the main chart's axis. Walking the union of
+    their dates and carrying each running best forward, a point is emitted on every
+    date either record improves, from the first date both a single and an average
+    exist. The gap can never be negative, since the best average came from a round
+    whose single was no faster than the best single.
+    """
+    singles_by_date = {point[DATE_KEY]: point[VALUE_KEY] for point in single_series}
+    averages_by_date = {
+        point[DATE_KEY]: point[VALUE_KEY] for point in average_series
+    }
+    series = []
+    best_single = None
+    best_average = None
+    for date in sorted(set(singles_by_date) | set(averages_by_date)):
+        if date in singles_by_date:
+            best_single = singles_by_date[date]
+        if date in averages_by_date:
+            best_average = averages_by_date[date]
+        if best_single is None or best_average is None:
+            continue
+        gap = round(best_average - best_single, GAP_PLOT_DECIMAL_PLACES)
+        series.append(
+            {
+                DATE_KEY: date,
+                VALUE_KEY: gap,
+                DISPLAY_KEY: format_gap(gap, event_id),
+            }
+        )
+    return series
 
 
 def _to_multi_blind_series(progression):
