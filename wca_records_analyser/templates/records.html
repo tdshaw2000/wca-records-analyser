@@ -40,9 +40,6 @@
         {% if event_has_average %}
             <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
         {% endif %}
-        {% if midpoint_chart_series %}
-            <script id="midpoint-chart-data" type="application/json">{{ midpoint_chart_series | tojson }}</script>
-        {% endif %}
     {% endif %}
 
     <div class="progressions">
@@ -129,6 +126,17 @@
         </section>
         <script id="consistency-chart-data" type="application/json">{{ consistency_series | tojson }}</script>
     {% endif %}
+
+    {% if gap_chart_series %}
+        <h2 class="chart-title">Average/Single Gap</h2>
+        <p class="chart-subtitle">How far each personal-best average sat above the best single at the time — smaller means more consistent.</p>
+        <section class="chart-card">
+            <div class="chart-wrap">
+                <canvas id="gap-progression" data-result-unit="{{ result_unit }}"></canvas>
+            </div>
+        </section>
+        <script id="gap-chart-data" type="application/json">{{ gap_chart_series | tojson }}</script>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -143,5 +151,8 @@
     {% endif %}
     {% if consistency_series %}
         <script src="/static/consistency-chart.js"></script>
+    {% endif %}
+    {% if gap_chart_series %}
+        <script src="/static/gap-chart.js"></script>
     {% endif %}
 {% endblock %}

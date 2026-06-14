@@ -1,13 +1,10 @@
 const SINGLE_CHART_DATA_ELEMENT_ID = "single-chart-data";
 const AVERAGE_CHART_DATA_ELEMENT_ID = "average-chart-data";
-const MIDPOINT_CHART_DATA_ELEMENT_ID = "midpoint-chart-data";
 const CANVAS_ELEMENT_ID = "record-progression";
 const SINGLE_LABEL = "Single";
 const AVERAGE_LABEL = "Average";
-const MIDPOINT_LABEL = "Midpoint (single & average)";
 const SINGLE_COLOUR = "#2563eb";
 const AVERAGE_COLOUR = "#449964";
-const MIDPOINT_COLOUR = "#ea580c";
 const TIME_PROGRESSION_AXIS_LABEL = "Time →";
 const RESULT_AXIS_LABEL = "Result";
 const POINTS_AXIS_LABEL = "Points (solved − missed)";
@@ -70,14 +67,12 @@ const resultAxisLabel =
     resultUnit === POINTS_UNIT ? POINTS_AXIS_LABEL : RESULT_AXIS_LABEL;
 const singleSeries = readSeries(SINGLE_CHART_DATA_ELEMENT_ID);
 const averageSeries = readSeries(AVERAGE_CHART_DATA_ELEMENT_ID);
-const midpointSeries = readSeries(MIDPOINT_CHART_DATA_ELEMENT_ID);
 const allPoints = [...singleSeries, ...averageSeries];
 const resultRange = resultBounds(allPoints);
 const dateRange = dateBounds(allPoints);
 
-// The average and midpoint datasets (and their legend entries) are omitted
-// entirely for events that have no average, such as Multi-Blind, where the data
-// elements are absent.
+// The average dataset (and its legend entry) is omitted entirely for events that
+// have no average, such as Multi-Blind, where the data element is absent.
 const datasets = [
     {
         label: SINGLE_LABEL,
@@ -92,14 +87,6 @@ if (document.getElementById(AVERAGE_CHART_DATA_ELEMENT_ID)) {
         data: averageSeries,
         borderColor: AVERAGE_COLOUR,
         backgroundColor: AVERAGE_COLOUR,
-    });
-}
-if (document.getElementById(MIDPOINT_CHART_DATA_ELEMENT_ID)) {
-    datasets.push({
-        label: MIDPOINT_LABEL,
-        data: midpointSeries,
-        borderColor: MIDPOINT_COLOUR,
-        backgroundColor: MIDPOINT_COLOUR,
     });
 }
 

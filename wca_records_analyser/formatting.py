@@ -13,7 +13,7 @@ MOVES_UNIT = "moves"
 POINTS_UNIT = "points"
 CONSISTENCY_DECIMAL_PLACES = 2
 CONSISTENCY_RATIO_SUFFIX = "×"
-MIDPOINT_MOVES_DECIMAL_PLACES = 2
+GAP_MOVES_DECIMAL_PLACES = 2
 # Events scored by a single attempt rather than an average of several. Multi-Blind
 # ranks one sitting by points, so it has no average to progress or chart.
 EVENT_IDS_WITHOUT_AVERAGE = frozenset({MULTI_BLIND_EVENT_ID})
@@ -109,16 +109,15 @@ def format_average(value, event_id):
     return format_time(value)
 
 
-def format_midpoint(value, event_id):
-    """Render a midpoint between a single and an average in the event's plotted units.
+def format_gap(value, event_id):
+    """Render a gap between an average and a single in the event's plotted units.
 
-    The value is already on the single's scale (Fewest Moves in moves, timed events
-    in centiseconds) but may fall on a half unit, so timed values are rounded to a
-    whole centisecond before formatting.
+    The value is already on the single's scale (Fewest Moves in whole moves, timed
+    events in centiseconds), so it renders like any other result of that event.
     """
     if event_id == FEWEST_MOVES_EVENT_ID:
-        return f"{value:.{MIDPOINT_MOVES_DECIMAL_PLACES}f}"
-    return format_time(round(value))
+        return f"{value:.{GAP_MOVES_DECIMAL_PLACES}f}"
+    return format_time(value)
 
 
 def format_consistency(ratio):
