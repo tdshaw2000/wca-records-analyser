@@ -8,7 +8,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from wca_records_analyser.chart import to_consistency_series, to_record_series
+from wca_records_analyser.chart import (
+    to_consistency_series,
+    to_gap_series,
+    to_record_series,
+)
 from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import (
     event_has_average,
@@ -58,6 +62,7 @@ SINGLE_PROGRESSION_CONTEXT_KEY = "single_progression"
 AVERAGE_PROGRESSION_CONTEXT_KEY = "average_progression"
 SINGLE_CHART_SERIES_CONTEXT_KEY = "single_chart_series"
 AVERAGE_CHART_SERIES_CONTEXT_KEY = "average_chart_series"
+GAP_CHART_SERIES_CONTEXT_KEY = "gap_chart_series"
 ALL_SINGLES_CHART_SERIES_CONTEXT_KEY = "all_singles_chart_series"
 ALL_AVERAGES_CHART_SERIES_CONTEXT_KEY = "all_averages_chart_series"
 CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
@@ -153,6 +158,12 @@ def records(
     progressions = progression_function(wca_id, event_id)
     profile = profile_function(wca_id)
     person = profile.person
+    single_chart_series = to_record_series(
+        progressions.singles, event_id, is_average=False
+    )
+    average_chart_series = to_record_series(
+        progressions.averages, event_id, is_average=True
+    )
     return templates.TemplateResponse(
         request=request,
         name=RECORDS_TEMPLATE,
@@ -166,11 +177,10 @@ def records(
             EVENT_NAME_CONTEXT_KEY: EVENT_NAMES[event_id],
             SINGLE_PROGRESSION_CONTEXT_KEY: progressions.singles,
             AVERAGE_PROGRESSION_CONTEXT_KEY: progressions.averages,
-            SINGLE_CHART_SERIES_CONTEXT_KEY: to_record_series(
-                progressions.singles, event_id, is_average=False
-            ),
-            AVERAGE_CHART_SERIES_CONTEXT_KEY: to_record_series(
-                progressions.averages, event_id, is_average=True
+            SINGLE_CHART_SERIES_CONTEXT_KEY: single_chart_series,
+            AVERAGE_CHART_SERIES_CONTEXT_KEY: average_chart_series,
+            GAP_CHART_SERIES_CONTEXT_KEY: to_gap_series(
+                single_chart_series, average_chart_series, event_id
             ),
             ALL_SINGLES_CHART_SERIES_CONTEXT_KEY: to_record_series(
                 progressions.all_singles, event_id, is_average=False

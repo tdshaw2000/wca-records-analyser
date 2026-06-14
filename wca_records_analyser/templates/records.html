@@ -40,6 +40,9 @@
         {% if event_has_average %}
             <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
         {% endif %}
+        {% if gap_chart_series %}
+            <script id="gap-chart-data" type="application/json">{{ gap_chart_series | tojson }}</script>
+        {% endif %}
     {% endif %}
 
     <div class="progressions">
