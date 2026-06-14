@@ -13,6 +13,7 @@ MOVES_UNIT = "moves"
 POINTS_UNIT = "points"
 CONSISTENCY_DECIMAL_PLACES = 2
 CONSISTENCY_RATIO_SUFFIX = "×"
+GAP_MOVES_DECIMAL_PLACES = 2
 # Events scored by a single attempt rather than an average of several. Multi-Blind
 # ranks one sitting by points, so it has no average to progress or chart.
 EVENT_IDS_WITHOUT_AVERAGE = frozenset({MULTI_BLIND_EVENT_ID})
@@ -105,6 +106,17 @@ def format_average(value, event_id):
     """Render an average result; Fewest Moves averages are stored as moves times 100."""
     if event_id == FEWEST_MOVES_EVENT_ID:
         return f"{value / CENTI_MOVES_PER_MOVE:.2f}"
+    return format_time(value)
+
+
+def format_gap(value, event_id):
+    """Render a gap between an average and a single in the event's plotted units.
+
+    The value is already on the single's scale (Fewest Moves in whole moves, timed
+    events in centiseconds), so it renders like any other result of that event.
+    """
+    if event_id == FEWEST_MOVES_EVENT_ID:
+        return f"{value:.{GAP_MOVES_DECIMAL_PLACES}f}"
     return format_time(value)
 
 
