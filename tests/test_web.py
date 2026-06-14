@@ -237,13 +237,16 @@ def test_records_embeds_both_single_and_average_progressions_as_chart_data():
     assert '"display": "18.88"' in response.text
 
 
-def test_records_embeds_the_single_average_midpoint_as_chart_data():
+def test_records_shows_an_average_single_gap_chart():
     response = _get_records_page()
 
     assert response.status_code == 200
-    assert 'id="midpoint-chart-data"' in response.text
-    assert '"display": "19.77"' in response.text
-    assert '"display": "16.93"' in response.text
+    assert "Average/Single Gap" in response.text
+    assert 'id="gap-progression"' in response.text
+    assert 'id="gap-chart-data"' in response.text
+    assert '"y": 390' in response.text
+    assert '"display": "3.90"' in response.text
+    assert 'id="midpoint-chart-data"' not in response.text
 
 
 def test_records_formats_fewest_moves_as_move_counts():
@@ -287,7 +290,8 @@ def test_records_omits_every_mention_of_average_for_multi_blind():
     assert "No average personal records found" not in response.text
     assert 'id="average-chart-data"' not in response.text
     assert 'id="all-averages-scatter-data"' not in response.text
-    assert 'id="midpoint-chart-data"' not in response.text
+    assert 'id="gap-chart-data"' not in response.text
+    assert "Average/Single Gap" not in response.text
     assert "average" not in response.text
     assert 'id="all-singles-scatter-data"' in response.text
 
