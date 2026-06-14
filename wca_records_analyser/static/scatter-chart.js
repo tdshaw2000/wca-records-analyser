@@ -10,12 +10,14 @@
     const AVERAGE_COLOUR = "#449964";
     const TIME_PROGRESSION_AXIS_LABEL = "Time →";
     const RESULT_AXIS_LABEL = "Result";
+    const POINTS_AXIS_LABEL = "Points (solved − missed)";
     const CENTISECONDS_PER_SECOND = 100;
     const SECONDS_PER_MINUTE = 60;
     const SECONDS_PAD = 2;
     const RESULT_AXIS_PADDING_FRACTION = 0.05;
     const FADED_LEGEND_COLOUR = "rgba(31, 41, 51, 0.35)";
     const MOVES_UNIT = "moves";
+    const POINTS_UNIT = "points";
     const POINT_RADIUS = 3;
     const POINT_HOVER_RADIUS = 5;
 
@@ -31,6 +33,8 @@
     }
 
     const resultUnit = canvas.dataset.resultUnit;
+    const resultAxisLabel =
+        resultUnit === POINTS_UNIT ? POINTS_AXIS_LABEL : RESULT_AXIS_LABEL;
     const singleSeries = singleDataElement
         ? JSON.parse(singleDataElement.textContent)
         : [];
@@ -54,7 +58,7 @@
     }
 
     function formatAxisTick(value) {
-        if (resultUnit === MOVES_UNIT) {
+        if (resultUnit === MOVES_UNIT || resultUnit === POINTS_UNIT) {
             return String(Math.round(value));
         }
         const totalSeconds = Math.round(value / CENTISECONDS_PER_SECOND);
@@ -125,7 +129,7 @@
                 y: {
                     min: resultRange.min,
                     max: resultRange.max,
-                    title: { display: true, text: RESULT_AXIS_LABEL },
+                    title: { display: true, text: resultAxisLabel },
                     ticks: { callback: (value) => formatAxisTick(value) },
                 },
             },
