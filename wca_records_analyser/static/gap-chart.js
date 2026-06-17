@@ -13,6 +13,17 @@
     const MOVES_UNIT = "moves";
     const AXIS_HEADROOM_FRACTION = 0.1;
     const AXIS_BASELINE = 0;
+    const TARGET_AXIS_TICK_COUNT = 6;
+    // Tick steps the y axis is allowed to snap to. Time steps are whole-second
+    // multiples (in centiseconds) so every tick formats to a clean, distinct
+    // label; count steps follow the same 1-2-5 ladder for the moves axis.
+    // Without snapping, Chart.js picked sub-second steps and rounding to whole
+    // seconds made adjacent ticks collapse to identical labels.
+    const NICE_TIME_STEPS_CENTISECONDS = [
+        100, 200, 500, 1000, 1500, 3000, 6000, 12000, 30000, 60000, 120000,
+        300000, 600000, 1200000, 3000000,
+    ];
+    const NICE_COUNT_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
 
     const canvas = document.getElementById(GAP_CANVAS_ELEMENT_ID);
     const dataElement = document.getElementById(GAP_CHART_DATA_ELEMENT_ID);
@@ -26,6 +37,29 @@
     const highest = Math.max(...values);
     const headroom = highest * AXIS_HEADROOM_FRACTION;
     const dates = series.map((point) => point.x).sort();
+
+    // Snap padded bounds outward onto a nice tick step so every gridline lands
+    // on a value that formats to a unique label.
+    function snapAxisBounds(bounds) {
+        const niceSteps =
+            resultUnit === MOVES_UNIT
+                ? NICE_COUNT_STEPS
+                : NICE_TIME_STEPS_CENTISECONDS;
+        const targetStep = (bounds.max - bounds.min) / TARGET_AXIS_TICK_COUNT;
+        const step =
+            niceSteps.find((candidate) => candidate >= targetStep) ??
+            niceSteps[niceSteps.length - 1];
+        return {
+            min: Math.max(0, Math.floor(bounds.min / step) * step),
+            max: Math.ceil(bounds.max / step) * step,
+            step,
+        };
+    }
+
+    const resultRange = snapAxisBounds({
+        min: AXIS_BASELINE,
+        max: highest + headroom,
+    });
 
     function formatAxisTick(value) {
         if (resultUnit === MOVES_UNIT) {
@@ -65,10 +99,13 @@
                     grid: { display: false },
                 },
                 y: {
-                    min: AXIS_BASELINE,
-                    max: highest + headroom,
+                    min: resultRange.min,
+                    max: resultRange.max,
                     title: { display: true, text: GAP_AXIS_LABEL },
-                    ticks: { callback: (value) => formatAxisTick(value) },
+                    ticks: {
+                        stepSize: resultRange.step,
+                        callback: (value) => formatAxisTick(value),
+                    },
                 },
             },
             plugins: {

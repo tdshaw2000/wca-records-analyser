@@ -18,6 +18,15 @@
     const FADED_LEGEND_COLOUR = "rgba(31, 41, 51, 0.35)";
     const MOVES_UNIT = "moves";
     const POINTS_UNIT = "points";
+    const TARGET_AXIS_TICK_COUNT = 6;
+    // Tick steps the y axis is allowed to snap to. Time steps are whole-second
+    // multiples (in centiseconds) so every tick formats to a clean, distinct
+    // label; count steps follow the same 1-2-5 ladder for moves/points axes.
+    const NICE_TIME_STEPS_CENTISECONDS = [
+        100, 200, 500, 1000, 1500, 3000, 6000, 12000, 30000, 60000, 120000,
+        300000, 600000, 1200000, 3000000,
+    ];
+    const NICE_COUNT_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
     const POINT_RADIUS = 3;
     const POINT_HOVER_RADIUS = 5;
 
@@ -57,6 +66,25 @@
         return { min: dates[0], max: dates[dates.length - 1] };
     }
 
+    // Snap padded bounds outward onto a nice tick step so every gridline lands
+    // on a value that formats to a unique label.
+    function snapAxisBounds(bounds) {
+        const isCountUnit =
+            resultUnit === MOVES_UNIT || resultUnit === POINTS_UNIT;
+        const niceSteps = isCountUnit
+            ? NICE_COUNT_STEPS
+            : NICE_TIME_STEPS_CENTISECONDS;
+        const targetStep = (bounds.max - bounds.min) / TARGET_AXIS_TICK_COUNT;
+        const step =
+            niceSteps.find((candidate) => candidate >= targetStep) ??
+            niceSteps[niceSteps.length - 1];
+        return {
+            min: Math.max(0, Math.floor(bounds.min / step) * step),
+            max: Math.ceil(bounds.max / step) * step,
+            step,
+        };
+    }
+
     function formatAxisTick(value) {
         if (resultUnit === MOVES_UNIT || resultUnit === POINTS_UNIT) {
             return String(Math.round(value));
@@ -84,7 +112,7 @@
         return labels;
     }
 
-    const resultRange = resultBounds(allPoints);
+    const resultRange = snapAxisBounds(resultBounds(allPoints));
     const dateRange = dateBounds(allPoints);
 
     // The average dataset (and its legend entry) is omitted entirely for events
@@ -134,7 +162,10 @@
                     min: resultRange.min,
                     max: resultRange.max,
                     title: { display: true, text: resultAxisLabel },
-                    ticks: { callback: (value) => formatAxisTick(value) },
+                    ticks: {
+                        stepSize: resultRange.step,
+                        callback: (value) => formatAxisTick(value),
+                    },
                 },
             },
             plugins: {
