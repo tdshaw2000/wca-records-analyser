@@ -114,6 +114,9 @@
         {% if event_has_average %}
             <script id="all-averages-scatter-data" type="application/json">{{ all_averages_chart_series | tojson }}</script>
         {% endif %}
+        {% if daily_range_series %}
+            <script id="daily-range-data" type="application/json">{{ daily_range_series | tojson }}</script>
+        {% endif %}
     {% endif %}
 
     {% if consistency_series %}
