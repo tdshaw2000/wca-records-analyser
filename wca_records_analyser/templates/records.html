@@ -143,19 +143,19 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="/static/records-loading.js"></script>
+    <script src="/static/records-loading.js?v={{ static_version('records-loading.js') }}"></script>
     {% if single_progression or average_progression %}
         <script src="/static/vendor/chart.umd.js"></script>
         <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
-        <script src="/static/records-chart.js"></script>
+        <script src="/static/records-chart.js?v={{ static_version('records-chart.js') }}"></script>
     {% endif %}
     {% if all_singles_chart_series or all_averages_chart_series %}
-        <script src="/static/scatter-chart.js"></script>
+        <script src="/static/scatter-chart.js?v={{ static_version('scatter-chart.js') }}"></script>
     {% endif %}
     {% if consistency_series %}
-        <script src="/static/consistency-chart.js"></script>
+        <script src="/static/consistency-chart.js?v={{ static_version('consistency-chart.js') }}"></script>
     {% endif %}
     {% if gap_chart_series %}
-        <script src="/static/gap-chart.js"></script>
+        <script src="/static/gap-chart.js?v={{ static_version('gap-chart.js') }}"></script>
     {% endif %}
 {% endblock %}
