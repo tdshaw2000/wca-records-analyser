@@ -12,6 +12,19 @@ class RecordPoint:
 
 
 @dataclass(frozen=True)
+class DailySolveRange:
+    """The fastest and slowest finished solve on a single date.
+
+    Spans the day's solves regardless of which round they fell in; both bounds
+    are raw centiseconds, so they share the single's scale.
+    """
+
+    date: str
+    fastest: int
+    slowest: int
+
+
+@dataclass(frozen=True)
 class ConsistencyPoint:
     """A single result's single and average, with the date it was set.
 
@@ -69,6 +82,25 @@ def all_solves_over_time(results, competition_dates):
         for result in dated_results
         for solve in result.solves
         if solve > 0
+    ]
+
+
+def daily_solve_range_over_time(results, competition_dates):
+    """Return the fastest-to-slowest solve range for each date, chronologically.
+
+    All of a date's finished solves are pooled across rounds, then reduced to that
+    day's best and worst. Non-positive solves (DNF/DNS, or unused attempt slots)
+    are skipped, and a date with no finished solves produces no range.
+    """
+    solves_by_date = {}
+    for result in results:
+        date = competition_dates[result.competition_id]
+        for solve in result.solves:
+            if solve > 0:
+                solves_by_date.setdefault(date, []).append(solve)
+    return [
+        DailySolveRange(date=date, fastest=min(solves), slowest=max(solves))
+        for date, solves in sorted(solves_by_date.items())
     ]
 
 

@@ -11,11 +11,13 @@ from fastapi.templating import Jinja2Templates
 
 from wca_records_analyser.chart import (
     to_consistency_series,
+    to_daily_range_series,
     to_gap_series,
     to_record_series,
 )
 from wca_records_analyser.events import EVENT_NAMES, named_events
 from wca_records_analyser.formatting import (
+    MULTI_BLIND_EVENT_ID,
     event_has_average,
     format_average,
     format_single,
@@ -26,6 +28,7 @@ from wca_records_analyser.records import (
     average_record_progression,
     average_results_over_time,
     consistency_over_time,
+    daily_solve_range_over_time,
     single_record_progression,
 )
 from wca_records_analyser.wca_client import (
@@ -66,6 +69,7 @@ AVERAGE_CHART_SERIES_CONTEXT_KEY = "average_chart_series"
 GAP_CHART_SERIES_CONTEXT_KEY = "gap_chart_series"
 ALL_SINGLES_CHART_SERIES_CONTEXT_KEY = "all_singles_chart_series"
 ALL_AVERAGES_CHART_SERIES_CONTEXT_KEY = "all_averages_chart_series"
+DAILY_RANGE_SERIES_CONTEXT_KEY = "daily_range_series"
 CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
 RESULT_UNIT_CONTEXT_KEY = "result_unit"
 EVENT_HAS_AVERAGE_CONTEXT_KEY = "event_has_average"
@@ -100,6 +104,7 @@ class RecordProgressions:
     averages: list
     all_singles: list = field(default_factory=list)
     all_averages: list = field(default_factory=list)
+    daily_ranges: list = field(default_factory=list)
     consistency: list = field(default_factory=list)
 
 
@@ -124,6 +129,7 @@ def get_progression_function():
             averages=average_record_progression(results, competition_dates),
             all_singles=all_solves_over_time(results, competition_dates),
             all_averages=average_results_over_time(results, competition_dates),
+            daily_ranges=daily_solve_range_over_time(results, competition_dates),
             consistency=consistency_over_time(results, competition_dates),
         )
 
@@ -174,6 +180,13 @@ def records(
     average_chart_series = to_record_series(
         progressions.averages, event_id, is_average=True
     )
+    # Multi-Blind solves are encoded scores, not times, so a fastest-to-slowest
+    # band over them would be meaningless; it is shown for every other event.
+    daily_range_series = None
+    if event_id != MULTI_BLIND_EVENT_ID and progressions.daily_ranges:
+        daily_range_series = to_daily_range_series(
+            progressions.daily_ranges, event_id
+        )
     return templates.TemplateResponse(
         request=request,
         name=RECORDS_TEMPLATE,
@@ -198,6 +211,7 @@ def records(
             ALL_AVERAGES_CHART_SERIES_CONTEXT_KEY: to_record_series(
                 progressions.all_averages, event_id, is_average=True
             ),
+            DAILY_RANGE_SERIES_CONTEXT_KEY: daily_range_series,
             CONSISTENCY_SERIES_CONTEXT_KEY: to_consistency_series(
                 progressions.consistency, event_id
             ),

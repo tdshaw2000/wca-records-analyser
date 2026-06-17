@@ -1,9 +1,14 @@
 from wca_records_analyser.chart import (
     to_consistency_series,
+    to_daily_range_series,
     to_gap_series,
     to_record_series,
 )
-from wca_records_analyser.records import ConsistencyPoint, RecordPoint
+from wca_records_analyser.records import (
+    ConsistencyPoint,
+    DailySolveRange,
+    RecordPoint,
+)
 
 THREE_BY_THREE_EVENT_ID = "333"
 FEWEST_MOVES_EVENT_ID = "333fm"
@@ -198,6 +203,45 @@ def test_to_gap_series_starts_once_both_records_exist_and_carries_forward():
 
 def test_to_gap_series_is_empty_when_there_is_no_average():
     assert to_gap_series(GAP_SINGLE_SERIES, [], THREE_BY_THREE_EVENT_ID) == []
+
+
+EARLIEST_FASTEST = 1807
+EARLIEST_SLOWEST = 2100
+LATEST_FASTEST = 1498
+LATEST_SLOWEST = 1700
+
+DAILY_RANGES = [
+    DailySolveRange(
+        date=EARLIEST_DATE, fastest=EARLIEST_FASTEST, slowest=EARLIEST_SLOWEST
+    ),
+    DailySolveRange(
+        date=LATEST_DATE, fastest=LATEST_FASTEST, slowest=LATEST_SLOWEST
+    ),
+]
+EXPECTED_DAILY_RANGE_SERIES = {
+    "lower": [
+        {"x": EARLIEST_DATE, "y": EARLIEST_FASTEST, "display": "18.07"},
+        {"x": LATEST_DATE, "y": LATEST_FASTEST, "display": "14.98"},
+    ],
+    "upper": [
+        {"x": EARLIEST_DATE, "y": EARLIEST_SLOWEST, "display": "21.00"},
+        {"x": LATEST_DATE, "y": LATEST_SLOWEST, "display": "17.00"},
+    ],
+}
+
+
+def test_to_daily_range_series_splits_into_fastest_and_slowest_bounds():
+    assert (
+        to_daily_range_series(DAILY_RANGES, THREE_BY_THREE_EVENT_ID)
+        == EXPECTED_DAILY_RANGE_SERIES
+    )
+
+
+def test_to_daily_range_series_of_no_ranges_has_empty_bounds():
+    assert to_daily_range_series([], THREE_BY_THREE_EVENT_ID) == {
+        "lower": [],
+        "upper": [],
+    }
 
 
 FEWEST_MOVES_CONSISTENCY_SINGLE_MOVES = 24

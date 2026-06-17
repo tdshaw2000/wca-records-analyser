@@ -15,6 +15,8 @@ from wca_records_analyser.formatting import (
 DATE_KEY = "x"
 VALUE_KEY = "y"
 DISPLAY_KEY = "display"
+LOWER_BOUND_KEY = "lower"
+UPPER_BOUND_KEY = "upper"
 CONSISTENCY_RATIO_DECIMAL_PLACES = 3
 GAP_PLOT_DECIMAL_PLACES = 2
 DNF_POINTS_THRESHOLD = 0
@@ -68,6 +70,32 @@ def to_gap_series(single_series, average_series, event_id):
             }
         )
     return series
+
+
+def to_daily_range_series(daily_ranges, event_id):
+    """Split each day's solve range into the fastest and slowest bounds of a band.
+
+    The two bounds share the single's scale, so a chart can shade the area between
+    them; each bound carries its own formatted value for display.
+    """
+    return {
+        LOWER_BOUND_KEY: [
+            _bound_point(daily_range.date, daily_range.fastest, event_id)
+            for daily_range in daily_ranges
+        ],
+        UPPER_BOUND_KEY: [
+            _bound_point(daily_range.date, daily_range.slowest, event_id)
+            for daily_range in daily_ranges
+        ],
+    }
+
+
+def _bound_point(date, value, event_id):
+    return {
+        DATE_KEY: date,
+        VALUE_KEY: value,
+        DISPLAY_KEY: format_single(value, event_id),
+    }
 
 
 def _to_multi_blind_series(progression):
