@@ -1,10 +1,12 @@
 from wca_records_analyser.records import (
     ConsistencyPoint,
+    DailySolveRange,
     RecordPoint,
     all_solves_over_time,
     average_record_progression,
     average_results_over_time,
     consistency_over_time,
+    daily_solve_range_over_time,
     personal_record_flags,
     single_record_progression,
 )
@@ -295,3 +297,47 @@ def test_average_results_over_time_skips_did_not_finish_averages():
     )
 
     assert points == EXPECTED_ALL_AVERAGES_AFTER_SKIPPING
+
+
+SAME_DATE_SECOND_SOLVES = (1750, 2200)
+RESULTS_WITH_TWO_ROUNDS_ON_ONE_DATE = [
+    Result(
+        single=LATEST_SINGLE,
+        competition_id=LATEST_COMPETITION_ID,
+        solves=LATEST_SOLVES,
+    ),
+    Result(
+        single=EARLIEST_SINGLE,
+        competition_id=EARLIEST_COMPETITION_ID,
+        solves=EARLIEST_SOLVES,
+    ),
+    Result(
+        single=1750,
+        competition_id=EARLIEST_COMPETITION_ID,
+        solves=SAME_DATE_SECOND_SOLVES,
+    ),
+]
+EXPECTED_DAILY_RANGES = [
+    DailySolveRange(date=EARLIEST_DATE, fastest=1750, slowest=2200),
+    DailySolveRange(date=LATEST_DATE, fastest=LATEST_SINGLE, slowest=1700),
+]
+
+
+def test_daily_solve_range_over_time_spans_fastest_to_slowest_across_a_date():
+    ranges = daily_solve_range_over_time(
+        RESULTS_WITH_TWO_ROUNDS_ON_ONE_DATE, COMPETITION_DATES_FOR_ONE_DATE
+    )
+
+    assert ranges == EXPECTED_DAILY_RANGES
+
+
+def test_daily_solve_range_over_time_skips_dates_with_no_finished_solves():
+    ranges = daily_solve_range_over_time(
+        RESULTS_WITH_NON_RESULT_SOLVES, COMPETITION_DATES_FOR_ONE_DATE
+    )
+
+    assert ranges == [
+        DailySolveRange(
+            date=EARLIEST_DATE, fastest=EARLIEST_SINGLE, slowest=EARLIEST_SINGLE
+        )
+    ]
