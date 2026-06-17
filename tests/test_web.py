@@ -3,7 +3,11 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 from wca_records_analyser.events import Event
-from wca_records_analyser.records import ConsistencyPoint, RecordPoint
+from wca_records_analyser.records import (
+    ConsistencyPoint,
+    DailySolveRange,
+    RecordPoint,
+)
 from wca_records_analyser.web import (
     RecordProgressions,
     app,
@@ -45,6 +49,7 @@ PROGRESSIONS_WITH_CONSISTENCY = SimpleNamespace(
     averages=AVERAGE_PROGRESSION,
     all_singles=[],
     all_averages=[],
+    daily_ranges=[],
     consistency=CONSISTENCY_POINTS,
 )
 EXPECTED_CONSISTENCY_RATIO = 1.26
@@ -61,11 +66,17 @@ ALL_AVERAGES = [
     RecordPoint(date="2024-06-01", value=NON_RECORD_AVERAGE),
     RecordPoint(date="2024-11-01", value=1888),
 ]
+SLOWEST_SOLVE_OF_DAY = 2300
+DAILY_RANGES = [
+    DailySolveRange(date="2023-11-18", fastest=1777, slowest=SLOWEST_SOLVE_OF_DAY),
+    DailySolveRange(date="2024-11-01", fastest=1498, slowest=1900),
+]
 PROGRESSIONS_WITH_ALL_RESULTS = SimpleNamespace(
     singles=SINGLE_PROGRESSION,
     averages=AVERAGE_PROGRESSION,
     all_singles=ALL_SINGLES,
     all_averages=ALL_AVERAGES,
+    daily_ranges=DAILY_RANGES,
     consistency=[],
 )
 
@@ -107,6 +118,13 @@ MULTI_BLIND_PROGRESSIONS = RecordProgressions(
     averages=[],
     all_singles=[RecordPoint(date="2024-01-06", value=MULTI_BLIND_SINGLE)],
     all_averages=[],
+    daily_ranges=[
+        DailySolveRange(
+            date="2024-01-06",
+            fastest=MULTI_BLIND_SINGLE,
+            slowest=MULTI_BLIND_SINGLE,
+        )
+    ],
 )
 MULTI_BLIND_PROFILE = Profile(person=MATS_VALK, event_ids=[MULTI_BLIND_EVENT_ID])
 
@@ -413,6 +431,25 @@ def test_records_embeds_all_results_as_scatter_chart_data():
     assert 'id="all-averages-scatter-data"' in response.text
     assert f'"y": {NON_RECORD_SINGLE}' in response.text
     assert f'"y": {NON_RECORD_AVERAGE}' in response.text
+
+
+def test_records_embeds_the_daily_solve_range_band_as_chart_data():
+    response = _get_records_page(progressions=PROGRESSIONS_WITH_ALL_RESULTS)
+
+    assert response.status_code == 200
+    assert 'id="daily-range-data"' in response.text
+    assert f'"y": {SLOWEST_SOLVE_OF_DAY}' in response.text
+
+
+def test_records_omits_the_daily_range_band_for_multi_blind():
+    response = _get_records_page(
+        event_id=MULTI_BLIND_EVENT_ID,
+        progressions=MULTI_BLIND_PROGRESSIONS,
+        profile=MULTI_BLIND_PROFILE,
+    )
+
+    assert response.status_code == 200
+    assert 'id="daily-range-data"' not in response.text
 
 
 def test_records_embeds_the_consistency_series_as_chart_data():
