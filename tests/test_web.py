@@ -200,6 +200,20 @@ def test_records_stylesheet_link_is_cache_busted():
     assert f"{STYLESHEET_PATH}?v={version}" in response.text
 
 
+def test_records_scripts_are_cache_busted():
+    response = _get_records_page(progressions=PROGRESSIONS_WITH_ALL_RESULTS)
+
+    assert response.status_code == 200
+    for filename in (
+        "records-loading.js",
+        "records-chart.js",
+        "scatter-chart.js",
+        "gap-chart.js",
+    ):
+        version = static_asset_version(filename)
+        assert f"/static/{filename}?v={version}" in response.text
+
+
 def test_static_asset_version_changes_with_file_contents():
     assert static_asset_version("styles.css") != static_asset_version(
         "records-chart.js"
