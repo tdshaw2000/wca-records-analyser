@@ -3,11 +3,29 @@
 (function () {
     const SINGLE_SCATTER_DATA_ELEMENT_ID = "all-singles-scatter-data";
     const AVERAGE_SCATTER_DATA_ELEMENT_ID = "all-averages-scatter-data";
+    const BAND_DATA_ELEMENT_ID = "daily-range-data";
     const SCATTER_CANVAS_ELEMENT_ID = "all-results-scatter";
     const SINGLE_LABEL = "Single";
     const AVERAGE_LABEL = "Average";
+    const BAND_LABEL = "Daily range";
+    // Hidden helper dataset that the band fills down to; kept out of the legend so
+    // a single "Daily range" entry toggles the whole band.
+    const BAND_LOWER_BOUND_LABEL = "Daily range (fastest)";
     const SINGLE_COLOUR = "#2563eb";
     const AVERAGE_COLOUR = "#449964";
+    // A translucent wash of the Single colour, so the band reads as the spread of
+    // the singles it envelopes.
+    const BAND_FILL_COLOUR = "rgba(37, 99, 235, 0.15)";
+    const BAND_BORDER_COLOUR = "transparent";
+    const BAND_BORDER_WIDTH = 0;
+    const BAND_POINT_RADIUS = 0;
+    const BAND_LOWER_BOUND_KEY = "lower";
+    const BAND_UPPER_BOUND_KEY = "upper";
+    const NO_DATASET_INDEX = -1;
+    // The band sorts after the scatter entries so the legend reads Single,
+    // Average, Daily range.
+    const LEGEND_BAND_ORDER = 1;
+    const LEGEND_SCATTER_ORDER = 0;
     const TIME_PROGRESSION_AXIS_LABEL = "Time →";
     const RESULT_AXIS_LABEL = "Result";
     const POINTS_AXIS_LABEL = "Points (solved − missed)";
@@ -50,6 +68,14 @@
     const averageSeries = averageDataElement
         ? JSON.parse(averageDataElement.textContent)
         : [];
+    const bandDataElement = document.getElementById(BAND_DATA_ELEMENT_ID);
+    const bandBounds = bandDataElement
+        ? JSON.parse(bandDataElement.textContent)
+        : null;
+    // Assigned when the band is built; the legend entry sits on the visible
+    // (slowest) dataset, the helper (fastest) one it fills down to is hidden.
+    let bandLegendDatasetIndex = NO_DATASET_INDEX;
+    let bandHelperDatasetIndex = NO_DATASET_INDEX;
     const allPoints = [...singleSeries, ...averageSeries];
 
     function resultBounds(points) {
@@ -98,9 +124,18 @@
         return String(seconds);
     }
 
-    function fadeHiddenLegendLabels(chart) {
-        const labels =
-            Chart.defaults.plugins.legend.labels.generateLabels(chart);
+    function legendOrder(label) {
+        return label.datasetIndex === bandLegendDatasetIndex
+            ? LEGEND_BAND_ORDER
+            : LEGEND_SCATTER_ORDER;
+    }
+
+    // Drop the band's hidden helper entry, fade any toggled-off series, and keep
+    // the band's single entry last so it reads Single, Average, Daily range.
+    function buildLegendLabels(chart) {
+        const labels = Chart.defaults.plugins.legend.labels
+            .generateLabels(chart)
+            .filter((label) => label.datasetIndex !== bandHelperDatasetIndex);
         for (const label of labels) {
             if (!chart.isDatasetVisible(label.datasetIndex)) {
                 label.hidden = false;
@@ -109,25 +144,68 @@
                 label.strokeStyle = FADED_LEGEND_COLOUR;
             }
         }
+        labels.sort((first, second) => legendOrder(first) - legendOrder(second));
         return labels;
+    }
+
+    // Toggling the band's legend entry hides or shows both of its bounds together,
+    // so the shaded area appears and disappears as one.
+    function toggleLegendDataset(event, legendItem, legend) {
+        const chart = legend.chart;
+        const datasetIndex = legendItem.datasetIndex;
+        const nowVisible = !chart.isDatasetVisible(datasetIndex);
+        chart.setDatasetVisibility(datasetIndex, nowVisible);
+        if (
+            datasetIndex === bandLegendDatasetIndex &&
+            bandHelperDatasetIndex !== NO_DATASET_INDEX
+        ) {
+            chart.setDatasetVisibility(bandHelperDatasetIndex, nowVisible);
+        }
+        chart.update();
     }
 
     const resultRange = snapAxisBounds(resultBounds(allPoints));
     const dateRange = dateBounds(allPoints);
 
+    const datasets = [];
+    // The band's two bounds go in first so they are drawn behind the scatter
+    // points; the slowest bound fills down to the fastest one to shade the area.
+    // It is absent for events without a band (such as Multi-Blind).
+    if (bandBounds) {
+        bandHelperDatasetIndex = datasets.length;
+        datasets.push({
+            label: BAND_LOWER_BOUND_LABEL,
+            data: bandBounds[BAND_LOWER_BOUND_KEY],
+            borderColor: BAND_BORDER_COLOUR,
+            borderWidth: BAND_BORDER_WIDTH,
+            backgroundColor: BAND_FILL_COLOUR,
+            pointRadius: BAND_POINT_RADIUS,
+            pointHoverRadius: BAND_POINT_RADIUS,
+            fill: false,
+        });
+        bandLegendDatasetIndex = datasets.length;
+        datasets.push({
+            label: BAND_LABEL,
+            data: bandBounds[BAND_UPPER_BOUND_KEY],
+            borderColor: BAND_BORDER_COLOUR,
+            borderWidth: BAND_BORDER_WIDTH,
+            backgroundColor: BAND_FILL_COLOUR,
+            pointRadius: BAND_POINT_RADIUS,
+            pointHoverRadius: BAND_POINT_RADIUS,
+            fill: bandHelperDatasetIndex,
+        });
+    }
+    datasets.push({
+        label: SINGLE_LABEL,
+        data: singleSeries,
+        borderColor: SINGLE_COLOUR,
+        backgroundColor: SINGLE_COLOUR,
+        showLine: false,
+        pointRadius: POINT_RADIUS,
+        pointHoverRadius: POINT_HOVER_RADIUS,
+    });
     // The average dataset (and its legend entry) is omitted entirely for events
     // that have no average, such as Multi-Blind, where the data element is absent.
-    const datasets = [
-        {
-            label: SINGLE_LABEL,
-            data: singleSeries,
-            borderColor: SINGLE_COLOUR,
-            backgroundColor: SINGLE_COLOUR,
-            showLine: false,
-            pointRadius: POINT_RADIUS,
-            pointHoverRadius: POINT_HOVER_RADIUS,
-        },
-    ];
     if (averageDataElement) {
         datasets.push({
             label: AVERAGE_LABEL,
@@ -170,7 +248,8 @@
             },
             plugins: {
                 legend: {
-                    labels: { generateLabels: fadeHiddenLegendLabels },
+                    onClick: toggleLegendDataset,
+                    labels: { generateLabels: buildLegendLabels },
                 },
                 tooltip: {
                     callbacks: {
