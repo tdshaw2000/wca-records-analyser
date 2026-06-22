@@ -126,20 +126,67 @@
         resultAxis.ticks.stepSize = bounds.step;
     }
 
-    // After a zoom or pan, refit the result axis to only the points inside the
-    // visible time window, so a zoomed-in period fills the vertical space rather
-    // than being squashed against the full-career scale. Falls back to the whole
-    // series when the window happens to contain no points.
+    // The points that frame a time window for one series: those inside it, plus
+    // the nearest point on each side. The bracketing points matter because a
+    // connecting line or the shaded band can cross the window even when no vertex
+    // falls inside it — without them, zooming into the gap between two daily
+    // points finds nothing and the axis snaps back to the full-career scale.
+    function pointsFramingWindow(series, windowStart, windowEnd) {
+        const framing = [];
+        let nearestBefore = null;
+        let nearestAfter = null;
+        for (const point of series) {
+            const timestamp = new Date(point.x).getTime();
+            if (timestamp < windowStart) {
+                if (
+                    !nearestBefore ||
+                    timestamp > new Date(nearestBefore.x).getTime()
+                ) {
+                    nearestBefore = point;
+                }
+            } else if (timestamp > windowEnd) {
+                if (
+                    !nearestAfter ||
+                    timestamp < new Date(nearestAfter.x).getTime()
+                ) {
+                    nearestAfter = point;
+                }
+            } else {
+                framing.push(point);
+            }
+        }
+        if (nearestBefore) {
+            framing.push(nearestBefore);
+        }
+        if (nearestAfter) {
+            framing.push(nearestAfter);
+        }
+        return framing;
+    }
+
+    // After a zoom or pan, refit the result axis to whatever is visible in the
+    // time window — every scatter series plus the daily-range band — so a
+    // zoomed-in period fills the vertical space rather than being squashed
+    // against the full-career scale.
     function rescaleResultAxisToWindow(chart) {
         const timeAxis = chart.scales.x;
-        const pointsInWindow = allPoints.filter((point) => {
-            const timestamp = new Date(point.x).getTime();
-            return timestamp >= timeAxis.min && timestamp <= timeAxis.max;
-        });
-        const visiblePoints = pointsInWindow.length ? pointsInWindow : allPoints;
-        applyResultBounds(chart, snapAxisBounds(resultBounds(visiblePoints)));
+        const seriesToFrame = [singleSeries, averageSeries];
+        if (bandBounds) {
+            seriesToFrame.push(
+                bandBounds[BAND_LOWER_BOUND_KEY],
+                bandBounds[BAND_UPPER_BOUND_KEY],
+            );
+        }
+        const framingPoints = seriesToFrame.flatMap((series) =>
+            pointsFramingWindow(series, timeAxis.min, timeAxis.max),
+        );
         if (resetZoomButton) {
             resetZoomButton.hidden = false;
+        }
+        // Nothing in view (no data at all): leave the axis as it is rather than
+        // jumping to a meaningless scale.
+        if (framingPoints.length) {
+            applyResultBounds(chart, snapAxisBounds(resultBounds(framingPoints)));
         }
         chart.update(NO_ANIMATION_UPDATE_MODE);
     }
