@@ -284,6 +284,24 @@ button:hover {
     height: 360px;
 }
 
+.chart-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
+}
+
+.chart-reset {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.85rem;
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.chart-reset:hover {
+    background: var(--accent-soft);
+    filter: brightness(0.96);
+}
+
 .chart-loading {
     position: absolute;
     inset: 0;
