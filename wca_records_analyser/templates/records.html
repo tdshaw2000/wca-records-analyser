@@ -35,6 +35,9 @@
                     <div class="spinner"></div>
                 </div>
             </div>
+            <div class="chart-controls">
+                <button type="button" id="record-reset-zoom" class="chart-reset" hidden>Reset zoom</button>
+            </div>
         </section>
         <script id="single-chart-data" type="application/json">{{ single_chart_series | tojson }}</script>
         {% if event_has_average %}
@@ -150,11 +153,11 @@
     {% if single_progression or average_progression %}
         <script src="/static/vendor/chart.umd.js"></script>
         <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
+        <script src="/static/vendor/hammer.min.js"></script>
+        <script src="/static/vendor/chartjs-plugin-zoom.min.js"></script>
         <script src="/static/records-chart.js?v={{ static_version('records-chart.js') }}"></script>
     {% endif %}
     {% if all_singles_chart_series or all_averages_chart_series %}
-        <script src="/static/vendor/hammer.min.js"></script>
-        <script src="/static/vendor/chartjs-plugin-zoom.min.js"></script>
         <script src="/static/scatter-chart.js?v={{ static_version('scatter-chart.js') }}"></script>
     {% endif %}
     {% if consistency_series %}
