@@ -293,6 +293,21 @@ def test_records_embeds_both_single_and_average_progressions_as_chart_data():
     assert '"display": "18.88"' in response.text
 
 
+def test_records_pr_chart_has_reset_zoom_button():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert 'id="record-reset-zoom"' in response.text
+
+
+def test_records_pr_chart_loads_zoom_plugin():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert "/static/vendor/hammer.min.js" in response.text
+    assert "/static/vendor/chartjs-plugin-zoom.min.js" in response.text
+
+
 def test_records_shows_an_average_single_gap_chart():
     response = _get_records_page()
 
