@@ -26,6 +26,11 @@ const NICE_TIME_STEPS_CENTISECONDS = [
     600000, 1200000, 3000000,
 ];
 const NICE_COUNT_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+const RESET_ZOOM_BUTTON_ELEMENT_ID = "record-reset-zoom";
+// Zoom and pan are constrained to the time axis; the result axis is rescaled by
+// hand (see rescaleResultAxisToWindow) to fit whatever period is in view.
+const ZOOM_AXIS_MODE = "x";
+const NO_ANIMATION_UPDATE_MODE = "none";
 
 function readSeries(elementId) {
     const element = document.getElementById(elementId);
@@ -65,6 +70,70 @@ function snapAxisBounds(bounds) {
     };
 }
 
+function applyResultBounds(chart, bounds) {
+    const resultAxis = chart.options.scales.y;
+    resultAxis.min = bounds.min;
+    resultAxis.max = bounds.max;
+    resultAxis.ticks.stepSize = bounds.step;
+}
+
+// The points that frame a time window for one series: those inside it, plus the
+// nearest point on each side. The bracketing points matter because a connecting
+// line can cross the window even when no vertex falls inside it — without them,
+// zooming into the gap between two records finds nothing and the axis snaps back
+// to the full-career scale.
+function pointsFramingWindow(series, windowStart, windowEnd) {
+    const framing = [];
+    let nearestBefore = null;
+    let nearestAfter = null;
+    for (const point of series) {
+        const timestamp = new Date(point.x).getTime();
+        if (timestamp < windowStart) {
+            if (
+                !nearestBefore ||
+                timestamp > new Date(nearestBefore.x).getTime()
+            ) {
+                nearestBefore = point;
+            }
+        } else if (timestamp > windowEnd) {
+            if (
+                !nearestAfter ||
+                timestamp < new Date(nearestAfter.x).getTime()
+            ) {
+                nearestAfter = point;
+            }
+        } else {
+            framing.push(point);
+        }
+    }
+    if (nearestBefore) {
+        framing.push(nearestBefore);
+    }
+    if (nearestAfter) {
+        framing.push(nearestAfter);
+    }
+    return framing;
+}
+
+// After a zoom or pan, refit the result axis to whatever is visible in the time
+// window — both record progressions — so a zoomed-in period fills the vertical
+// space rather than being squashed against the full-career scale.
+function rescaleResultAxisToWindow(chart) {
+    const timeAxis = chart.scales.x;
+    const framingPoints = [singleSeries, averageSeries].flatMap((series) =>
+        pointsFramingWindow(series, timeAxis.min, timeAxis.max),
+    );
+    if (resetZoomButton) {
+        resetZoomButton.hidden = false;
+    }
+    // Nothing in view (no data at all): leave the axis as it is rather than
+    // jumping to a meaningless scale.
+    if (framingPoints.length) {
+        applyResultBounds(chart, snapAxisBounds(resultBounds(framingPoints)));
+    }
+    chart.update(NO_ANIMATION_UPDATE_MODE);
+}
+
 function fadeHiddenLegendLabels(chart) {
     const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
     for (const label of labels) {
@@ -92,6 +161,7 @@ function formatAxisTick(value) {
 }
 
 const canvas = document.getElementById(CANVAS_ELEMENT_ID);
+const resetZoomButton = document.getElementById(RESET_ZOOM_BUTTON_ELEMENT_ID);
 const resultUnit = canvas.dataset.resultUnit;
 const resultAxisLabel =
     resultUnit === POINTS_UNIT ? POINTS_AXIS_LABEL : RESULT_AXIS_LABEL;
@@ -120,7 +190,7 @@ if (document.getElementById(AVERAGE_CHART_DATA_ELEMENT_ID)) {
     });
 }
 
-new Chart(canvas, {
+const recordChart = new Chart(canvas, {
     type: "line",
     data: { datasets },
     options: {
@@ -155,6 +225,31 @@ new Chart(canvas, {
                     label: (context) => context.raw.display,
                 },
             },
+            // Drag pans on both desktop and touch; wheel (desktop) and pinch
+            // (mobile) zoom. All restricted to the time axis, with the result
+            // axis rescaled to the window after each gesture.
+            zoom: {
+                pan: {
+                    enabled: true,
+                    mode: ZOOM_AXIS_MODE,
+                    onPan: ({ chart }) => rescaleResultAxisToWindow(chart),
+                },
+                zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: ZOOM_AXIS_MODE,
+                    onZoom: ({ chart }) => rescaleResultAxisToWindow(chart),
+                },
+            },
         },
     },
 });
+
+if (resetZoomButton) {
+    resetZoomButton.addEventListener("click", () => {
+        recordChart.resetZoom();
+        applyResultBounds(recordChart, resultRange);
+        recordChart.update(NO_ANIMATION_UPDATE_MODE);
+        resetZoomButton.hidden = true;
+    });
+}
