@@ -146,6 +146,9 @@
             <div class="chart-wrap">
                 <canvas id="gap-progression" data-result-unit="{{ result_unit }}"></canvas>
             </div>
+            <div class="chart-controls">
+                <button type="button" id="gap-reset-zoom" class="chart-reset" hidden>Reset zoom</button>
+            </div>
         </section>
         <script id="gap-chart-data" type="application/json">{{ gap_chart_series | tojson }}</script>
     {% endif %}
