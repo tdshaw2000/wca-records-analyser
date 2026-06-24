@@ -132,6 +132,9 @@
             <div class="chart-wrap">
                 <canvas id="consistency-progression"></canvas>
             </div>
+            <div class="chart-controls">
+                <button type="button" id="consistency-reset-zoom" class="chart-reset" hidden>Reset zoom</button>
+            </div>
         </section>
         <script id="consistency-chart-data" type="application/json">{{ consistency_series | tojson }}</script>
     {% endif %}
