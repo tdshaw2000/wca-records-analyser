@@ -315,6 +315,13 @@ def test_records_consistency_chart_has_reset_zoom_button():
     assert 'id="consistency-reset-zoom"' in response.text
 
 
+def test_records_gap_chart_has_reset_zoom_button():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert 'id="gap-reset-zoom"' in response.text
+
+
 def test_records_shows_an_average_single_gap_chart():
     response = _get_records_page()
 
