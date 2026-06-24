@@ -308,6 +308,13 @@ def test_records_pr_chart_loads_zoom_plugin():
     assert "/static/vendor/chartjs-plugin-zoom.min.js" in response.text
 
 
+def test_records_consistency_chart_has_reset_zoom_button():
+    response = _get_records_page(progressions=PROGRESSIONS_WITH_CONSISTENCY)
+
+    assert response.status_code == 200
+    assert 'id="consistency-reset-zoom"' in response.text
+
+
 def test_records_shows_an_average_single_gap_chart():
     response = _get_records_page()
 
