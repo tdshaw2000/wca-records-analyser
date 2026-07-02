@@ -3,14 +3,17 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 from wca_records_analyser.events import Event
+from wca_records_analyser.overview import EventAges
 from wca_records_analyser.records import (
     ConsistencyPoint,
     DailySolveRange,
     RecordPoint,
 )
 from wca_records_analyser.web import (
+    Overview,
     RecordProgressions,
     app,
+    get_overview_function,
     get_profile_function,
     get_progression_function,
     get_search_function,
@@ -20,11 +23,11 @@ from wca_records_analyser.wca_client import Person, Profile
 
 SEARCH_ROUTE = "/search"
 RECORDS_ROUTE = "/records"
+OVERVIEW_ROUTE = "/overview"
 SEARCH_NAME_PARAMETER = "name"
 SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
 EVENT_NAME = "3x3x3 Cube"
-DEFAULT_EVENT_ID = "333"
 STYLESHEET_PATH = "/static/styles.css"
 STYLESHEET_FILENAME = "styles.css"
 
@@ -97,6 +100,25 @@ MATS_VALK_EVENT_IDS = [event.event_id for event in MATS_VALK_EVENTS]
 MATS_VALK_PROFILE = Profile(person=MATS_VALK, event_ids=MATS_VALK_EVENT_IDS)
 WCA_PROFILE_URL = "https://www.worldcubeassociation.org/persons/2007VALK01"
 
+# The 3x3x3 row deliberately has no average PR, so the page must show a placeholder
+# rather than a blank cell.
+NO_AVERAGE_PLACEHOLDER = "—"
+MATS_VALK_OVERVIEW_ROWS = [
+    EventAges(
+        event_id="222",
+        event_name="2x2x2 Cube",
+        single_age="3 months ago",
+        average_age="3 months ago",
+    ),
+    EventAges(
+        event_id="333",
+        event_name="3x3x3 Cube",
+        single_age="1 week ago",
+        average_age=None,
+    ),
+]
+MATS_VALK_OVERVIEW = Overview(person=MATS_VALK, rows=MATS_VALK_OVERVIEW_ROWS)
+
 FEWEST_MOVES_EVENT_ID = "333fm"
 FEWEST_MOVES_SINGLE_MOVES = 24
 FEWEST_MOVES_AVERAGE_CENTI_MOVES = 2733
@@ -148,6 +170,26 @@ def _profile_returning(profile):
         return profile
 
     return _profile
+
+
+def _overview_returning(overview):
+    def _overview(wca_id):
+        return overview
+
+    return _overview
+
+
+def _get_overview_page(overview=MATS_VALK_OVERVIEW):
+    app.dependency_overrides[get_overview_function] = lambda: _overview_returning(
+        overview
+    )
+    try:
+        client = TestClient(app)
+        return client.get(
+            OVERVIEW_ROUTE, params={"wca_id": overview.person.wca_id}
+        )
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_index_page_shows_a_name_search_form():
@@ -228,7 +270,7 @@ def test_stylesheet_is_served():
     assert response.status_code == 200
 
 
-def test_search_links_each_competitor_to_their_default_event_records():
+def test_search_links_each_competitor_to_their_overview():
     app.dependency_overrides[get_search_function] = lambda: _search_returning(
         [MATS_VALK]
     )
@@ -242,9 +284,7 @@ def test_search_links_each_competitor_to_their_default_event_records():
 
     assert response.status_code == 200
     assert MATS_VALK.name in response.text
-    assert RECORDS_ROUTE in response.text
-    assert f"wca_id={MATS_VALK.wca_id}" in response.text
-    assert f"event_id={DEFAULT_EVENT_ID}" in response.text
+    assert f'{OVERVIEW_ROUTE}?wca_id={MATS_VALK.wca_id}' in response.text
 
 
 def test_search_with_no_matches_shows_a_friendly_message():
@@ -502,3 +542,50 @@ def test_records_embeds_the_consistency_series_as_chart_data():
     assert 'id="consistency-chart-data"' in response.text
     assert 'id="consistency-progression"' in response.text
     assert f'"y": {EXPECTED_CONSISTENCY_RATIO}' in response.text
+
+
+def test_overview_shows_the_competitor_identity():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert MATS_VALK.name in response.text
+    assert MATS_VALK.wca_id in response.text
+    assert f'src="{MATS_VALK_AVATAR_THUMB_URL}"' in response.text
+    assert WCA_PROFILE_URL in response.text
+
+
+def test_overview_heads_the_table_with_event_single_and_average():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert "Event" in response.text
+    assert "Latest Single" in response.text
+    assert "Latest Average" in response.text
+
+
+def test_overview_lists_each_event_with_its_latest_pr_ages():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert "2x2x2 Cube" in response.text
+    assert "3x3x3 Cube" in response.text
+    assert "1 week ago" in response.text
+    assert "3 months ago" in response.text
+
+
+def test_overview_links_each_event_row_to_its_records_page():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    for event in MATS_VALK_EVENTS:
+        assert (
+            f"{RECORDS_ROUTE}?wca_id={MATS_VALK.wca_id}&event_id={event.event_id}"
+            in response.text
+        )
+
+
+def test_overview_shows_a_placeholder_when_an_event_has_no_average_pr():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert NO_AVERAGE_PLACEHOLDER in response.text
