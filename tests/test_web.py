@@ -482,6 +482,13 @@ def test_records_links_to_the_competitors_wca_profile():
     assert WCA_PROFILE_URL in response.text
 
 
+def test_records_links_the_competitor_identity_back_to_the_overview():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert f"{OVERVIEW_ROUTE}?wca_id={MATS_VALK.wca_id}" in response.text
+
+
 def test_records_shows_the_competitor_identity():
     response = _get_records_page()
 
