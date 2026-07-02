@@ -426,3 +426,23 @@ tbody td:last-child {
     font-family: var(--time-font);
 }
 
+/* Overview table: its cells hold ages as words, not times, so keep every column
+   left-aligned in the body font, and let the event name link into that event. */
+.overview-table thead th:last-child,
+.overview-table tbody td:last-child {
+    text-align: left;
+    font-variant-numeric: normal;
+    font-family: inherit;
+}
+
+.overview-table tbody td:first-child a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.overview-table tbody td:first-child a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
