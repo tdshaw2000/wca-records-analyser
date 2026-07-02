@@ -1,6 +1,7 @@
 """Web page for searching World Cube Association competitors by name."""
 
 import hashlib
+import time
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -10,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from wca_records_analyser.cache import ttl_cached
 from wca_records_analyser.chart import (
     to_consistency_series,
     to_daily_range_series,
@@ -116,6 +118,17 @@ class Overview:
     rows: list
 
 
+# A competitor's WCA data changes at most once per competition, so caching each
+# fetch for an hour spares the overview its burst of per-event calls on revisits
+# (and speeds the records pages, which share the same lookups).
+CACHE_TTL_SECONDS = 60 * 60
+cached_profile = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_profile)
+cached_competition_dates = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(
+    get_competition_dates
+)
+cached_results = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_results)
+
+
 def get_search_function():
     """Provide the function used to search for competitors (overridable in tests)."""
     return search_persons
@@ -125,10 +138,10 @@ def get_overview_function():
     """Provide the function used to build a competitor's overview (overridable in tests)."""
 
     def build_overview(wca_id):
-        profile = get_profile(wca_id)
-        competition_dates = get_competition_dates(wca_id)
+        profile = cached_profile(wca_id)
+        competition_dates = cached_competition_dates(wca_id)
         results_by_event = {
-            event_id: get_results(wca_id, event_id)
+            event_id: cached_results(wca_id, event_id)
             for event_id in profile.event_ids
         }
         rows = overview_rows(
@@ -144,15 +157,15 @@ def get_overview_function():
 
 def get_profile_function():
     """Provide the function used to look up a competitor's profile (overridable in tests)."""
-    return get_profile
+    return cached_profile
 
 
 def get_progression_function():
     """Provide the function used to build a record progression (overridable in tests)."""
 
     def record_progression(wca_id, event_id):
-        results = get_results(wca_id, event_id)
-        competition_dates = get_competition_dates(wca_id)
+        results = cached_results(wca_id, event_id)
+        competition_dates = cached_competition_dates(wca_id)
         return RecordProgressions(
             singles=single_record_progression(results, competition_dates),
             averages=average_record_progression(results, competition_dates),
