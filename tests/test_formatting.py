@@ -1,6 +1,9 @@
+from datetime import date, timedelta
+
 from wca_records_analyser.formatting import (
     decode_multi_blind,
     event_has_average,
+    format_age,
     format_average,
     format_consistency,
     format_gap,
@@ -154,3 +157,57 @@ def test_format_gap_renders_a_timed_difference_as_a_time():
 
 def test_format_gap_renders_a_fewest_moves_difference_to_two_decimals():
     assert format_gap(3.5, FEWEST_MOVES_EVENT_ID) == "3.50"
+
+
+# Ages are read relative to a fixed "today" so the expectations stay deterministic;
+# each past date is derived by counting whole days back from it.
+TODAY = date(2026, 7, 2)
+TODAY_ISO = TODAY.isoformat()
+
+
+def _days_ago_iso(days):
+    return (TODAY - timedelta(days=days)).isoformat()
+
+
+def test_format_age_of_the_same_day_reads_today():
+    assert format_age(TODAY_ISO, TODAY_ISO) == "today"
+
+
+def test_format_age_of_one_day_reads_yesterday():
+    assert format_age(_days_ago_iso(1), TODAY_ISO) == "yesterday"
+
+
+def test_format_age_within_a_week_counts_whole_days():
+    assert format_age(_days_ago_iso(5), TODAY_ISO) == "5 days ago"
+
+
+def test_format_age_at_one_week_switches_to_a_singular_week():
+    assert format_age(_days_ago_iso(7), TODAY_ISO) == "1 week ago"
+
+
+def test_format_age_counts_whole_weeks():
+    assert format_age(_days_ago_iso(14), TODAY_ISO) == "2 weeks ago"
+
+
+def test_format_age_just_under_a_month_is_still_weeks():
+    assert format_age(_days_ago_iso(29), TODAY_ISO) == "4 weeks ago"
+
+
+def test_format_age_at_thirty_days_switches_to_a_singular_month():
+    assert format_age(_days_ago_iso(30), TODAY_ISO) == "1 month ago"
+
+
+def test_format_age_counts_whole_months():
+    assert format_age(_days_ago_iso(90), TODAY_ISO) == "3 months ago"
+
+
+def test_format_age_just_under_a_year_is_still_months():
+    assert format_age(_days_ago_iso(364), TODAY_ISO) == "12 months ago"
+
+
+def test_format_age_at_a_year_switches_to_a_singular_year():
+    assert format_age(_days_ago_iso(365), TODAY_ISO) == "1 year ago"
+
+
+def test_format_age_counts_whole_years():
+    assert format_age(_days_ago_iso(800), TODAY_ISO) == "2 years ago"
