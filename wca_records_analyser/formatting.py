@@ -1,6 +1,7 @@
 """Formatting of WCA results for display."""
 
 from dataclasses import dataclass
+from datetime import date
 
 CENTISECONDS_PER_SECOND = 100
 SECONDS_PER_MINUTE = 60
@@ -128,6 +129,42 @@ def format_consistency(ratio):
 def event_has_average(event_id):
     """Whether this event is scored by an average rather than a single attempt."""
     return event_id not in EVENT_IDS_WITHOUT_AVERAGE
+
+
+# A date's age is reported in the largest whole unit that fits, stepping up as it
+# crosses each boundary. Months and years use rounded day counts, which is close
+# enough for a human-readable "how long ago".
+DAYS_PER_WEEK = 7
+DAYS_PER_MONTH = 30
+DAYS_PER_YEAR = 365
+AGE_TODAY = "today"
+AGE_YESTERDAY = "yesterday"
+DAY_UNIT = "day"
+WEEK_UNIT = "week"
+MONTH_UNIT = "month"
+YEAR_UNIT = "year"
+PLURAL_SUFFIX = "s"
+
+
+def _units_ago(count, unit):
+    plural = "" if count == 1 else PLURAL_SUFFIX
+    return f"{count} {unit}{plural} ago"
+
+
+def format_age(past_date, today):
+    """Render how long ago a date was, in the largest whole unit that fits."""
+    elapsed_days = (date.fromisoformat(today) - date.fromisoformat(past_date)).days
+    if elapsed_days == 0:
+        return AGE_TODAY
+    if elapsed_days == 1:
+        return AGE_YESTERDAY
+    if elapsed_days < DAYS_PER_WEEK:
+        return _units_ago(elapsed_days, DAY_UNIT)
+    if elapsed_days < DAYS_PER_MONTH:
+        return _units_ago(elapsed_days // DAYS_PER_WEEK, WEEK_UNIT)
+    if elapsed_days < DAYS_PER_YEAR:
+        return _units_ago(elapsed_days // DAYS_PER_MONTH, MONTH_UNIT)
+    return _units_ago(elapsed_days // DAYS_PER_YEAR, YEAR_UNIT)
 
 
 def result_unit(event_id):
