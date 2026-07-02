@@ -2,6 +2,7 @@
 
 import hashlib
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
@@ -23,6 +24,7 @@ from wca_records_analyser.formatting import (
     format_single,
     result_unit,
 )
+from wca_records_analyser.overview import overview_rows
 from wca_records_analyser.records import (
     all_solves_over_time,
     average_record_progression,
@@ -41,20 +43,17 @@ from wca_records_analyser.wca_client import (
 INDEX_ROUTE = "/"
 SEARCH_ROUTE = "/search"
 RECORDS_ROUTE = "/records"
+OVERVIEW_ROUTE = "/overview"
 SEARCH_NAME_PARAMETER = "name"
 INDEX_TEMPLATE = "index.html"
 RECORDS_TEMPLATE = "records.html"
+OVERVIEW_TEMPLATE = "overview.html"
 TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
 STATIC_ROUTE = "/static"
 STATIC_NAME = "static"
 STATIC_DIRECTORY = Path(__file__).parent / "static"
-# TODO: handle competitors with no DEFAULT_EVENT_ID results — the search link sends
-# every competitor to 333, which yields empty progressions for those who have never
-# competed in 3x3x3. Revisit (e.g. pick their first competed event as the default).
-DEFAULT_EVENT_ID = "333"
 RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
-DEFAULT_EVENT_ID_CONTEXT_KEY = "default_event_id"
 WCA_ID_CONTEXT_KEY = "wca_id"
 NAME_CONTEXT_KEY = "name"
 AVATAR_THUMB_URL_CONTEXT_KEY = "avatar_thumb_url"
@@ -73,6 +72,7 @@ DAILY_RANGE_SERIES_CONTEXT_KEY = "daily_range_series"
 CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
 RESULT_UNIT_CONTEXT_KEY = "result_unit"
 EVENT_HAS_AVERAGE_CONTEXT_KEY = "event_has_average"
+OVERVIEW_ROWS_CONTEXT_KEY = "overview_rows"
 SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
 STATIC_VERSION_GLOBAL = "static_version"
@@ -108,9 +108,38 @@ class RecordProgressions:
     consistency: list = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class Overview:
+    """A competitor's identity and their per-event latest-PR age rows."""
+
+    person: object
+    rows: list
+
+
 def get_search_function():
     """Provide the function used to search for competitors (overridable in tests)."""
     return search_persons
+
+
+def get_overview_function():
+    """Provide the function used to build a competitor's overview (overridable in tests)."""
+
+    def build_overview(wca_id):
+        profile = get_profile(wca_id)
+        competition_dates = get_competition_dates(wca_id)
+        results_by_event = {
+            event_id: get_results(wca_id, event_id)
+            for event_id in profile.event_ids
+        }
+        rows = overview_rows(
+            profile.event_ids,
+            results_by_event,
+            competition_dates,
+            date.today().isoformat(),
+        )
+        return Overview(person=profile.person, rows=rows)
+
+    return build_overview
 
 
 def get_profile_function():
@@ -143,7 +172,6 @@ def _render_index(request, searched_name, results):
         context={
             SEARCHED_NAME_CONTEXT_KEY: searched_name,
             RESULTS_CONTEXT_KEY: results,
-            DEFAULT_EVENT_ID_CONTEXT_KEY: DEFAULT_EVENT_ID,
         },
     )
 
@@ -161,6 +189,27 @@ def search(
 ):
     results = search_function(name)
     return _render_index(request, searched_name=name, results=results)
+
+
+@app.get(OVERVIEW_ROUTE, response_class=HTMLResponse)
+def overview(
+    request: Request,
+    wca_id: str,
+    overview_function=Depends(get_overview_function),
+):
+    competitor_overview = overview_function(wca_id)
+    person = competitor_overview.person
+    return templates.TemplateResponse(
+        request=request,
+        name=OVERVIEW_TEMPLATE,
+        context={
+            WCA_ID_CONTEXT_KEY: wca_id,
+            NAME_CONTEXT_KEY: person.name,
+            AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
+            PROFILE_URL_CONTEXT_KEY: person.profile_url,
+            OVERVIEW_ROWS_CONTEXT_KEY: competitor_overview.rows,
+        },
+    )
 
 
 @app.get(RECORDS_ROUTE, response_class=HTMLResponse)

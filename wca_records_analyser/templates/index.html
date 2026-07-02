@@ -14,7 +14,7 @@
             <ul class="result-list">
                 {% for person in results %}
                     <li>
-                        <a href="/records?wca_id={{ person.wca_id }}&event_id={{ default_event_id }}">{{ person.name }}</a>
+                        <a href="/overview?wca_id={{ person.wca_id }}">{{ person.name }}</a>
                     </li>
                 {% endfor %}
             </ul>
