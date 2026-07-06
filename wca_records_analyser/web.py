@@ -7,9 +7,10 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.status import HTTP_303_SEE_OTHER
 
 from wca_records_analyser.cache import ttl_cached
 from wca_records_analyser.chart import (
@@ -47,6 +48,8 @@ SEARCH_ROUTE = "/search"
 RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
 SEARCH_NAME_PARAMETER = "name"
+WCA_ID_QUERY_PARAMETER = "wca_id"
+SINGLE_MATCH_COUNT = 1
 INDEX_TEMPLATE = "index.html"
 RECORDS_TEMPLATE = "records.html"
 OVERVIEW_TEMPLATE = "overview.html"
@@ -201,6 +204,13 @@ def search(
     search_function=Depends(get_search_function),
 ):
     results = search_function(name)
+    # A search that pins down exactly one competitor may as well skip the
+    # single-item results list and take them straight to that overview.
+    if len(results) == SINGLE_MATCH_COUNT:
+        overview_url = (
+            f"{OVERVIEW_ROUTE}?{WCA_ID_QUERY_PARAMETER}={results[0].wca_id}"
+        )
+        return RedirectResponse(overview_url, status_code=HTTP_303_SEE_OTHER)
     return _render_index(request, searched_name=name, results=results)
 
 
