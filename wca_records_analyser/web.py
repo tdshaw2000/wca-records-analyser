@@ -145,11 +145,17 @@ cached_competition_dates = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(
     get_competition_dates
 )
 cached_results = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_results)
+# Search results shift slowly (only as competitors register), so a short window
+# is plenty to blunt the repeated identical prefixes that live typing produces.
+SEARCH_CACHE_TTL_SECONDS = 5 * 60
+cached_search = ttl_cached(SEARCH_CACHE_TTL_SECONDS, time.monotonic)(
+    search_persons
+)
 
 
 def get_search_function():
     """Provide the function used to search for competitors (overridable in tests)."""
-    return search_persons
+    return cached_search
 
 
 def get_overview_function():
