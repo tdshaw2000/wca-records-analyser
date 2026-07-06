@@ -132,6 +132,56 @@ button:hover {
     background: var(--accent-hover);
 }
 
+/* Live search dropdown */
+
+.search-field {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.search-field input[type="text"] {
+    width: 100%;
+}
+
+.search-suggestions {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 0.35rem);
+    z-index: 10;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.search-suggestions[hidden] {
+    display: none;
+}
+
+.search-suggestions li + li {
+    border-top: 1px solid var(--border);
+}
+
+.search-suggestions a {
+    display: block;
+    padding: 0.7rem 1.1rem;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.search-suggestions a:hover {
+    background: var(--accent-soft);
+    color: var(--accent-hover);
+}
+
 /* Search results */
 
 .result-list {

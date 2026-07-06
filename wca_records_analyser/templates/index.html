@@ -4,7 +4,10 @@
     <form class="search-form" action="/search" method="get">
         <label class="field-label" for="name">Competitor (name or WCA ID)</label>
         <div class="search-row">
-            <input type="text" id="name" name="name" value="{{ searched_name or '' }}">
+            <div class="search-field">
+                <input type="text" id="name" name="name" value="{{ searched_name or '' }}" autocomplete="off">
+                <ul id="search-suggestions" class="search-suggestions" hidden></ul>
+            </div>
             <button type="submit">Search</button>
         </div>
     </form>
@@ -22,4 +25,8 @@
             <p class="empty-message">No competitors found for "{{ searched_name }}".</p>
         {% endif %}
     {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/search-live.js?v={{ static_version('search-live.js') }}"></script>
 {% endblock %}
