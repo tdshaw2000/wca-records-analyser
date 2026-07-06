@@ -249,6 +249,16 @@ def test_index_page_labels_the_search_field_as_name_or_wca_id():
     assert "Competitor (name or WCA ID)" in response.text
 
 
+def test_index_page_has_no_search_submit_button():
+    # Live search replaces the button; Enter still submits the form.
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert 'type="submit"' not in response.text
+
+
 def test_index_page_includes_the_live_search_script():
     client = TestClient(app)
 
