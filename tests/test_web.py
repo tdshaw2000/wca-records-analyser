@@ -22,10 +22,13 @@ from wca_records_analyser.web import (
 from wca_records_analyser.wca_client import Person, Profile
 
 SEARCH_ROUTE = "/search"
+API_SEARCH_ROUTE = "/api/search"
 RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
 OVERVIEW_ROWS_ROUTE = "/overview/rows"
 SEARCH_NAME_PARAMETER = "name"
+SEARCH_QUERY_PARAMETER = "q"
+MAX_SEARCH_SUGGESTIONS = 10
 SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
 EVENT_NAME = "3x3x3 Cube"
@@ -101,6 +104,15 @@ FELIKS_ZEMDEGS = Person(
         "https://avatars.worldcubeassociation.org/2009ZEMD01_thumb.jpg"
     ),
 )
+MANY_COMPETITORS = [
+    Person(
+        name=f"Test Competitor {index}",
+        wca_id=f"2020TEST{index:02d}",
+        profile_url=f"https://www.worldcubeassociation.org/persons/2020TEST{index:02d}",
+        avatar_thumb_url="",
+    )
+    for index in range(MAX_SEARCH_SUGGESTIONS + 2)
+]
 MATS_VALK_EVENTS = [
     Event(event_id="222", name="2x2x2 Cube"),
     Event(event_id="333", name="3x3x3 Cube"),
@@ -334,6 +346,62 @@ def test_search_with_a_single_match_redirects_straight_to_their_overview():
         response.headers["location"]
         == f"{OVERVIEW_ROUTE}?wca_id={MATS_VALK.wca_id}"
     )
+
+
+def test_api_search_returns_matching_competitors_as_json():
+    app.dependency_overrides[get_search_function] = lambda: _search_returning(
+        [MATS_VALK, FELIKS_ZEMDEGS]
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            API_SEARCH_ROUTE, params={SEARCH_QUERY_PARAMETER: "valk"}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"wca_id": MATS_VALK.wca_id, "name": MATS_VALK.name},
+        {"wca_id": FELIKS_ZEMDEGS.wca_id, "name": FELIKS_ZEMDEGS.name},
+    ]
+
+
+def test_api_search_caps_the_number_of_suggestions():
+    app.dependency_overrides[get_search_function] = lambda: _search_returning(
+        MANY_COMPETITORS
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            API_SEARCH_ROUTE, params={SEARCH_QUERY_PARAMETER: "test"}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert len(response.json()) == MAX_SEARCH_SUGGESTIONS
+
+
+def test_api_search_ignores_queries_below_the_minimum_length():
+    calls = []
+
+    def _spy_search(name):
+        calls.append(name)
+        return [MATS_VALK]
+
+    app.dependency_overrides[get_search_function] = lambda: _spy_search
+    try:
+        client = TestClient(app)
+        response = client.get(
+            API_SEARCH_ROUTE, params={SEARCH_QUERY_PARAMETER: "va"}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == []
+    assert calls == []
 
 
 def test_search_with_no_matches_shows_a_friendly_message():
