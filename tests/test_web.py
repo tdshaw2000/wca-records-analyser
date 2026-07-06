@@ -249,6 +249,25 @@ def test_index_page_labels_the_search_field_as_name_or_wca_id():
     assert "Competitor (name or WCA ID)" in response.text
 
 
+def test_index_page_includes_the_live_search_script():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    version = static_asset_version("search-live.js")
+    assert f"/static/search-live.js?v={version}" in response.text
+
+
+def test_index_page_has_a_suggestions_container():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert 'id="search-suggestions"' in response.text
+
+
 def test_index_page_links_the_stylesheet():
     client = TestClient(app)
 
