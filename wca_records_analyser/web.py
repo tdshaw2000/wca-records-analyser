@@ -46,12 +46,18 @@ from wca_records_analyser.wca_client import (
 
 INDEX_ROUTE = "/"
 SEARCH_ROUTE = "/search"
+API_SEARCH_ROUTE = "/api/search"
 RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
 OVERVIEW_ROWS_ROUTE = "/overview/rows"
 SEARCH_NAME_PARAMETER = "name"
+SEARCH_QUERY_PARAMETER = "q"
 WCA_ID_QUERY_PARAMETER = "wca_id"
 SINGLE_MATCH_COUNT = 1
+MINIMUM_SEARCH_LENGTH = 3
+MAX_SEARCH_SUGGESTIONS = 10
+SUGGESTION_WCA_ID_KEY = "wca_id"
+SUGGESTION_NAME_KEY = "name"
 INDEX_TEMPLATE = "index.html"
 RECORDS_TEMPLATE = "records.html"
 OVERVIEW_TEMPLATE = "overview.html"
@@ -227,6 +233,25 @@ def search(
         )
         return RedirectResponse(overview_url, status_code=HTTP_303_SEE_OTHER)
     return _render_index(request, searched_name=name, results=results)
+
+
+@app.get(API_SEARCH_ROUTE)
+def api_search(
+    q: str,
+    search_function=Depends(get_search_function),
+):
+    # Guard the unindexed LIKE scan server-side too, not just in the browser: a
+    # 1-2 character query would make WCA scan its whole persons table.
+    if len(q.strip()) < MINIMUM_SEARCH_LENGTH:
+        return []
+    results = search_function(q)
+    return [
+        {
+            SUGGESTION_WCA_ID_KEY: person.wca_id,
+            SUGGESTION_NAME_KEY: person.name,
+        }
+        for person in results[:MAX_SEARCH_SUGGESTIONS]
+    ]
 
 
 @app.get(OVERVIEW_ROUTE, response_class=HTMLResponse)
