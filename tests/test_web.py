@@ -92,6 +92,14 @@ MATS_VALK = Person(
     profile_url="https://www.worldcubeassociation.org/persons/2007VALK01",
     avatar_thumb_url=MATS_VALK_AVATAR_THUMB_URL,
 )
+FELIKS_ZEMDEGS = Person(
+    name="Feliks Zemdegs",
+    wca_id="2009ZEMD01",
+    profile_url="https://www.worldcubeassociation.org/persons/2009ZEMD01",
+    avatar_thumb_url=(
+        "https://avatars.worldcubeassociation.org/2009ZEMD01_thumb.jpg"
+    ),
+)
 MATS_VALK_EVENTS = [
     Event(event_id="222", name="2x2x2 Cube"),
     Event(event_id="333", name="3x3x3 Cube"),
@@ -272,7 +280,7 @@ def test_stylesheet_is_served():
 
 def test_search_links_each_competitor_to_their_overview():
     app.dependency_overrides[get_search_function] = lambda: _search_returning(
-        [MATS_VALK]
+        [MATS_VALK, FELIKS_ZEMDEGS]
     )
     try:
         client = TestClient(app)
@@ -283,8 +291,30 @@ def test_search_links_each_competitor_to_their_overview():
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert MATS_VALK.name in response.text
-    assert f'{OVERVIEW_ROUTE}?wca_id={MATS_VALK.wca_id}' in response.text
+    for competitor in (MATS_VALK, FELIKS_ZEMDEGS):
+        assert competitor.name in response.text
+        assert f'{OVERVIEW_ROUTE}?wca_id={competitor.wca_id}' in response.text
+
+
+def test_search_with_a_single_match_redirects_straight_to_their_overview():
+    app.dependency_overrides[get_search_function] = lambda: _search_returning(
+        [MATS_VALK]
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            SEARCH_ROUTE,
+            params={SEARCH_NAME_PARAMETER: SEARCHED_NAME},
+            follow_redirects=False,
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 303
+    assert (
+        response.headers["location"]
+        == f"{OVERVIEW_ROUTE}?wca_id={MATS_VALK.wca_id}"
+    )
 
 
 def test_search_with_no_matches_shows_a_friendly_message():
