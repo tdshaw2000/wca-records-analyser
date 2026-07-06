@@ -13,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.status import HTTP_303_SEE_OTHER
 
 from wca_records_analyser.cache import ttl_cached
+from wca_records_analyser.concurrency import run_concurrently
 from wca_records_analyser.chart import (
     to_consistency_series,
     to_daily_range_series,
@@ -129,6 +130,10 @@ class Overview:
 # fetch for an hour spares the overview its burst of per-event calls on revisits
 # (and speeds the records pages, which share the same lookups).
 CACHE_TTL_SECONDS = 60 * 60
+# Cap on simultaneous per-event fetches when building an overview: enough to
+# collapse the sequential wait for a many-event competitor, while staying a
+# considerate caller against an API that publishes no rate limit of its own.
+MAX_CONCURRENT_FETCHES = 8
 cached_profile = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_profile)
 cached_competition_dates = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(
     get_competition_dates
@@ -147,10 +152,16 @@ def get_overview_function():
     def build_overview(wca_id):
         profile = cached_profile(wca_id)
         competition_dates = cached_competition_dates(wca_id)
-        results_by_event = {
-            event_id: cached_results(wca_id, event_id)
-            for event_id in profile.event_ids
-        }
+        # The per-event result fetches are independent, so fan them out rather
+        # than paying one sequential round-trip per event.
+        results_per_event = run_concurrently(
+            [
+                lambda event_id=event_id: cached_results(wca_id, event_id)
+                for event_id in profile.event_ids
+            ],
+            MAX_CONCURRENT_FETCHES,
+        )
+        results_by_event = dict(zip(profile.event_ids, results_per_event))
         rows = overview_rows(
             profile.event_ids,
             results_by_event,
