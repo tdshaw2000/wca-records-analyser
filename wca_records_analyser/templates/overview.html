@@ -24,15 +24,19 @@
                     <th>Latest Average</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for row in overview_rows %}
-                    <tr>
-                        <td><a href="/records?wca_id={{ wca_id }}&event_id={{ row.event_id }}">{{ row.event_name }}</a></td>
-                        <td>{{ row.single_age or "—" }}</td>
-                        <td>{{ row.average_age or "—" }}</td>
+            <tbody id="overview-rows" data-rows-url="{{ overview_rows_url }}">
+                {% for _ in range(skeleton_row_count) %}
+                    <tr class="skeleton-row">
+                        <td><span class="skeleton"></span></td>
+                        <td><span class="skeleton"></span></td>
+                        <td><span class="skeleton"></span></td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="/static/overview-rows.js?v={{ static_version('overview-rows.js') }}"></script>
 {% endblock %}

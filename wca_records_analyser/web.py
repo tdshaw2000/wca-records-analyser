@@ -80,6 +80,8 @@ CONSISTENCY_SERIES_CONTEXT_KEY = "consistency_series"
 RESULT_UNIT_CONTEXT_KEY = "result_unit"
 EVENT_HAS_AVERAGE_CONTEXT_KEY = "event_has_average"
 OVERVIEW_ROWS_CONTEXT_KEY = "overview_rows"
+SKELETON_ROW_COUNT_CONTEXT_KEY = "skeleton_row_count"
+OVERVIEW_ROWS_URL_CONTEXT_KEY = "overview_rows_url"
 SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
 STATIC_VERSION_GLOBAL = "static_version"
@@ -220,10 +222,13 @@ def search(
 def overview(
     request: Request,
     wca_id: str,
-    overview_function=Depends(get_overview_function),
+    profile_function=Depends(get_profile_function),
 ):
-    competitor_overview = overview_function(wca_id)
-    person = competitor_overview.person
+    # Only the profile (one fetch) is needed to render the shell instantly; the
+    # slow per-event rows arrive afterwards from the fragment endpoint. One
+    # skeleton row per competed event keeps the table from jumping once they land.
+    profile = profile_function(wca_id)
+    person = profile.person
     return templates.TemplateResponse(
         request=request,
         name=OVERVIEW_TEMPLATE,
@@ -232,7 +237,10 @@ def overview(
             NAME_CONTEXT_KEY: person.name,
             AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
-            OVERVIEW_ROWS_CONTEXT_KEY: competitor_overview.rows,
+            SKELETON_ROW_COUNT_CONTEXT_KEY: len(profile.event_ids),
+            OVERVIEW_ROWS_URL_CONTEXT_KEY: (
+                f"{OVERVIEW_ROWS_ROUTE}?{WCA_ID_QUERY_PARAMETER}={wca_id}"
+            ),
         },
     )
 

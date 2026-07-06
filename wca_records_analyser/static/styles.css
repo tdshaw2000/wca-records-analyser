@@ -347,6 +347,31 @@ button:hover {
     }
 }
 
+/* Skeleton placeholder rows shown while the overview fetches its per-event data */
+
+.skeleton {
+    display: block;
+    height: 1rem;
+    border-radius: var(--radius);
+    background: linear-gradient(
+        90deg,
+        var(--border) 25%,
+        var(--accent-soft) 37%,
+        var(--border) 63%
+    );
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: 0 0;
+    }
+}
+
 /* Progression tables, side by side */
 
 .progressions {
