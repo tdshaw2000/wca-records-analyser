@@ -24,6 +24,7 @@ from wca_records_analyser.wca_client import Person, Profile
 SEARCH_ROUTE = "/search"
 RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
+OVERVIEW_ROWS_ROUTE = "/overview/rows"
 SEARCH_NAME_PARAMETER = "name"
 SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
@@ -195,6 +196,19 @@ def _get_overview_page(overview=MATS_VALK_OVERVIEW):
         client = TestClient(app)
         return client.get(
             OVERVIEW_ROUTE, params={"wca_id": overview.person.wca_id}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+
+def _get_overview_rows(overview=MATS_VALK_OVERVIEW):
+    app.dependency_overrides[get_overview_function] = lambda: _overview_returning(
+        overview
+    )
+    try:
+        client = TestClient(app)
+        return client.get(
+            OVERVIEW_ROWS_ROUTE, params={"wca_id": overview.person.wca_id}
         )
     finally:
         app.dependency_overrides.clear()
@@ -600,8 +614,8 @@ def test_overview_heads_the_table_with_event_single_and_average():
     assert "Latest Average" in response.text
 
 
-def test_overview_lists_each_event_with_its_latest_pr_ages():
-    response = _get_overview_page()
+def test_overview_rows_list_each_event_with_its_latest_pr_ages():
+    response = _get_overview_rows()
 
     assert response.status_code == 200
     assert "2x2x2 Cube" in response.text
@@ -610,8 +624,8 @@ def test_overview_lists_each_event_with_its_latest_pr_ages():
     assert "3 months ago" in response.text
 
 
-def test_overview_links_each_event_row_to_its_records_page():
-    response = _get_overview_page()
+def test_overview_rows_link_each_event_to_its_records_page():
+    response = _get_overview_rows()
 
     assert response.status_code == 200
     for event in MATS_VALK_EVENTS:
@@ -621,8 +635,8 @@ def test_overview_links_each_event_row_to_its_records_page():
         )
 
 
-def test_overview_shows_a_placeholder_when_an_event_has_no_average_pr():
-    response = _get_overview_page()
+def test_overview_rows_show_a_placeholder_when_an_event_has_no_average_pr():
+    response = _get_overview_rows()
 
     assert response.status_code == 200
     assert NO_AVERAGE_PLACEHOLDER in response.text
