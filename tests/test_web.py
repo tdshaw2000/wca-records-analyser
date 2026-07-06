@@ -188,14 +188,19 @@ def _overview_returning(overview):
     return _overview
 
 
-def _get_overview_page(overview=MATS_VALK_OVERVIEW):
+def _get_overview_page(profile=MATS_VALK_PROFILE):
+    # The shell fetches only the profile; overriding the overview function too
+    # keeps these tests off the network no matter how the rows are wired.
+    app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
+        profile
+    )
     app.dependency_overrides[get_overview_function] = lambda: _overview_returning(
-        overview
+        MATS_VALK_OVERVIEW
     )
     try:
         client = TestClient(app)
         return client.get(
-            OVERVIEW_ROUTE, params={"wca_id": overview.person.wca_id}
+            OVERVIEW_ROUTE, params={"wca_id": profile.person.wca_id}
         )
     finally:
         app.dependency_overrides.clear()
@@ -612,6 +617,33 @@ def test_overview_heads_the_table_with_event_single_and_average():
     assert "Event" in response.text
     assert "Latest Single" in response.text
     assert "Latest Average" in response.text
+
+
+def test_overview_shows_a_skeleton_row_per_event_while_loading():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert response.text.count('class="skeleton-row"') == len(
+        MATS_VALK_EVENT_IDS
+    )
+
+
+def test_overview_loads_its_rows_from_the_fragment_endpoint():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert (
+        f'data-rows-url="{OVERVIEW_ROWS_ROUTE}?wca_id={MATS_VALK.wca_id}"'
+        in response.text
+    )
+
+
+def test_overview_includes_the_rows_loading_script():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    version = static_asset_version("overview-rows.js")
+    assert f"/static/overview-rows.js?v={version}" in response.text
 
 
 def test_overview_rows_list_each_event_with_its_latest_pr_ages():
