@@ -47,12 +47,14 @@ INDEX_ROUTE = "/"
 SEARCH_ROUTE = "/search"
 RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
+OVERVIEW_ROWS_ROUTE = "/overview/rows"
 SEARCH_NAME_PARAMETER = "name"
 WCA_ID_QUERY_PARAMETER = "wca_id"
 SINGLE_MATCH_COUNT = 1
 INDEX_TEMPLATE = "index.html"
 RECORDS_TEMPLATE = "records.html"
 OVERVIEW_TEMPLATE = "overview.html"
+OVERVIEW_ROWS_TEMPLATE = "overview_rows.html"
 TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
 STATIC_ROUTE = "/static"
 STATIC_NAME = "static"
@@ -230,6 +232,23 @@ def overview(
             NAME_CONTEXT_KEY: person.name,
             AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
+            OVERVIEW_ROWS_CONTEXT_KEY: competitor_overview.rows,
+        },
+    )
+
+
+@app.get(OVERVIEW_ROWS_ROUTE, response_class=HTMLResponse)
+def overview_rows_fragment(
+    request: Request,
+    wca_id: str,
+    overview_function=Depends(get_overview_function),
+):
+    competitor_overview = overview_function(wca_id)
+    return templates.TemplateResponse(
+        request=request,
+        name=OVERVIEW_ROWS_TEMPLATE,
+        context={
+            WCA_ID_CONTEXT_KEY: wca_id,
             OVERVIEW_ROWS_CONTEXT_KEY: competitor_overview.rows,
         },
     )
