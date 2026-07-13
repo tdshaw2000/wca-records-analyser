@@ -10,6 +10,7 @@ from wca_records_analyser.records import (
     RecordPoint,
 )
 from wca_records_analyser.web import (
+    STATIC_DIRECTORY,
     Overview,
     RecordProgressions,
     app,
@@ -328,6 +329,11 @@ def test_static_asset_version_changes_with_file_contents():
     assert static_asset_version("styles.css") != static_asset_version(
         "records-chart.js"
     )
+
+
+def test_records_chart_datasets_have_clip_disabled():
+    chart_js = (STATIC_DIRECTORY / "records-chart.js").read_text()
+    assert "clip: false" in chart_js
 
 
 def test_stylesheet_is_served():

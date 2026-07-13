@@ -179,6 +179,7 @@ const datasets = [
         data: singleSeries,
         borderColor: SINGLE_COLOUR,
         backgroundColor: SINGLE_COLOUR,
+        clip: false,
     },
 ];
 if (document.getElementById(AVERAGE_CHART_DATA_ELEMENT_ID)) {
@@ -187,6 +188,7 @@ if (document.getElementById(AVERAGE_CHART_DATA_ELEMENT_ID)) {
         data: averageSeries,
         borderColor: AVERAGE_COLOUR,
         backgroundColor: AVERAGE_COLOUR,
+        clip: false,
     });
 }
 
