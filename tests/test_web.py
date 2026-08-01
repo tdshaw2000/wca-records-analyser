@@ -846,6 +846,11 @@ def test_records_map_js_has_legend_toggle():
     assert "legend" in RECORDS_MAP_JS
 
 
+def test_records_map_js_legend_labels_single_and_average_without_prs_suffix():
+    assert '{ label: "Single"' in RECORDS_MAP_JS
+    assert '{ label: "Average"' in RECORDS_MAP_JS
+
+
 def test_records_page_has_a_map_container():
     response = _get_records_page()
 
