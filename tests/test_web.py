@@ -14,6 +14,7 @@ from wca_records_analyser.web import (
     Overview,
     RecordProgressions,
     app,
+    get_map_function,
     get_overview_function,
     get_profile_function,
     get_progression_function,
@@ -141,6 +142,29 @@ MATS_VALK_OVERVIEW_ROWS = [
 ]
 MATS_VALK_OVERVIEW = Overview(person=MATS_VALK, rows=MATS_VALK_OVERVIEW_ROWS)
 
+SINGLE_MAP_CITY = "Chippenham, Wiltshire"
+SINGLE_MAP_DISPLAY = "14.98"
+SINGLE_MAP_DATE = "2024-02-03"
+SINGLE_MAP_SERIES = [
+    {
+        "city": SINGLE_MAP_CITY,
+        "lat": 51.461317,
+        "lng": -2.113757,
+        "prs": [{"date": SINGLE_MAP_DATE, "display": SINGLE_MAP_DISPLAY}],
+    }
+]
+AVERAGE_MAP_CITY = "Weston-super-Mare, Somerset"
+AVERAGE_MAP_DISPLAY = "21.77"
+AVERAGE_MAP_DATE = "2023-11-18"
+AVERAGE_MAP_SERIES = [
+    {
+        "city": AVERAGE_MAP_CITY,
+        "lat": 51.347823,
+        "lng": -2.986306,
+        "prs": [{"date": AVERAGE_MAP_DATE, "display": AVERAGE_MAP_DISPLAY}],
+    }
+]
+
 FEWEST_MOVES_EVENT_ID = "333fm"
 FEWEST_MOVES_SINGLE_MOVES = 24
 FEWEST_MOVES_AVERAGE_CENTI_MOVES = 2733
@@ -199,6 +223,13 @@ def _overview_returning(overview):
         return overview
 
     return _overview
+
+
+def _map_returning(single_series, average_series):
+    def _map(wca_id, event_id):
+        return {"singles": single_series, "averages": average_series}
+
+    return _map
 
 
 def _get_overview_page(profile=MATS_VALK_PROFILE):
@@ -454,13 +485,20 @@ def test_search_with_no_matches_shows_a_friendly_message():
 
 
 def _get_records_page(
-    event_id=EVENT_ID, progressions=PROGRESSIONS, profile=MATS_VALK_PROFILE
+    event_id=EVENT_ID,
+    progressions=PROGRESSIONS,
+    profile=MATS_VALK_PROFILE,
+    single_map_series=None,
+    average_map_series=None,
 ):
     app.dependency_overrides[get_progression_function] = (
         lambda: _progression_returning(progressions)
     )
     app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
         profile
+    )
+    app.dependency_overrides[get_map_function] = lambda: _map_returning(
+        single_map_series or [], average_map_series or []
     )
     try:
         client = TestClient(app)
@@ -775,3 +813,44 @@ def test_overview_rows_show_a_placeholder_when_an_event_has_no_average_pr():
 
     assert response.status_code == 200
     assert NO_AVERAGE_PLACEHOLDER in response.text
+
+
+def test_records_page_has_a_map_container():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert 'id="pr-map"' in response.text
+
+
+def test_records_page_embeds_single_map_series_as_json():
+    response = _get_records_page(single_map_series=SINGLE_MAP_SERIES)
+
+    assert response.status_code == 200
+    assert 'id="single-map-data"' in response.text
+    assert SINGLE_MAP_CITY in response.text
+    assert SINGLE_MAP_DISPLAY in response.text
+
+
+def test_records_page_embeds_average_map_series_as_json():
+    response = _get_records_page(average_map_series=AVERAGE_MAP_SERIES)
+
+    assert response.status_code == 200
+    assert 'id="average-map-data"' in response.text
+    assert AVERAGE_MAP_CITY in response.text
+    assert AVERAGE_MAP_DISPLAY in response.text
+
+
+def test_records_page_loads_leaflet():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    assert "/static/vendor/leaflet.js" in response.text
+    assert "/static/vendor/leaflet.css" in response.text
+
+
+def test_records_page_loads_records_map_script_cache_busted():
+    response = _get_records_page()
+
+    assert response.status_code == 200
+    version = static_asset_version("records-map.js")
+    assert f"/static/records-map.js?v={version}" in response.text
