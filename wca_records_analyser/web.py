@@ -37,7 +37,7 @@ from wca_records_analyser.records import (
     daily_solve_range_over_time,
     single_record_progression,
 )
-from wca_records_analyser.map import to_map_series
+from wca_records_analyser.map import to_map_series, to_overview_map_series
 from wca_records_analyser.wca_client import (
     get_competition_dates,
     get_competitions,
@@ -52,6 +52,7 @@ API_SEARCH_ROUTE = "/api/search"
 RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
 OVERVIEW_ROWS_ROUTE = "/overview/rows"
+OVERVIEW_MAP_DATA_ROUTE = "/overview/map-data"
 SEARCH_NAME_PARAMETER = "name"
 SEARCH_QUERY_PARAMETER = "q"
 WCA_ID_QUERY_PARAMETER = "wca_id"
@@ -227,6 +228,25 @@ def get_map_function():
     return build_map_series
 
 
+def get_overview_map_function():
+    """Provide the function used to build the overview map series (overridable in tests)."""
+
+    def build_overview_map(wca_id):
+        profile = cached_profile(wca_id)
+        competitions = cached_competitions(wca_id)
+        results_per_event = run_concurrently(
+            [
+                lambda event_id=event_id: cached_results(wca_id, event_id)
+                for event_id in profile.event_ids
+            ],
+            MAX_CONCURRENT_FETCHES,
+        )
+        results_by_event = dict(zip(profile.event_ids, results_per_event))
+        return to_overview_map_series(results_by_event, competitions, EVENT_NAMES)
+
+    return build_overview_map
+
+
 def _render_index(request, searched_name, results):
     return templates.TemplateResponse(
         request=request,
@@ -321,6 +341,14 @@ def overview_rows_fragment(
             OVERVIEW_ROWS_CONTEXT_KEY: competitor_overview.rows,
         },
     )
+
+
+@app.get(OVERVIEW_MAP_DATA_ROUTE)
+def overview_map_data(
+    wca_id: str,
+    overview_map_function=Depends(get_overview_map_function),
+):
+    return overview_map_function(wca_id)
 
 
 @app.get(RECORDS_ROUTE, response_class=HTMLResponse)

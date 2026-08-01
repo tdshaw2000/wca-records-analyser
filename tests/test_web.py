@@ -16,6 +16,7 @@ from wca_records_analyser.web import (
     app,
     get_map_function,
     get_overview_function,
+    get_overview_map_function,
     get_profile_function,
     get_progression_function,
     get_search_function,
@@ -28,6 +29,7 @@ API_SEARCH_ROUTE = "/api/search"
 RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
 OVERVIEW_ROWS_ROUTE = "/overview/rows"
+OVERVIEW_MAP_DATA_ROUTE = "/overview/map-data"
 SEARCH_NAME_PARAMETER = "name"
 SEARCH_QUERY_PARAMETER = "q"
 MAX_SEARCH_SUGGESTIONS = 10
@@ -912,3 +914,60 @@ def test_records_page_loads_records_map_script_cache_busted():
     assert response.status_code == 200
     version = static_asset_version("records-map.js")
     assert f"/static/records-map.js?v={version}" in response.text
+
+
+# --- /overview/map-data ---
+
+OVERVIEW_MAP_CITY = "Chippenham, Wiltshire"
+OVERVIEW_MAP_SERIES = [
+    {
+        "city": OVERVIEW_MAP_CITY,
+        "lat": 51.461317,
+        "lng": -2.113757,
+        "total": 3,
+        "events": [{"name": "3x3x3 Cube", "singles": 2, "averages": 1}],
+    }
+]
+
+
+def _overview_map_returning(series):
+    def _overview_map(wca_id):
+        return series
+
+    return _overview_map
+
+
+def _get_overview_map_data(wca_id=MATS_VALK.wca_id, series=None):
+    app.dependency_overrides[get_overview_map_function] = lambda: _overview_map_returning(
+        series if series is not None else OVERVIEW_MAP_SERIES
+    )
+    try:
+        client = TestClient(app)
+        return client.get(OVERVIEW_MAP_DATA_ROUTE, params={"wca_id": wca_id})
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_overview_map_data_returns_ok():
+    response = _get_overview_map_data()
+
+    assert response.status_code == 200
+
+
+def test_overview_map_data_returns_json():
+    response = _get_overview_map_data()
+
+    assert response.headers["content-type"].startswith("application/json")
+
+
+def test_overview_map_data_includes_city_lat_lng_total_events_keys():
+    response = _get_overview_map_data()
+
+    data = response.json()
+    assert len(data) == 1
+    group = data[0]
+    assert group["city"] == OVERVIEW_MAP_CITY
+    assert "lat" in group
+    assert "lng" in group
+    assert "total" in group
+    assert "events" in group
