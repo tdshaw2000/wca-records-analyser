@@ -38,7 +38,21 @@ RESULT_ATTEMPTS_KEY = "attempts"
 RESULT_COMPETITION_KEY = "competition_id"
 COMPETITION_ID_KEY = "id"
 COMPETITION_START_DATE_KEY = "start_date"
+COMPETITION_LATITUDE_KEY = "latitude_degrees"
+COMPETITION_LONGITUDE_KEY = "longitude_degrees"
+COMPETITION_CITY_KEY = "city"
 PERSONAL_RECORDS_KEY = "personal_records"
+
+
+@dataclass(frozen=True)
+class Competition:
+    """A competition with its location, used to place PR results on a map."""
+
+    id: str
+    start_date: str
+    latitude: float
+    longitude: float
+    city: str
 
 
 @dataclass(frozen=True)
@@ -94,13 +108,27 @@ def get_results(wca_id, event_id, client=None):
     return [_to_result(result) for result in results]
 
 
+def get_competitions(wca_id, client=None):
+    """Return a competitor's competitions, keyed by competition id."""
+    endpoint = PERSON_COMPETITIONS_ENDPOINT.format(wca_id=wca_id)
+    raw = _get_json(endpoint, params=None, client=client)
+    return {
+        comp[COMPETITION_ID_KEY]: Competition(
+            id=comp[COMPETITION_ID_KEY],
+            start_date=comp[COMPETITION_START_DATE_KEY],
+            latitude=comp[COMPETITION_LATITUDE_KEY],
+            longitude=comp[COMPETITION_LONGITUDE_KEY],
+            city=comp[COMPETITION_CITY_KEY],
+        )
+        for comp in raw
+    }
+
+
 def get_competition_dates(wca_id, client=None):
     """Return a competitor's competitions mapped to their start dates."""
-    endpoint = PERSON_COMPETITIONS_ENDPOINT.format(wca_id=wca_id)
-    competitions = _get_json(endpoint, params=None, client=client)
     return {
-        competition[COMPETITION_ID_KEY]: competition[COMPETITION_START_DATE_KEY]
-        for competition in competitions
+        comp_id: comp.start_date
+        for comp_id, comp in get_competitions(wca_id, client=client).items()
     }
 
 
