@@ -971,3 +971,79 @@ def test_overview_map_data_includes_city_lat_lng_total_events_keys():
     assert "lng" in group
     assert "total" in group
     assert "events" in group
+
+
+# --- overview-map.js content checks ---
+
+OVERVIEW_MAP_JS_PATH = STATIC_DIRECTORY / "overview-map.js"
+
+
+def test_overview_map_js_fetches_map_data():
+    assert "fetch(" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_uses_overview_map_colour():
+    assert "#7c3aed" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_builds_tooltip():
+    assert "buildTooltip" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_tooltip_shows_singles():
+    assert "singles" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_tooltip_shows_averages():
+    assert "averages" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_reads_map_url_from_data_attribute():
+    assert "data-map-url" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_targets_overview_map_element():
+    assert "overview-map" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_initialises_leaflet_map():
+    assert "L.map(" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_sizes_circles_by_total():
+    assert ".total" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+# --- overview.html template checks ---
+
+
+def test_overview_page_has_map_container():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert 'id="overview-map"' in response.text
+
+
+def test_overview_page_map_container_carries_data_map_url():
+    response = _get_overview_page()
+
+    assert f'data-map-url="/overview/map-data?wca_id={MATS_VALK.wca_id}"' in response.text
+
+
+def test_overview_page_loads_leaflet_css():
+    response = _get_overview_page()
+
+    assert "/static/vendor/leaflet.css" in response.text
+
+
+def test_overview_page_loads_leaflet_js():
+    response = _get_overview_page()
+
+    assert "/static/vendor/leaflet.js" in response.text
+
+
+def test_overview_page_loads_overview_map_script_cache_busted():
+    response = _get_overview_page()
+
+    version = static_asset_version("overview-map.js")
+    assert f"/static/overview-map.js?v={version}" in response.text

@@ -35,8 +35,13 @@
             </tbody>
         </table>
     </div>
+
+    <div id="overview-map" data-map-url="/overview/map-data?wca_id={{ wca_id }}"></div>
 {% endblock %}
 
 {% block scripts %}
+    <link rel="stylesheet" href="/static/vendor/leaflet.css">
     <script src="/static/overview-rows.js?v={{ static_version('overview-rows.js') }}"></script>
+    <script src="/static/vendor/leaflet.js"></script>
+    <script src="/static/overview-map.js?v={{ static_version('overview-map.js') }}"></script>
 {% endblock %}

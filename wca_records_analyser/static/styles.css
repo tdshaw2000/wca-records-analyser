@@ -510,7 +510,8 @@ tbody td:last-child {
 
 /* PR map */
 
-#pr-map {
+#pr-map,
+#overview-map {
     height: 400px;
     border-radius: calc(var(--radius) - 4px);
     z-index: 0;
