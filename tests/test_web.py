@@ -815,6 +815,37 @@ def test_overview_rows_show_a_placeholder_when_an_event_has_no_average_pr():
     assert NO_AVERAGE_PLACEHOLDER in response.text
 
 
+RECORDS_MAP_JS = (STATIC_DIRECTORY / "records-map.js").read_text()
+
+
+def test_records_map_js_initialises_a_leaflet_map():
+    assert "L.map(" in RECORDS_MAP_JS
+
+
+def test_records_map_js_reads_single_map_data_from_the_page():
+    assert "single-map-data" in RECORDS_MAP_JS
+
+
+def test_records_map_js_reads_average_map_data_from_the_page():
+    assert "average-map-data" in RECORDS_MAP_JS
+
+
+def test_records_map_js_sizes_circles_by_pr_count():
+    assert ".prs.length" in RECORDS_MAP_JS
+
+
+def test_records_map_js_uses_single_pr_colour():
+    assert "#2563eb" in RECORDS_MAP_JS
+
+
+def test_records_map_js_uses_average_pr_colour():
+    assert "#449964" in RECORDS_MAP_JS
+
+
+def test_records_map_js_has_legend_toggle():
+    assert "legend" in RECORDS_MAP_JS
+
+
 def test_records_page_has_a_map_container():
     response = _get_records_page()
 
