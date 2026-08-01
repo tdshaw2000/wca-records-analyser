@@ -44,6 +44,7 @@
         <script id="single-chart-data" type="application/json">{{ single_chart_series | tojson }}</script>
         {% if event_has_average %}
             <script id="average-chart-data" type="application/json">{{ average_chart_series | tojson }}</script>
+            <p class="chart-legend-hint">Click the legend to toggle</p>
         {% endif %}
     {% endif %}
 
@@ -106,7 +107,7 @@
     {% if all_singles_chart_series or all_averages_chart_series %}
         <h2 class="chart-title">All results</h2>
         {% if event_has_average %}
-            <p class="chart-subtitle">Every single and average. Click the legend to remove</p>
+            <p class="chart-subtitle">Every single and average.</p>
         {% else %}
             <p class="chart-subtitle">Every result over time.</p>
         {% endif %}
@@ -121,6 +122,7 @@
         <script id="all-singles-scatter-data" type="application/json">{{ all_singles_chart_series | tojson }}</script>
         {% if event_has_average %}
             <script id="all-averages-scatter-data" type="application/json">{{ all_averages_chart_series | tojson }}</script>
+            <p class="chart-legend-hint">Click the legend to toggle</p>
         {% endif %}
         {% if daily_range_series %}
             <script id="daily-range-data" type="application/json">{{ daily_range_series | tojson }}</script>
@@ -163,6 +165,7 @@
     <script id="single-map-data" type="application/json">{{ single_map_series | tojson }}</script>
     {% if event_has_average %}
         <script id="average-map-data" type="application/json">{{ average_map_series | tojson }}</script>
+        <p class="chart-legend-hint">Click the legend to toggle</p>
     {% endif %}
 {% endblock %}
 

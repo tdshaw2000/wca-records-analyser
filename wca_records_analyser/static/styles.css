@@ -336,6 +336,13 @@ button:hover {
     font-size: 0.9rem;
 }
 
+.chart-legend-hint {
+    margin: 0.5rem 0 0;
+    text-align: center;
+    color: var(--muted-text);
+    font-size: 0.8rem;
+}
+
 .chart-card {
     margin-top: 0;
     padding: 1.25rem;
