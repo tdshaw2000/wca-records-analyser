@@ -1,3 +1,4 @@
+(function () {
 const SINGLE_COLOUR = "#2563eb";
 const AVERAGE_COLOUR = "#449964";
 const HIDDEN_OPACITY = 0.15;
@@ -106,3 +107,4 @@ function initMap() {
 }
 
 document.addEventListener("DOMContentLoaded", initMap);
+}());
