@@ -1,16 +1,6 @@
 stages:
   - test
   - deploy
-  - teardown
-
-variables:
-  IMAGE_NAME: wca-records-analyser
-  CONTAINER_NAME: wca-records-analyser
-  HOST_PORT: "8000"
-  CONTAINER_PORT: "8000"
-  # Host CA bundle mounted into the container so it trusts the same
-  # certificate authorities as the host when calling the WCA API.
-  HOST_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
 
 # Runs on the self-hosted WSL runner (shell executor) tagged "wsl-docker".
 test:
@@ -22,26 +12,6 @@ test:
     - .venv/bin/pip install --quiet --upgrade pip
     - .venv/bin/pip install --quiet -e ".[dev]"
     - .venv/bin/pytest
-
-# Builds the image and (re)starts the container in the WSL Docker daemon.
-# Runs only on the default branch, after the test stage passes.
-deploy:
-  stage: deploy
-  tags:
-    - wsl-docker
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  script:
-    - docker build -t "$IMAGE_NAME:$CI_COMMIT_SHORT_SHA" -t "$IMAGE_NAME:latest" .
-    - docker rm -f "$CONTAINER_NAME" || true
-    - >
-      docker run -d
-      --name "$CONTAINER_NAME"
-      --restart unless-stopped
-      -p "$HOST_PORT:$CONTAINER_PORT"
-      -v "$HOST_CA_BUNDLE:$HOST_CA_BUNDLE:ro"
-      -e "SSL_CERT_FILE=$HOST_CA_BUNDLE"
-      "$IMAGE_NAME:latest"
 
 # Triggers a Render deploy via its Deploy Hook, but only after the test stage
 # passes on the default branch — so a red pipeline cannot reach the live Render
@@ -56,17 +26,3 @@ deploy_render:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   script:
     - curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
-
-# Manually stop and remove the deployed container. Triggered on demand from the
-# GitLab pipeline UI (a play button); never runs automatically and does not
-# block the pipeline. "docker rm -f" overrides the "unless-stopped" restart
-# policy so the service stays down until the next deploy.
-teardown:
-  stage: teardown
-  tags:
-    - wsl-docker
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: manual
-  script:
-    - docker rm -f "$CONTAINER_NAME" || true
