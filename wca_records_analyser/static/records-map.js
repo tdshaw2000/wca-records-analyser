@@ -32,7 +32,7 @@ function buildLayer(series, colour) {
             fillColor: colour,
             fillOpacity: 0.7,
             weight: 1.5,
-        }).bindTooltip(buildTooltip(cityGroup), { sticky: false })
+        }).bindPopup(buildTooltip(cityGroup), { maxHeight: 300 })
     );
     return L.layerGroup(markers);
 }

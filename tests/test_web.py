@@ -853,6 +853,14 @@ def test_records_map_js_legend_labels_single_and_average_without_prs_suffix():
     assert '{ label: "Average"' in RECORDS_MAP_JS
 
 
+def test_records_map_js_uses_popup():
+    assert "bindPopup" in RECORDS_MAP_JS
+
+
+def test_records_map_js_popup_constrains_height():
+    assert "maxHeight" in RECORDS_MAP_JS
+
+
 LEGEND_TOGGLE_HINT = "Click the legend to toggle"
 
 
@@ -1014,6 +1022,30 @@ def test_overview_map_js_sizes_circles_by_total():
     assert ".total" in OVERVIEW_MAP_JS_PATH.read_text()
 
 
+def test_overview_map_js_caps_circle_radius_at_maximum():
+    assert "MAX_RADIUS" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_uses_popup():
+    assert "bindPopup" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_popup_constrains_height():
+    assert "maxHeight" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_applies_radius_cap_via_math_min():
+    assert "Math.min(" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_tooltip_has_column_headers():
+    assert "<th>" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_tooltip_shows_dash_for_zero_averages():
+    assert '"—"' in OVERVIEW_MAP_JS_PATH.read_text()
+
+
 # --- overview.html template checks ---
 
 
@@ -1047,3 +1079,15 @@ def test_overview_page_loads_overview_map_script_cache_busted():
 
     version = static_asset_version("overview-map.js")
     assert f"/static/overview-map.js?v={version}" in response.text
+
+
+def test_overview_page_map_section_has_title():
+    response = _get_overview_page()
+
+    assert "Where PRs were set" in response.text
+
+
+def test_overview_page_map_section_has_description():
+    response = _get_overview_page()
+
+    assert "Personal records across all events" in response.text

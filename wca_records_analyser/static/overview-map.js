@@ -1,23 +1,24 @@
 (function () {
 const OVERVIEW_MAP_COLOUR = "#7c3aed";
 const BASE_RADIUS = 6;
-const RADIUS_PER_PR = 3;
+const RADIUS_PER_PR = 1;
+const MAX_RADIUS = 20;
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_ATTRIBUTION =
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 function circleRadius(cityGroup) {
-    return BASE_RADIUS + (cityGroup.total - 1) * RADIUS_PER_PR;
+    return Math.min(BASE_RADIUS + (cityGroup.total - 1) * RADIUS_PER_PR, MAX_RADIUS);
 }
 
 function buildTooltip(cityGroup) {
     const rows = cityGroup.events
         .map(
             (e) =>
-                `<tr><td>${e.name}</td><td>${e.singles} singles</td><td>${e.averages} averages</td></tr>`
+                `<tr><td>${e.name}</td><td>${e.singles}</td><td>${e.averages || "—"}</td></tr>`
         )
         .join("");
-    return `<strong>${cityGroup.city}</strong><table>${rows}</table>`;
+    return `<strong>${cityGroup.city}</strong><table><tr><th></th><th>Single</th><th>Average</th></tr>${rows}</table>`;
 }
 
 function initMap() {
@@ -47,7 +48,7 @@ function initMap() {
                     fillColor: OVERVIEW_MAP_COLOUR,
                     fillOpacity: 0.7,
                     weight: 1.5,
-                }).bindTooltip(buildTooltip(cityGroup), { sticky: false })
+                }).bindPopup(buildTooltip(cityGroup), { maxHeight: 300 })
             );
             L.layerGroup(markers).addTo(map);
 
