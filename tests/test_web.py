@@ -1091,3 +1091,23 @@ def test_overview_page_map_section_has_description():
     response = _get_overview_page()
 
     assert "Personal records across all events" in response.text
+
+
+def test_overview_page_map_has_loading_spinner():
+    response = _get_overview_page()
+
+    assert 'class="chart-loading is-loading"' in response.text
+
+
+def test_overview_page_map_spinner_is_inside_map_wrap():
+    response = _get_overview_page()
+
+    assert "map-wrap" in response.text
+
+
+def test_overview_map_js_removes_loading_class_after_init():
+    assert "is-loading" in OVERVIEW_MAP_JS_PATH.read_text()
+
+
+def test_overview_map_js_removes_class_from_loading_element():
+    assert "classList.remove" in OVERVIEW_MAP_JS_PATH.read_text()
