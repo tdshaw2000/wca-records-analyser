@@ -37,8 +37,10 @@ from wca_records_analyser.records import (
     daily_solve_range_over_time,
     single_record_progression,
 )
+from wca_records_analyser.map import to_map_series
 from wca_records_analyser.wca_client import (
     get_competition_dates,
+    get_competitions,
     get_profile,
     get_results,
     search_persons,
@@ -89,6 +91,8 @@ EVENT_HAS_AVERAGE_CONTEXT_KEY = "event_has_average"
 OVERVIEW_ROWS_CONTEXT_KEY = "overview_rows"
 SKELETON_ROW_COUNT_CONTEXT_KEY = "skeleton_row_count"
 OVERVIEW_ROWS_URL_CONTEXT_KEY = "overview_rows_url"
+SINGLE_MAP_SERIES_CONTEXT_KEY = "single_map_series"
+AVERAGE_MAP_SERIES_CONTEXT_KEY = "average_map_series"
 SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
 STATIC_VERSION_GLOBAL = "static_version"
@@ -144,6 +148,7 @@ cached_profile = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_profile)
 cached_competition_dates = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(
     get_competition_dates
 )
+cached_competitions = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_competitions)
 cached_results = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_results)
 # Search results shift slowly (only as competitors register), so a short window
 # is plenty to blunt the repeated identical prefixes that live typing produces.
@@ -206,6 +211,20 @@ def get_progression_function():
         )
 
     return record_progression
+
+
+def get_map_function():
+    """Provide the function used to build city-grouped map series (overridable in tests)."""
+
+    def build_map_series(wca_id, event_id):
+        results = cached_results(wca_id, event_id)
+        competitions = cached_competitions(wca_id)
+        return {
+            "singles": to_map_series(results, competitions, event_id, is_average=False),
+            "averages": to_map_series(results, competitions, event_id, is_average=True),
+        }
+
+    return build_map_series
 
 
 def _render_index(request, searched_name, results):
@@ -311,9 +330,11 @@ def records(
     event_id: str,
     progression_function=Depends(get_progression_function),
     profile_function=Depends(get_profile_function),
+    map_function=Depends(get_map_function),
 ):
     progressions = progression_function(wca_id, event_id)
     profile = profile_function(wca_id)
+    map_series = map_function(wca_id, event_id)
     person = profile.person
     single_chart_series = to_record_series(
         progressions.singles, event_id, is_average=False
@@ -358,5 +379,7 @@ def records(
             ),
             RESULT_UNIT_CONTEXT_KEY: result_unit(event_id),
             EVENT_HAS_AVERAGE_CONTEXT_KEY: event_has_average(event_id),
+            SINGLE_MAP_SERIES_CONTEXT_KEY: map_series["singles"],
+            AVERAGE_MAP_SERIES_CONTEXT_KEY: map_series["averages"],
         },
     )

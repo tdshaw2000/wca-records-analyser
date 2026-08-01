@@ -154,9 +154,20 @@
         </section>
         <script id="gap-chart-data" type="application/json">{{ gap_chart_series | tojson }}</script>
     {% endif %}
+
+    <h2 class="chart-title">Where PRs were set</h2>
+    <p class="chart-subtitle">Each dot marks a city where a personal record was set. Dot size reflects the number of PRs set there.</p>
+    <section class="chart-card">
+        <div id="pr-map"></div>
+    </section>
+    <script id="single-map-data" type="application/json">{{ single_map_series | tojson }}</script>
+    {% if event_has_average %}
+        <script id="average-map-data" type="application/json">{{ average_map_series | tojson }}</script>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}
+    <link rel="stylesheet" href="/static/vendor/leaflet.css">
     <script src="/static/records-loading.js?v={{ static_version('records-loading.js') }}"></script>
     {% if single_progression or average_progression %}
         <script src="/static/vendor/chart.umd.js"></script>
@@ -174,4 +185,6 @@
     {% if gap_chart_series %}
         <script src="/static/gap-chart.js?v={{ static_version('gap-chart.js') }}"></script>
     {% endif %}
+    <script src="/static/vendor/leaflet.js"></script>
+    <script src="/static/records-map.js?v={{ static_version('records-map.js') }}"></script>
 {% endblock %}
