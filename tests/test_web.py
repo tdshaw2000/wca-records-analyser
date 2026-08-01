@@ -851,6 +851,28 @@ def test_records_map_js_legend_labels_single_and_average_without_prs_suffix():
     assert '{ label: "Average"' in RECORDS_MAP_JS
 
 
+LEGEND_TOGGLE_HINT = "Click the legend to toggle"
+
+
+def test_records_page_shows_legend_toggle_hint_for_each_multi_series_chart():
+    response = _get_records_page(progressions=PROGRESSIONS_WITH_ALL_RESULTS)
+
+    assert response.status_code == 200
+    # PR chart + All Results scatter + map = 3 multi-series charts
+    assert response.text.count(LEGEND_TOGGLE_HINT) == 3
+
+
+def test_records_page_omits_legend_toggle_hint_for_single_series_event():
+    response = _get_records_page(
+        event_id=MULTI_BLIND_EVENT_ID,
+        progressions=MULTI_BLIND_PROGRESSIONS,
+        profile=MULTI_BLIND_PROFILE,
+    )
+
+    assert response.status_code == 200
+    assert LEGEND_TOGGLE_HINT not in response.text
+
+
 def test_records_page_has_a_map_container():
     response = _get_records_page()
 
