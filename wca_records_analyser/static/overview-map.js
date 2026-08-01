@@ -58,6 +58,9 @@ function initMap() {
                 );
                 map.fitBounds(bounds, { padding: [40, 40] });
             }
+
+            const loading = container.closest(".map-wrap").querySelector(".chart-loading");
+            if (loading) loading.classList.remove("is-loading");
         });
 }
 

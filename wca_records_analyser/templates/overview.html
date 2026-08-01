@@ -39,7 +39,10 @@
     <h2 class="chart-title">Where PRs were set</h2>
     <p class="chart-subtitle">Personal records across all events</p>
     <section class="chart-card">
-        <div id="overview-map" data-map-url="/overview/map-data?wca_id={{ wca_id }}"></div>
+        <div class="map-wrap">
+            <div class="chart-loading is-loading" aria-hidden="true"><div class="spinner"></div></div>
+            <div id="overview-map" data-map-url="/overview/map-data?wca_id={{ wca_id }}"></div>
+        </div>
     </section>
 {% endblock %}
 

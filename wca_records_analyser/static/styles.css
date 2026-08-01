@@ -510,6 +510,10 @@ tbody td:last-child {
 
 /* PR map */
 
+.map-wrap {
+    position: relative;
+}
+
 #pr-map,
 #overview-map {
     height: 400px;
