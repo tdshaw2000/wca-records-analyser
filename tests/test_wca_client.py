@@ -4,11 +4,13 @@ import httpx
 import truststore
 
 from wca_records_analyser.wca_client import (
+    Competition,
     Person,
     Profile,
     Result,
     WCA_API_BASE_URL,
     get_competition_dates,
+    get_competitions,
     get_profile,
     get_results,
     search_persons,
@@ -66,17 +68,29 @@ RESULTS_RESPONSE = [
 
 FIRST_COMPETITION_START_DATE = "2023-11-18"
 SECOND_COMPETITION_START_DATE = "2024-11-01"
+FIRST_COMPETITION_LATITUDE = 51.347823
+FIRST_COMPETITION_LONGITUDE = -2.986306
+FIRST_COMPETITION_CITY = "Weston-super-Mare, Somerset"
+SECOND_COMPETITION_LATITUDE = 51.461317
+SECOND_COMPETITION_LONGITUDE = -2.113757
+SECOND_COMPETITION_CITY = "Chippenham, Wiltshire"
 
 COMPETITIONS_RESPONSE = [
     {
         "id": FIRST_COMPETITION_ID,
         "start_date": FIRST_COMPETITION_START_DATE,
         "end_date": "2023-11-19",
+        "latitude_degrees": FIRST_COMPETITION_LATITUDE,
+        "longitude_degrees": FIRST_COMPETITION_LONGITUDE,
+        "city": FIRST_COMPETITION_CITY,
     },
     {
         "id": SECOND_COMPETITION_ID,
         "start_date": SECOND_COMPETITION_START_DATE,
         "end_date": "2024-11-03",
+        "latitude_degrees": SECOND_COMPETITION_LATITUDE,
+        "longitude_degrees": SECOND_COMPETITION_LONGITUDE,
+        "city": SECOND_COMPETITION_CITY,
     },
 ]
 
@@ -187,6 +201,40 @@ def test_get_competition_dates_requests_the_competitions_for_the_competitor():
     client = _client_returning([], recorded_requests=recorded_requests)
 
     get_competition_dates(WCA_ID, client=client)
+
+    assert (
+        recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}/competitions"
+    )
+
+
+def test_get_competitions_returns_competition_objects_with_all_location_fields():
+    client = _client_returning(COMPETITIONS_RESPONSE)
+
+    competitions = get_competitions(WCA_ID, client=client)
+
+    assert competitions == {
+        FIRST_COMPETITION_ID: Competition(
+            id=FIRST_COMPETITION_ID,
+            start_date=FIRST_COMPETITION_START_DATE,
+            latitude=FIRST_COMPETITION_LATITUDE,
+            longitude=FIRST_COMPETITION_LONGITUDE,
+            city=FIRST_COMPETITION_CITY,
+        ),
+        SECOND_COMPETITION_ID: Competition(
+            id=SECOND_COMPETITION_ID,
+            start_date=SECOND_COMPETITION_START_DATE,
+            latitude=SECOND_COMPETITION_LATITUDE,
+            longitude=SECOND_COMPETITION_LONGITUDE,
+            city=SECOND_COMPETITION_CITY,
+        ),
+    }
+
+
+def test_get_competitions_requests_the_competitions_for_the_competitor():
+    recorded_requests = []
+    client = _client_returning([], recorded_requests=recorded_requests)
+
+    get_competitions(WCA_ID, client=client)
 
     assert (
         recorded_requests[0].url.path == f"/api/v0/persons/{WCA_ID}/competitions"
