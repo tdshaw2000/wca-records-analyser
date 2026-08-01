@@ -100,8 +100,8 @@ function initMap() {
     }
 
     const legend = buildLegend(map, [
-        { label: "Single PRs", colour: SINGLE_COLOUR, layer: singleLayer },
-        { label: "Average PRs", colour: AVERAGE_COLOUR, layer: averageLayer },
+        { label: "Single", colour: SINGLE_COLOUR, layer: singleLayer },
+        { label: "Average", colour: AVERAGE_COLOUR, layer: averageLayer },
     ]);
     legend.addTo(map);
 }
