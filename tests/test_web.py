@@ -1105,6 +1105,24 @@ def test_overview_page_map_spinner_is_inside_map_wrap():
     assert "map-wrap" in response.text
 
 
+def test_overview_page_has_pr_overview_table_title():
+    response = _get_overview_page()
+
+    assert "PR Overview" in response.text
+
+
+def test_overview_page_has_overview_table_hint():
+    response = _get_overview_page()
+
+    assert "Select an event to see how your personal records have progressed over time" in response.text
+
+
+def test_overview_rows_include_a_chevron():
+    response = _get_overview_rows()
+
+    assert "→" in response.text
+
+
 def test_overview_map_js_removes_loading_class_after_init():
     assert "is-loading" in OVERVIEW_MAP_JS_PATH.read_text()
 
