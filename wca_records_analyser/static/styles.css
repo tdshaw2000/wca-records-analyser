@@ -570,3 +570,27 @@ tbody td:last-child {
     text-decoration: underline;
 }
 
+/* Stretched link: the event <a> expands via ::after to cover the whole row,
+   making the entire row a click target without duplicating the href. */
+.overview-table tbody tr {
+    position: relative;
+}
+
+.overview-table tbody td:first-child a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+/* Chevron navigation column */
+.overview-table .row-nav {
+    width: 2rem;
+    text-align: right;
+    color: var(--muted-text);
+    padding-right: 1.1rem;
+}
+
+.overview-table thead th:last-child {
+    width: 2rem;
+}
+

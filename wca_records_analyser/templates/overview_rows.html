@@ -3,5 +3,6 @@
         <td><a href="/records?wca_id={{ wca_id }}&event_id={{ row.event_id }}">{{ row.event_name }}</a></td>
         <td>{{ row.single_age or "—" }}</td>
         <td>{{ row.average_age or "—" }}</td>
+        <td class="row-nav" aria-hidden="true">→</td>
     </tr>
 {% endfor %}
