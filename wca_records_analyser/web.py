@@ -99,7 +99,7 @@ SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
 STATIC_VERSION_GLOBAL = "static_version"
 VERSION_HASH_LENGTH = 8
-BUILD_NUMBER_CONTEXT_KEY = "build_number"
+BUILD_NUMBER_GLOBAL = "build_number"
 RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE = "RENDER_GIT_COMMIT"
 BUILD_NUMBER_LENGTH = 7
 
@@ -127,6 +127,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 templates.env.filters[SINGLE_FILTER] = format_single
 templates.env.filters[AVERAGE_FILTER] = format_average
 templates.env.globals[STATIC_VERSION_GLOBAL] = static_asset_version
+templates.env.globals[BUILD_NUMBER_GLOBAL] = build_number
 
 
 @dataclass(frozen=True)
@@ -266,7 +267,6 @@ def _render_index(request, searched_name, results):
         context={
             SEARCHED_NAME_CONTEXT_KEY: searched_name,
             RESULTS_CONTEXT_KEY: results,
-            BUILD_NUMBER_CONTEXT_KEY: build_number(),
         },
     )
 

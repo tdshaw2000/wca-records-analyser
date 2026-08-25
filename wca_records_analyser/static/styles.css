@@ -31,13 +31,13 @@ body {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.5rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
 }
 
 .site-title {
     display: inline-block;
-    max-width: var(--content-width);
-    margin: 0 auto;
-    width: 100%;
     font-size: 1.25rem;
     font-weight: 700;
     letter-spacing: -0.01em;
@@ -218,7 +218,6 @@ button:hover {
 }
 
 .build-number {
-    margin-top: 2rem;
     font-size: 0.7rem;
     color: var(--muted-text);
 }
