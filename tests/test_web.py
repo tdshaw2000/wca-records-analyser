@@ -337,6 +337,24 @@ def test_index_stylesheet_link_is_cache_busted():
     assert f"{STYLESHEET_PATH}?v={version}" in response.text
 
 
+def test_index_page_shows_the_build_number_when_render_git_commit_is_set(monkeypatch):
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "abc1234567890def1234567890abc1234567890")
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert '<p class="build-number">abc1234</p>' in response.text
+
+
+def test_index_page_omits_the_build_number_when_render_git_commit_is_unset(monkeypatch):
+    monkeypatch.delenv("RENDER_GIT_COMMIT", raising=False)
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert "build-number" not in response.text
+
+
 def test_records_stylesheet_link_is_cache_busted():
     response = _get_records_page()
 
