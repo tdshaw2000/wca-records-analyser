@@ -1,6 +1,7 @@
 """Web page for searching World Cube Association competitors by name."""
 
 import hashlib
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import date
@@ -98,6 +99,9 @@ SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
 STATIC_VERSION_GLOBAL = "static_version"
 VERSION_HASH_LENGTH = 8
+BUILD_NUMBER_CONTEXT_KEY = "build_number"
+RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE = "RENDER_GIT_COMMIT"
+BUILD_NUMBER_LENGTH = 7
 
 app = FastAPI()
 app.mount(
@@ -109,6 +113,14 @@ def static_asset_version(filename):
     """Return a short content hash of a static file, for cache-busting its URL."""
     contents = (STATIC_DIRECTORY / filename).read_bytes()
     return hashlib.sha256(contents).hexdigest()[:VERSION_HASH_LENGTH]
+
+
+def build_number():
+    """Return the deployed commit's short SHA, or None outside of Render."""
+    commit_sha = os.environ.get(RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE)
+    if not commit_sha:
+        return None
+    return commit_sha[:BUILD_NUMBER_LENGTH]
 
 
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
@@ -254,6 +266,7 @@ def _render_index(request, searched_name, results):
         context={
             SEARCHED_NAME_CONTEXT_KEY: searched_name,
             RESULTS_CONTEXT_KEY: results,
+            BUILD_NUMBER_CONTEXT_KEY: build_number(),
         },
     )
 

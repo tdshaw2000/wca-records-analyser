@@ -217,6 +217,12 @@ button:hover {
     color: var(--muted-text);
 }
 
+.build-number {
+    margin-top: 2rem;
+    font-size: 0.7rem;
+    color: var(--muted-text);
+}
+
 /* Competitor identity */
 
 .competitor {

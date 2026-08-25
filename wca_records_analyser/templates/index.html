@@ -24,6 +24,10 @@
             <p class="empty-message">No competitors found for "{{ searched_name }}".</p>
         {% endif %}
     {% endif %}
+
+    {% if build_number %}
+        <p class="build-number">{{ build_number }}</p>
+    {% endif %}
 {% endblock %}
 
 {% block scripts %}
