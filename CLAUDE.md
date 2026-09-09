@@ -1,7 +1,11 @@
 # CLAUDE.md — WCA Records Analyser
 
-> This file defines the working standards for this project.
-> Claude must follow all rules below at all times, without exception.
+> This file describes the shape of this project: what it is, the domain
+> terminology, and how it is laid out, built and run.
+>
+> General working standards — TDD, commit discipline, code style, working
+> style — are not repeated here. They live in the personal global
+> `~/.claude/CLAUDE.md` and apply to this repo in full.
 
 ---
 
@@ -38,30 +42,3 @@ Each module owns one concern; keep HTTP, analysis, presentation, and web wiring 
 
 - **Tests:** `.venv/bin/python -m pytest`
 - **Run the app:** `.venv/bin/python -m uvicorn wca_records_analyser.web:app`. TLS to the live API works without any extra environment: `wca_client` calls `truststore.inject_into_ssl()` at import, so httpx verifies against the OS trust store (which holds the host's Zscaler proxy CA) instead of certifi's bundle.
-
-## test-driven development
-
-- **Tests first.** Write a failing test before writing any production code. No exceptions.
-- The red-green-refactor cycle is mandatory: red → green → refactor.
-- **Never mix test changes and business logic changes in the same commit.** Each commit must touch either tests or production code, not both.
-- **Never modify an existing test to make failing code pass.** If a test is wrong, raise it explicitly and wait for direction. Fix the implementation, not the contract.
-
-## commit discipline
-
-- Commit frequently. Do not accumulate large diffs. Every logical unit of work is a candidate for a commit.
-- Each commit must represent exactly one logical change. If you find yourself writing "and" in a commit message, split the commit.
-- Commit messages follow **Conventional Commits (feat/fix/chore/test)** format.
-
-## code style
-
-- **Constants over literals.** All magic numbers and string literals must be extracted into named constants. Inline literals (other than 0, 1, empty string, true/false) are not permitted in business logic.
-- **Meaningful, unabbreviated names.** Identifiers must be self-documenting. Avoid abbreviations unless they are universally understood domain terms.
-- **Single responsibility.** Methods do one thing. Classes own one concept. If you need "and" to describe what a method does, split it.
-- **No dead code.** Remove unused methods, variables, imports, and classes. Do not comment out code — delete it. Version control is the history.
-
-## working style
-
-- Explain your reasoning before making changes, especially when multiple approaches exist.
-- If a requirement is ambiguous, ask a clarifying question before proceeding.
-- After each commit-worthy change, pause and confirm before moving to the next step.
-- Do not refactor and add functionality in the same step.
