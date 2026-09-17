@@ -3,7 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install dependencies and the application package.
-COPY pyproject.toml ./
+COPY pyproject.toml LICENSE ./
 COPY wca_records_analyser ./wca_records_analyser
 RUN pip install --no-cache-dir .
 
