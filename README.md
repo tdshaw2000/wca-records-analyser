@@ -22,7 +22,7 @@ a chosen puzzle is planned next.
 - **HTTP client:** httpx
 - **Templates:** Jinja2
 - **Tests:** pytest
-- **CI/CD:** GitLab
+- **CI/CD:** GitHub Actions
 
 ## Requirements
 

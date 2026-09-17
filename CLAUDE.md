@@ -25,7 +25,7 @@
 - **Web:** FastAPI + Jinja2 templates, served with uvicorn
 - **HTTP:** httpx (against the WCA public API at `https://www.worldcubeassociation.org/api/v0`)
 - **Charting:** Chart.js (vendored under `static/vendor/`, no CDN) with the date-fns adapter for time axes.
-- **CI/CD:** gitlab
+- **CI/CD:** GitHub Actions (hosted runners; `.github/workflows/ci.yml`)
 
 ## project structure
 
