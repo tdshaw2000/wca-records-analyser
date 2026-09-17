@@ -1,0 +1,37 @@
+name: CI
+
+# Every branch runs the tests; only the default branch can reach the deploy job.
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  # Python 3.12 matches both the Dockerfile base image and requires-python in
+  # pyproject.toml. The suite is fully offline (httpx.MockTransport plus the
+  # Depends seams in web.py), so a hosted runner needs no network access or
+  # custom trust store.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e ".[dev]"
+      - run: pytest
+
+  # Triggers a Render deploy via its Deploy Hook, but only after the test job
+  # passes on the default branch - so a red pipeline cannot reach the live
+  # Render site. Render's own push auto-deploy is OFF (autoDeploy: false in
+  # render.yaml), making this the single gated path to production.
+  # RENDER_DEPLOY_HOOK_URL is a repository secret holding the hook URL
+  # (Render service > Settings > Deploy Hook).
+  deploy_render:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
