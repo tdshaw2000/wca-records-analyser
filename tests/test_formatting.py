@@ -20,7 +20,7 @@ MULTI_BLIND_EVENT_ID = "333mbf"
 
 
 def test_format_time_shows_seconds_and_hundredths_under_a_minute():
-    assert format_time(585) == "5.86"
+    assert format_time(585) == "5.85"
 
 
 def test_format_time_keeps_two_hundredths_digits():
