@@ -84,3 +84,25 @@ code. See [CLAUDE.md](CLAUDE.md) for the full working standards.
 
 - Graph a competitor's personal records for a selected puzzle.
 - Graceful handling of WCA API errors and timeouts on the page.
+
+## Licence
+
+Released under the [MIT Licence](LICENSE).
+
+### Third-party libraries
+
+The browser libraries under `wca_records_analyser/static/vendor/` are vendored
+rather than loaded from a CDN. They remain under their own licences, and their
+copyright notices are retained:
+
+| Library | Version | Licence |
+| --- | --- | --- |
+| [Chart.js](https://www.chartjs.org/) | 4.4.3 | MIT |
+| [chartjs-adapter-date-fns](https://github.com/chartjs/chartjs-adapter-date-fns) | 3.0.0 | MIT |
+| [chartjs-plugin-zoom](https://github.com/chartjs/chartjs-plugin-zoom) | 2.0.1 | MIT |
+| [Hammer.JS](https://hammerjs.github.io/) | 2.0.7 | MIT |
+| [Leaflet](https://leafletjs.com/) | 1.9.4 | BSD-2-Clause |
+
+Competition data is fetched from the [World Cube
+Association](https://www.worldcubeassociation.org) API at runtime; none of it is
+redistributed with this project.
