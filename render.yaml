@@ -10,7 +10,8 @@ services:
     # which doubles as the health check. No env vars are required: truststore
     # verifies TLS against the container's OS trust store at import.
     healthCheckPath: /
-    # Push auto-deploy is OFF on purpose: Render does not see the GitLab pipeline,
-    # so deploying on push would ship code with failing tests. Instead the GitLab
-    # CI deploy_render job triggers Render's Deploy Hook only after tests pass.
+    # Push auto-deploy is OFF on purpose: Render does not see the GitHub Actions
+    # pipeline, so deploying on push would ship code with failing tests. Instead
+    # the deploy_render job in .github/workflows/ci.yml triggers Render's Deploy
+    # Hook only after tests pass on main.
     autoDeploy: false
