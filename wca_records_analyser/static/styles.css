@@ -64,6 +64,19 @@ h2 {
     letter-spacing: -0.01em;
 }
 
+/* Holding page */
+
+.holding-notice h1 {
+    margin: 0 0 0.75rem;
+    font-size: 1.3rem;
+    font-weight: 650;
+}
+
+.holding-notice p {
+    margin: 0;
+    line-height: 1.6;
+}
+
 /* Forms */
 
 .field-label {
@@ -75,7 +88,8 @@ h2 {
 }
 
 .search-form,
-.event-form {
+.event-form,
+.holding-notice {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
