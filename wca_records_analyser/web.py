@@ -63,6 +63,7 @@ MAX_SEARCH_SUGGESTIONS = 10
 SUGGESTION_WCA_ID_KEY = "wca_id"
 SUGGESTION_NAME_KEY = "name"
 INDEX_TEMPLATE = "index.html"
+HOLDING_TEMPLATE = "holding.html"
 RECORDS_TEMPLATE = "records.html"
 OVERVIEW_TEMPLATE = "overview.html"
 OVERVIEW_ROWS_TEMPLATE = "overview_rows.html"
@@ -102,6 +103,11 @@ VERSION_HASH_LENGTH = 8
 BUILD_NUMBER_GLOBAL = "build_number"
 RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE = "RENDER_GIT_COMMIT"
 BUILD_NUMBER_LENGTH = 7
+# The WCA changed its API access policy on 24 September 2026, cutting off the
+# data every page relies on. While this is on, every page (static assets aside)
+# is replaced by a holding page that explains why; turn it off to restore the
+# app once a new data source is in place.
+HOLDING_PAGE_ENABLED = True
 
 app = FastAPI()
 app.mount(
@@ -128,6 +134,16 @@ templates.env.filters[SINGLE_FILTER] = format_single
 templates.env.filters[AVERAGE_FILTER] = format_average
 templates.env.globals[STATIC_VERSION_GLOBAL] = static_asset_version
 templates.env.globals[BUILD_NUMBER_GLOBAL] = build_number
+
+
+@app.middleware("http")
+async def serve_holding_page(request: Request, call_next):
+    """Answer every non-static request with the holding page while it is enabled."""
+    if HOLDING_PAGE_ENABLED and not request.url.path.startswith(STATIC_ROUTE + "/"):
+        # 200 rather than 503: Render health-checks /, and the holding page is
+        # the intended content, not an outage of this service.
+        return templates.TemplateResponse(request=request, name=HOLDING_TEMPLATE)
+    return await call_next(request)
 
 
 @dataclass(frozen=True)
