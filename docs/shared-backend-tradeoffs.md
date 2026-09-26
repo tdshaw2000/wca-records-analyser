@@ -1,6 +1,6 @@
 # Shared backend for web and mobile: hosted SQLite vs static JSON
 
-Status: **for review — no decision taken.** Written 2026-09-23.
+Status: **decided 2026-09-26 — see [`plans/own-data-backend.md`](plans/own-data-backend.md).** Written 2026-09-23; kept as background (measurements, licence text, export format).
 
 Covers both apps:
 
