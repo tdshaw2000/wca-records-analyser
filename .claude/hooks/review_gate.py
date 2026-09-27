@@ -7,6 +7,8 @@
                             passed review: by the reviewer always, and by the data-reviewer too
                             when the branch touches the data layer or server config. Merges
                             must be merge commits of that exact commit, with green CI on it.
+                            Also blocks posting the review-gate marker (the review summary the
+                            GitHub check looks for) until the same review has passed.
 
 Claude Code sends the event as JSON on stdin. Exit code 2 blocks, and stderr tells Claude why.
 Any other failure would let the tool call through, so the gate turns its own errors into blocks.
@@ -62,6 +64,8 @@ GH_CREATE = re.compile(r"\bgh\b.*\bpr\s+create\b", re.DOTALL)
 SEPARATORS = {";", "&", "&&", "|", "||", "\n", "(", ")"}
 DRAFT_FLAGS = {"--draft", "-d", "--draft=true"}
 VERDICT = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
+# The line the Review gate workflow (.github/scripts/review_check.py) looks for in a PR review.
+MARKER = re.compile(r"<!--\s*review-gate:\s*passed\s+(\S*)\s*-->")
 
 
 def git(cwd, *args):
@@ -157,10 +161,12 @@ def record(event):
 def marks_ready(command):
     if GRAPHQL_READY in command:
         return True
+    # gh may be named anywhere in the command, such as G=gh on one line and $G on the next.
+    if not re.search(r"\bgh\b", command):
+        return False
     return any(
         "--undo" not in match.group(1).split()
         for line in command.split("\n")
-        if re.search(r"\bgh\b", line)
         for match in GH_READY.finditer(line)
     )
 
@@ -197,9 +203,9 @@ def gh_merges(command):
     """(method, head sha) for each gh pr merge in the command, or 'auto' or 'admin' if any
     uses those flags."""
     merges = []
+    if not re.search(r"\bgh\b", command):
+        return merges
     for line in command.split("\n"):
-        if not re.search(r"\bgh\b", line):
-            continue
         for match in GH_MERGE.finditer(line):
             flags = match.group(1).split()
             if any(f == "--auto" or f.startswith("--auto=") for f in flags):
@@ -344,6 +350,11 @@ def check_ci(cwd, tool_input):
             runs = json.load(response)["check_runs"]
     except Exception as error:  # noqa: BLE001 - any failure to read CI must block the merge
         block(f"Couldn't read CI for {commit[:7]} ({error!r}). Try again shortly. " + LOOP)
+    # A check that was re-run counts by its latest run, as GitHub counts required checks.
+    latest = {}
+    for r in sorted(runs, key=lambda r: r.get("id") or 0):
+        latest[r["name"]] = r
+    runs = list(latest.values())
     unfinished = [r["name"] for r in runs if r.get("status") != "completed"]
     if unfinished:
         block(f"CI has not finished on {commit[:7]}: {', '.join(unfinished)}. Wait. " + LOOP)
@@ -354,9 +365,19 @@ def check_ci(cwd, tool_input):
         block(f"There is no CI result for {commit[:7]} yet. Wait for it to run. " + LOOP)
 
 
+def check_markers(cwd, shas):
+    head = git(cwd, "rev-parse", "HEAD")
+    if any(sha != head for sha in shas):
+        block(
+            f"The review-gate marker must name the reviewed commit, HEAD: "
+            f"<!-- review-gate: passed {head} -->. " + LOOP
+        )
+
+
 def gate(event):
     action, detail = wants(event)
-    if action is None:
+    markers = MARKER.findall(json.dumps(event.get("tool_input") or {}))
+    if action is None and not markers:
         return
     if action == "create-not-draft":
         block("Open the pull request as a draft. It is marked ready only after review. " + LOOP)
@@ -369,19 +390,31 @@ def gate(event):
             "Merge with gh pr merge --merge --match-head-commit <HEAD sha>, or the MCP "
             "merge_pull_request tool, so the review gate can check it. " + LOOP
         )
+    if action == "merge":
+        check_merge(event.get("cwd"), detail)
+    check_ready(event.get("cwd"))
+    if markers:
+        check_markers(event.get("cwd"), markers)
+    if action == "merge":
+        check_ci(event.get("cwd"), event.get("tool_input") or {})
+
+
+def safe_gate(stdin):
+    """The gate, failing closed: any error, even in reading the event, blocks the tool call."""
     try:
-        if action == "merge":
-            check_merge(event.get("cwd"), detail)
-        check_ready(event.get("cwd"))
-        if action == "merge":
-            check_ci(event.get("cwd"), event.get("tool_input") or {})
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        event = json.load(stdin)
+        if not isinstance(event, dict) or not isinstance(event.get("tool_input") or {}, dict):
+            raise TypeError(f"not a tool call event: {str(event)[:80]}")
+        gate(event)
+    except Exception as error:  # noqa: BLE001 - exit 1 would let the tool call through
         block(f"The review gate failed ({error!r}), so it is blocking to be safe. " + LOOP)
 
 
 def main():
-    event = json.load(sys.stdin)
-    {"record": record, "gate": gate}[sys.argv[1]](event)
+    if sys.argv[1] == "gate":
+        safe_gate(sys.stdin)
+    else:
+        record(json.load(sys.stdin))
 
 
 if __name__ == "__main__":
