@@ -1,13 +1,26 @@
 """Builds the trimmed WCA SQLite database from the WCA public results export.
 
+Run nightly as `python -m wca_data.build`. It builds only when WCA has published a new export,
+checks the new database against the live one, and renames it into place, keeping the old one
+as <name>.prev. Anything that goes wrong leaves the live database as it was. Settings come
+from the environment: WCA_DATA_DB_PATH (default /srv/wca-data/wca.sqlite) and, optionally,
+WCA_DATA_PING_URL, a missed-build monitor that is pinged after every successful run.
+
 The export's result_attempts table has about 32 million rows, so nothing is held in memory:
 tables stream from the zip into SQLite, and attempts are packed into their results by a query
 over a scratch database that is deleted afterwards.
 """
 
+import fcntl
+import json
+import os
+import shutil
 import sqlite3
+import sys
 import tempfile
+import urllib.request
 import zipfile
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -21,13 +34,34 @@ from wca_data.export import (
 )
 from wca_data.schema import INDEXES, SCHEMA_VERSION, TABLES
 
+EXPORT_INFO_URL = "https://www.worldcubeassociation.org/api/v0/export/public"
+DEFAULT_DB_PATH = "/srv/wca-data/wca.sqlite"
+USER_AGENT = "wca-records-analyser data build (+https://github.com/tdshaw2000/wca-records-analyser)"
+TIMEOUT_SECONDS = 60
 SUPPORTED_EXPORT_MAJOR = "v2"
+# A competitor and event whose latest result is checked on every build: Feliks Zemdegs' 3x3,
+# the known-good check in docs/shared-backend-tradeoffs.md.
+SENTINEL_PERSON = "2009ZEMD01"
+SENTINEL_EVENT = "333"
+# A new build must keep this share of each table's rows, and grow it by less than GROWTH_LIMIT.
+MIN_KEPT = 0.99
+GROWTH_LIMIT = 1.5
+COUNTED_TABLES = ("persons", "competitions", "events", "results")
+SCRATCH_PREFIXES = (".wca-build-", ".wca-download-")
 MICRODEGREES = 1_000_000
 BATCH = 50_000
 
 
 class UnsupportedExportVersion(ExportFormatError):
     """WCA has moved to an export format version this builder doesn't know."""
+
+
+class SanityCheckFailed(Exception):
+    """The new database doesn't look like a good build, so it isn't swapped in."""
+
+
+class BuildAlreadyRunning(Exception):
+    """Another build holds the data directory's lock."""
 
 
 def export_major(version: str) -> str:
@@ -268,3 +302,235 @@ def _build(archive, metadata, db_path, staging_path, built_at):
         connection.execute("ANALYZE")
     finally:
         connection.close()
+
+
+# --- the nightly job ---
+
+
+def database_path(environ: Mapping[str, str]) -> Path:
+    return Path(environ.get("WCA_DATA_DB_PATH") or DEFAULT_DB_PATH)
+
+
+def _open_read_only(path: Path) -> sqlite3.Connection:
+    return sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
+
+
+def _live_export_date(db_path: Path) -> datetime | None:
+    """The live database's export date, or None if there is no readable one."""
+    if not db_path.exists():
+        return None
+    try:
+        with _open_read_only(db_path) as connection:
+            row = connection.execute("SELECT value FROM meta WHERE key = 'export_date'").fetchone()
+        return parse_export_date(row[0]) if row else None
+    except (sqlite3.Error, ExportFormatError):
+        return None
+
+
+def _counts(connection) -> dict[str, int]:
+    return {
+        table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+        for table in COUNTED_TABLES
+    }
+
+
+def _latest_result(connection, person_id):
+    return connection.execute(
+        "SELECT r.id, r.competition_id, r.event_id, r.best, r.average, r.attempts "
+        "FROM results r JOIN competitions c ON c.id = r.competition_id "
+        "WHERE r.person_id = ? AND r.event_id = ? ORDER BY c.start_date DESC, r.id DESC LIMIT 1",
+        (person_id, SENTINEL_EVENT),
+    ).fetchone()
+
+
+def _result(connection, result_id):
+    return connection.execute(
+        "SELECT id, competition_id, event_id, best, average, attempts FROM results WHERE id = ?",
+        (result_id,),
+    ).fetchone()
+
+
+def check_sanity(new_path: Path, live_path: Path, sentinel: str = SENTINEL_PERSON) -> None:
+    """Raise SanityCheckFailed unless the new database looks like a good build.
+
+    Every table has rows, and the sentinel competitor is there with a 3x3 result. Against a readable live
+    database: no table loses more than 1% of its rows or grows by half again, and the
+    sentinel's latest live result is still there, unchanged.
+    """
+    with _open_read_only(new_path) as new:
+        counts = _counts(new)
+        empty = [table for table, count in counts.items() if count == 0]
+        if empty:
+            raise SanityCheckFailed(f"The new build has no rows in {', '.join(empty)}")
+        known = new.execute("SELECT 1 FROM persons WHERE wca_id = ?", (sentinel,)).fetchone()
+        if known is None or _latest_result(new, sentinel) is None:
+            raise SanityCheckFailed(f"The new build is missing {sentinel} or their 3x3 results")
+        try:
+            with _open_read_only(live_path) as live:
+                live_counts = _counts(live)
+                live_latest = _latest_result(live, sentinel)
+        except sqlite3.Error:
+            return  # nothing readable to compare with
+        for table, before in live_counts.items():
+            after = counts[table]
+            if after < before * MIN_KEPT or (before and after > before * GROWTH_LIMIT):
+                raise SanityCheckFailed(
+                    f"{table} would go from {before} rows to {after}, outside the expected range"
+                )
+        if live_latest is not None and _result(new, live_latest[0]) != live_latest:
+            raise SanityCheckFailed(
+                f"{sentinel}'s latest result {live_latest} is missing or changed in the new build"
+            )
+
+
+def _fsync_directory(folder: Path) -> None:
+    descriptor = os.open(folder, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def swap_into_place(new_path: Path, live_path: Path) -> None:
+    """Rename the new database over the live one, keeping the live one as <name>.prev.
+
+    The live name always points at a whole database: the old file is hard-linked to .prev
+    first, then the new file is renamed over the live name in one atomic step. Readers that
+    already have the old file open keep reading it.
+    """
+    with open(new_path, "rb+") as new_file:
+        os.fsync(new_file.fileno())
+    if live_path.exists():
+        previous = live_path.with_name(live_path.name + ".prev")
+        linking = live_path.with_name(live_path.name + ".prev.tmp")
+        linking.unlink(missing_ok=True)
+        os.link(live_path, linking)
+        os.replace(linking, previous)
+    os.replace(new_path, live_path)
+    _fsync_directory(live_path.parent)
+
+
+def _clear_leftovers(db_path: Path) -> None:
+    """Remove scratch files a killed run may have left. Only called while holding the lock."""
+    for path in db_path.parent.iterdir():
+        if path.is_dir() and path.name.startswith(SCRATCH_PREFIXES):
+            shutil.rmtree(path)
+    for suffix in (".new", ".prev.tmp"):
+        db_path.with_name(db_path.name + suffix).unlink(missing_ok=True)
+
+
+class _DirectoryLock:
+    """An exclusive flock on the data directory, so two builds never run at once."""
+
+    def __init__(self, folder: Path):
+        self.folder = folder
+
+    def __enter__(self):
+        self.descriptor = os.open(self.folder, os.O_RDONLY)
+        try:
+            fcntl.flock(self.descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(self.descriptor)
+            raise BuildAlreadyRunning(f"Another build is running in {self.folder}") from None
+        return self
+
+    def __exit__(self, *exc_info):
+        os.close(self.descriptor)  # closing releases the lock
+
+
+def run(
+    db_path: Path,
+    *,
+    fetch_json: Callable[[str], dict],
+    download: Callable[[str, Path], None],
+    now: Callable[[], datetime],
+    ping: Callable[[], None],
+) -> str:
+    """One nightly run. Returns "unchanged" or "built"; raises if anything fails.
+
+    ping is called only when the run succeeds, whether or not there was a new export.
+    """
+    db_path = Path(db_path)
+    with _DirectoryLock(db_path.parent):
+        _clear_leftovers(db_path)
+        info = fetch_json(EXPORT_INFO_URL)
+        if _live_export_date(db_path) == parse_export_date(info["export_date"]):
+            ping()
+            return "unchanged"
+        check_export_version(info["export_version"])
+        new_path = db_path.with_name(db_path.name + ".new")
+        try:
+            with tempfile.TemporaryDirectory(dir=db_path.parent, prefix=".wca-download-") as work:
+                export_zip = Path(work) / "export.zip"
+                download(info["tsv_url"], export_zip)
+                expected = info.get("tsv_filesize_bytes")
+                if expected is not None and export_zip.stat().st_size != expected:
+                    raise SanityCheckFailed(
+                        f"Downloaded {export_zip.stat().st_size} bytes, WCA says {expected}"
+                    )
+                build_database(export_zip, new_path, now())
+            check_sanity(new_path, db_path)
+            swap_into_place(new_path, db_path)
+        finally:
+            new_path.unlink(missing_ok=True)
+    ping()
+    return "built"
+
+
+def _request(url: str):
+    return urllib.request.urlopen(
+        urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=TIMEOUT_SECONDS
+    )
+
+
+def fetch_json(url: str) -> dict:
+    with _request(url) as response:
+        return json.load(response)
+
+
+def download(url: str, destination: Path) -> None:
+    with _request(url) as response, open(destination, "wb") as output:
+        shutil.copyfileobj(response, output, length=1024 * 1024)
+
+
+def open_url(url: str) -> None:
+    with _request(url) as response:
+        response.read()
+
+
+def main(
+    environ: Mapping[str, str] | None = None,
+    *,
+    fetch_json: Callable[[str], dict] = fetch_json,
+    download: Callable[[str, Path], None] = download,
+    open_url: Callable[[str], None] = open_url,
+) -> int:
+    environ = os.environ if environ is None else environ
+    db_path = database_path(environ)
+    ping_url = environ.get("WCA_DATA_PING_URL")
+
+    def ping():
+        if not ping_url:
+            return
+        try:
+            open_url(ping_url)
+        except OSError as error:  # a monitor outage mustn't fail a good build
+            print(f"wca_data build: couldn't ping the monitor: {error}", file=sys.stderr)
+
+    try:
+        outcome = run(
+            db_path,
+            fetch_json=fetch_json,
+            download=download,
+            now=lambda: datetime.now(UTC),
+            ping=ping,
+        )
+    except Exception as error:  # noqa: BLE001 - report every failure, keep the old database
+        print(f"wca_data build failed: {type(error).__name__}: {error}", file=sys.stderr)
+        return 1
+    print(f"wca_data build: {outcome} ({db_path})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
