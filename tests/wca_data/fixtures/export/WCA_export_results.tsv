@@ -1,0 +1,8 @@
+id	pos	best	average	competition_id	round_type_id	event_id	person_name	person_id	format_id	regional_single_record	regional_average_record	person_country_id
+101	3	1052	1157	MelbourneWinterOpen2009	1	333	Feliks Zemdegs	2009ZEMD01	a	NULL	NULL	X
+102	1	993	1120	MelbourneWinterOpen2009	f	333	Feliks Zemdegs	2009ZEMD01	a	NULL	NULL	X
+103	1	593	648	AustralianNationals2026	f	333	Feliks Zemdegs	2009ZEMD01	a	NULL	NULL	X
+104	5	-1	-1	AustralianNationals2026	f	333bf	Feliks Zemdegs	2009ZEMD01	3	NULL	NULL	X
+105	2	1532	1688	ParisOpen2016	1	333	Zoé Martínez	2015MART01	a	NULL	NULL	X
+106	40	2105	0	ParisOpen2016	1	333	Max Park	2012PARK03	a	NULL	NULL	X
+107	1	312	402	ShanghaiSpring2012	f	222	Xiaoming Wang (王小明)	2010WANG01	a	NULL	NULL	X

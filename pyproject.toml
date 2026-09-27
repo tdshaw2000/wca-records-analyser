@@ -23,7 +23,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["wca_records_analyser*"]
+include = ["wca_records_analyser*", "wca_data*"]
 
 [tool.setuptools.package-data]
 wca_records_analyser = ["templates/*.html", "static/*", "static/vendor/*"]

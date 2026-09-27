@@ -39,6 +39,22 @@ Each module owns one concern; keep HTTP, analysis, presentation, and web wiring 
 - `web.py` — FastAPI routes (`/`, `/search`, `/records`) with injectable `Depends` seams (`get_search_function`, `get_events_function`, `get_progression_function`) so web tests never hit the network. Templates in `templates/`.
   - **Holding page:** since the WCA API access change of 24 September 2026, `HOLDING_PAGE_ENABLED = True` makes a middleware answer every non-static request with `templates/holding.html` (status 200, so Render's `/` health check still passes). Set it to `False` to restore the app. `tests/conftest.py` disables it for the normal suite; `tests/test_holding_page.py` re-enables it.
 
+The data layer is a separate package, `wca_data/`, being built to replace the WCA API (plan:
+`docs/plans/own-data-backend.md`). It must never import `wca_records_analyser` or anything
+web; `tests/wca_data/test_isolation.py` enforces that. App-specific analysis stays in the app.
+
+- `wca_data/export.py` — streams tables from the WCA export zip by header name (`read_table`, `read_metadata`), undoing MySQL batch escapes.
+- `wca_data/schema.py` — the database's tables and `SCHEMA_VERSION`; documented for other apps in `wca_data/SCHEMA.md` (a test keeps them in sync).
+- `wca_data/build.py` — `build_database` (export zip → SQLite) and the nightly job, `python -m wca_data.build`: skips an unchanged export, checks the version, sanity-checks against the live database, swaps atomically keeping `.prev`. Settings: `WCA_DATA_DB_PATH`, `WCA_DATA_PING_URL`.
+- Tests in `tests/wca_data/`, against the hand-made export in `tests/wca_data/fixtures/export/`. No network.
+
+## repo rules (the repo is to become public)
+
+- No self-hosted runners and no `pull_request_target` workflows.
+- No secrets in the repo; the only token Actions uses is `GITHUB_TOKEN`.
+- The data build runs on the VM, never in Actions.
+- Server config is committed as templates under `deploy/`; IPs, OCIDs and SSH details stay in a gitignored file on the VM.
+
 ## running and testing
 
 - **Tests:** `.venv/bin/python -m pytest`
