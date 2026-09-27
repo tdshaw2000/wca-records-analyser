@@ -50,6 +50,8 @@ def commands_for(hooks, event, tool):
         "mcp__plugin_gh_github__update_pull_request",
         "mcp__github__merge_pull_request",
         "mcp__github__enable_pr_auto_merge",
+        "mcp__github__pull_request_review_write",
+        "mcp__github__add_issue_comment",
         "Bash",
     ],
 )
