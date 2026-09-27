@@ -11,8 +11,11 @@ stderr with exit code 2.
 """
 
 import json
+import os
 import subprocess
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
@@ -38,6 +41,9 @@ def repo(tmp_path):
     git(work, "config", "user.name", "Test")
     git(work, "config", "user.email", "test@example.com")
     git(work, "remote", "add", "origin", str(remote))
+    # Fetch from GitHub, as a real clone would, but push to the local bare repo.
+    git(work, "config", "remote.origin.pushurl", str(remote))
+    git(work, "remote", "set-url", "origin", "https://github.com/o/r.git")
     (work / "a.py").write_text("x = 1\n")
     git(work, "add", ".")
     git(work, "commit", "-m", "first")
@@ -60,12 +66,54 @@ def head(repo):
     return git(repo, "rev-parse", "HEAD")
 
 
+class FakeGitHub(BaseHTTPRequestHandler):
+    """Answers the check-runs request the gate makes before a merge."""
+
+    check_runs = []
+    requests = []
+
+    def do_GET(self):
+        FakeGitHub.requests.append(self.path)
+        body = json.dumps(
+            {"total_count": len(self.check_runs), "check_runs": self.check_runs}
+        ).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+def check_run(name="test", status="completed", conclusion="success"):
+    return {"name": name, "status": status, "conclusion": conclusion}
+
+
+@pytest.fixture(scope="session")
+def github_api():
+    server = HTTPServer(("127.0.0.1", 0), FakeGitHub)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_port}"
+    server.shutdown()
+
+
+@pytest.fixture(autouse=True)
+def ci(github_api, monkeypatch):
+    """CI is green unless a test says otherwise."""
+    monkeypatch.setenv("REVIEW_GATE_GITHUB_API", github_api)
+    FakeGitHub.check_runs = [check_run(), check_run("deploy_render", conclusion="skipped")]
+    FakeGitHub.requests = []
+    return FakeGitHub
+
+
 def run(mode, payload):
     return subprocess.run(
         [sys.executable, str(SCRIPT), mode],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
+        env=os.environ.copy(),
     )
 
 
@@ -94,9 +142,25 @@ def record(repo, message, agent_type="reviewer", stop_hook_active=False):
     )
 
 
-def review(repo, blocking=0, **counts):
-    result = record(repo, verdict(head(repo), blocking=blocking, **counts))
+def review(repo, blocking=0, agent_type="reviewer", **counts):
+    result = record(repo, verdict(head(repo), blocking=blocking, **counts), agent_type)
     assert result.returncode == 0, result.stderr
+
+
+def data_review(repo, blocking=0, **counts):
+    review(repo, blocking=blocking, agent_type="data-reviewer", **counts)
+
+
+def touch(repo, path, push=True):
+    """Commit a change to path, which may be in a new directory."""
+    file = repo / path
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text((file.read_text() if file.exists() else "") + "z = 3\n")
+    git(repo, "add", path)
+    git(repo, "commit", "-m", f"change {path}")
+    if push:
+        git(repo, "push", "-u", "origin", "HEAD")
+    return head(repo)
 
 
 def mark_ready(repo):
@@ -702,3 +766,181 @@ def test_branch_merges_through_gh_api_are_blocked(repo, command):
 )
 def test_ordinary_pushes_are_not_gated(repo, command):
     assert bash(repo, command).returncode == 0
+
+
+# --- The data reviewer: required when a PR touches the data layer or the server ---
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "wca_data/build.py",
+        "wca_data/schema/tables.sql",
+        "tests/wca_data/test_build.py",
+        "deploy/wca-data-build.timer",
+        "deploy/Caddyfile",
+        "Dockerfile",
+        "migrations/001.sql",
+    ],
+)
+def test_data_layer_changes_need_the_data_reviewer_too(repo, path):
+    touch(repo, path)
+    review(repo)
+
+    result = mark_ready(repo)
+
+    assert result.returncode == BLOCKED
+    assert "data-reviewer" in result.stderr
+
+
+@pytest.mark.parametrize("path", ["wca_data/build.py", "deploy/Caddyfile"])
+def test_data_layer_changes_pass_once_both_reviewers_pass(repo, path):
+    touch(repo, path)
+    review(repo)
+    data_review(repo)
+
+    assert mark_ready(repo).returncode == 0
+
+
+def test_app_only_changes_do_not_need_the_data_reviewer(repo):
+    touch(repo, "wca_records_analyser/web.py")
+    review(repo)
+
+    assert mark_ready(repo).returncode == 0
+
+
+def test_a_data_change_earlier_on_the_branch_still_needs_the_data_reviewer(repo):
+    touch(repo, "wca_data/build.py")
+    touch(repo, "wca_records_analyser/web.py")
+    review(repo)
+
+    assert mark_ready(repo).returncode == BLOCKED
+
+
+def test_the_data_reviewer_alone_is_not_enough(repo):
+    touch(repo, "wca_data/build.py")
+    data_review(repo)
+
+    result = mark_ready(repo)
+
+    assert result.returncode == BLOCKED
+    assert "`reviewer`" in result.stderr
+
+
+def test_blocking_findings_from_the_data_reviewer_block(repo):
+    touch(repo, "wca_data/build.py")
+    review(repo)
+    data_review(repo, blocking=1)
+
+    result = mark_ready(repo)
+
+    assert result.returncode == BLOCKED
+    assert "round 1 of 3" in result.stderr
+    assert "data-reviewer" in result.stderr
+
+
+def test_both_reviewers_blocking_the_same_commit_is_one_round(repo):
+    touch(repo, "wca_data/build.py")
+    review(repo, blocking=1)
+    data_review(repo, blocking=1)
+
+    result = mark_ready(repo)
+
+    assert "round 1 of 3" in result.stderr
+
+
+def test_rounds_blocked_by_either_reviewer_add_up_to_the_cap(repo):
+    touch(repo, "wca_data/build.py")
+    review(repo, blocking=1)
+    touch(repo, "wca_data/build.py")
+    data_review(repo, blocking=1)
+    touch(repo, "wca_data/build.py")
+    review(repo)
+    data_review(repo, blocking=1)
+    touch(repo, "wca_data/build.py")
+    review(repo)
+    data_review(repo)
+
+    result = mark_ready(repo)
+
+    assert result.returncode == BLOCKED
+    assert "Stop" in result.stderr
+
+
+def test_the_data_reviewers_verdict_is_recorded(repo):
+    result = record(repo, "no verdict here", agent_type="data-reviewer")
+
+    assert result.returncode == BLOCKED
+    assert "json" in result.stderr
+
+
+def test_the_changed_files_cannot_be_worked_out_without_main(repo):
+    review(repo)
+    git(repo, "update-ref", "-d", "refs/remotes/origin/main")
+
+    result = mark_ready(repo)
+
+    assert result.returncode == BLOCKED
+    assert "git fetch" in result.stderr
+
+
+# --- CI: a merge waits for green checks on the reviewed commit ---
+
+
+def test_merging_checks_ci_on_the_reviewed_commit_of_the_named_repo(repo, ci):
+    review(repo)
+
+    assert merge(repo, owner="tdshaw2000", repo="wca").returncode == 0
+    assert ci.requests == [f"/repos/tdshaw2000/wca/commits/{head(repo)}/check-runs?per_page=100"]
+
+
+def test_gh_pr_merge_checks_ci_on_the_origin_repo(repo, ci):
+    review(repo)
+
+    assert bash(repo, f"gh pr merge 13 --merge --match-head-commit {head(repo)}").returncode == 0
+    assert ci.requests == [f"/repos/o/r/commits/{head(repo)}/check-runs?per_page=100"]
+
+
+@pytest.mark.parametrize(
+    "runs, reason",
+    [
+        ([check_run(conclusion="failure")], "failed"),
+        ([check_run(status="in_progress", conclusion=None)], "not finished"),
+        ([check_run(), check_run("lint", conclusion="cancelled")], "failed"),
+        ([], "no CI"),
+        ([check_run(conclusion="skipped")], "no CI"),
+    ],
+)
+def test_merging_is_blocked_until_ci_is_green(repo, ci, runs, reason):
+    review(repo)
+    ci.check_runs = runs
+
+    result = merge(repo)
+
+    assert result.returncode == BLOCKED
+    assert reason in result.stderr
+
+
+def test_marking_ready_does_not_wait_for_ci(repo, ci):
+    review(repo)
+    ci.check_runs = [check_run(status="queued", conclusion=None)]
+
+    assert mark_ready(repo).returncode == 0
+    assert ci.requests == []
+
+
+def test_ci_is_not_checked_before_review_passes(repo, ci):
+    result = merge(repo)
+
+    assert result.returncode == BLOCKED
+    assert ci.requests == []
+
+
+def test_an_unreachable_github_blocks_the_merge(repo, monkeypatch):
+    review(repo)
+    monkeypatch.setenv("REVIEW_GATE_GITHUB_API", "http://127.0.0.1:9")
+
+    result = merge(repo)
+
+    assert result.returncode == BLOCKED
+    assert "CI" in result.stderr
