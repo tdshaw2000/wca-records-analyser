@@ -1157,3 +1157,42 @@ def test_reviews_posted_through_graphql_wait_for_review(repo, command):
     assert bash(repo, command).returncode == BLOCKED
     review(repo)
     assert bash(repo, command).returncode == 0
+
+
+# --- Review round 3: every write through gh api waits for review ---
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh api graphql --input /tmp/q.json",
+        "gh api graphql -Fquery=@/tmp/q.graphql",
+        "gh api graphql -f query='query { viewer { login } }'",
+        "gh api --input /tmp/review.json repos/o/r/pulls/8/reviews",
+        "gh api -X POST $URL -f body=x",
+        "gh api --method=PUT $URL",
+        "echo start; gh api $URL -fbody=x && echo done",
+        "G=gh\n$G api graphql --input /tmp/q.json",
+        "echo '{}' | gh api graphql --input -",
+        "gh api -XPOST $URL",
+    ],
+)
+def test_every_write_through_gh_api_waits_for_review(repo, command):
+    assert bash(repo, command).returncode == BLOCKED
+    review(repo)
+    assert bash(repo, command).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh api repos/o/r/pulls/8/reviews --jq '.[].body'",
+        "gh api repos/o/r/pulls/8/reviews && rm -f /tmp/x",
+        'grep -rn "review-gate: passed" .github',
+        'git commit -m "docs: explain the review-gate: passed marker"',
+    ],
+)
+def test_reads_and_mentions_of_the_marker_are_not_gated(repo, command):
+    result = bash(repo, command)
+
+    assert result.returncode == 0, result.stderr
