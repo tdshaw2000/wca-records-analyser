@@ -72,6 +72,9 @@ SHA = re.compile(r"[0-9a-f]{40}")
 # A review posted from the shell may take its body from a file the gate can't see.
 GH_REVIEW = re.compile(PR + r"review\b")
 API_REVIEW = re.compile(r"\bpulls/[^/\s]+/reviews\b")
+GRAPHQL_REVIEW = re.compile(r"(add|submit|update)PullRequestReview\b")
+# A GraphQL query read from a file could hold any mutation, so it is treated as one.
+GRAPHQL_FILE = re.compile(r"\bgraphql\b.*(?:-F|--field|--raw-field|-f)[\s=]+query=@", re.DOTALL)
 
 
 def git(cwd, *args):
@@ -239,6 +242,7 @@ def gh_merges(command):
 def wants(event):
     """What the tool call does, as (action, detail). action is 'ready', 'merge', 'auto-merge',
     'admin-merge', 'api-merge', 'create-not-draft', or None for anything else.
+    'post-review' is a review posted from the shell, whose body the gate may not see.
     A merge's detail is [(method, head sha)]."""
     tool, args = event.get("tool_name") or "", event.get("tool_input") or {}
     if tool.startswith("mcp__") and tool.endswith("__update_pull_request"):
@@ -262,8 +266,9 @@ def wants(event):
             return "merge", merges
         if marks_ready(command):
             return "ready", None
-        if re.search(r"\bgh\b", command) and (
-            GH_REVIEW.search(command) or API_REVIEW.search(command)
+        if re.search(r"\bgh\b", command) and any(
+            pattern.search(command)
+            for pattern in (GH_REVIEW, API_REVIEW, GRAPHQL_REVIEW, GRAPHQL_FILE)
         ):
             return "post-review", None
         if creates_without_draft(command):

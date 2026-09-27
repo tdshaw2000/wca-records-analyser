@@ -84,7 +84,8 @@ It blocks merges that aren't merge commits of that exact commit, merges while an
 on that commit is unfinished or failed, auto-merge, --admin merges, and merges through gh api.
 It blocks posting the review-gate marker (below) until the same review has passed, and a
 marker that doesn't name HEAD as a written-out sha. It also holds any review posted from the
-shell (gh pr review, gh api .../reviews) until then, since its body may come from a file. Any error in the hook, even bad input, blocks.
+shell (gh pr review, gh api .../reviews, the GraphQL review mutations, or a GraphQL query
+read from a file) until then, since its body may come from a file. Any error in the hook, even bad input, blocks.
 It does not stop direct pushes to main.
 
 GitHub enforces the same thing outside Claude sessions. The `review-gate` check
@@ -121,7 +122,8 @@ ruleset, add `review-gate` to the required checks and allow only merge commits.
 Limits, on purpose: the hook only runs inside Claude Code sessions; outside them only the
 `review-gate` check stands, and it trusts any marker from someone with write access. The check
 runs the PR's own copy of its workflow and script, so a PR could edit it to pass; that is
-accepted, since anyone with write access can post a marker anyway. The hook checks the branch
+accepted, since anyone with write access can post a marker anyway. The hook can't see into
+curl calls or ad-hoc scripts, so post reviews with the GitHub MCP tools. The hook checks the branch
 you are on, so mark ready and merge from the PR's own branch (expectedHeadSha makes GitHub
 refuse a merge of any other head). It guards against mistakes, not against an agent that
 edits its state.
