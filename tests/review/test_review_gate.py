@@ -574,19 +574,19 @@ def test_a_verdict_commit_that_is_not_a_sha_is_never_passed_to_git(repo):
 # --- Merging: Claude merges once review passes (owner's decision, 2026-09-25) ---
 
 
-def merge(repo, **overrides):
+def merge(work, **overrides):
     tool_input = {
         "owner": "o",
         "repo": "r",
         "pullNumber": 1,
         "merge_method": "merge",
-        "expectedHeadSha": head(repo),
+        "expectedHeadSha": head(work),
     }
     tool_input.update(overrides)
     return run(
         "gate",
         {
-            "cwd": str(repo),
+            "cwd": str(work),
             "tool_name": "mcp__github__merge_pull_request",
             "tool_input": tool_input,
         },
