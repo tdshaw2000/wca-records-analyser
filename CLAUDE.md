@@ -83,13 +83,15 @@ needs (it works out from the diff against origin/main whether that includes `dat
 It blocks merges that aren't merge commits of that exact commit, merges while any CI check run
 on that commit is unfinished or failed, auto-merge, --admin merges, and merges through gh api.
 It blocks posting the review-gate marker (below) until the same review has passed, and a
-marker that names any commit but HEAD. Any error in the hook, even bad input, blocks.
+marker that doesn't name HEAD as a written-out sha. It also holds any review posted from the
+shell (gh pr review, gh api .../reviews) until then, since its body may come from a file. Any error in the hook, even bad input, blocks.
 It does not stop direct pushes to main.
 
 GitHub enforces the same thing outside Claude sessions. The `review-gate` check
 (.github/workflows/review-gate.yml, .github/scripts/review_check.py) passes only when someone
-with write access has posted a PR review holding the marker for the PR's head commit, and
-main's ruleset requires it. Every new push fails it again until the new head is reviewed.
+with write access has posted a PR review holding the marker for the PR's head commit. Every
+new push fails it again until the new head is reviewed. Owner to-do, until done: in main's
+ruleset, add `review-gate` to the required checks and allow only merge commits.
 
 1. Finish the work (red then green), push, and open the PR as a draft.
 2. Run `reviewer`, and `data-reviewer` too if the PR touches the paths above. Run them in
@@ -117,9 +119,12 @@ main's ruleset requires it. Every new push fails it again until the new head is 
 8. Tell the owner in the thread, in plain words, what shipped and any judgment calls taken.
 
 Limits, on purpose: the hook only runs inside Claude Code sessions; outside them only the
-`review-gate` check stands, and it trusts any marker from someone with write access. It checks the branch you are on, so mark ready and merge from the PR's own
-branch (expectedHeadSha makes GitHub refuse a merge of any other head). It guards against
-mistakes, not against an agent that edits its state.
+`review-gate` check stands, and it trusts any marker from someone with write access. The check
+runs the PR's own copy of its workflow and script, so a PR could edit it to pass; that is
+accepted, since anyone with write access can post a marker anyway. The hook checks the branch
+you are on, so mark ready and merge from the PR's own branch (expectedHeadSha makes GitHub
+refuse a merge of any other head). It guards against mistakes, not against an agent that
+edits its state.
 
 Verdicts live in .git/claude-review/, one file per branch, and are never committed. In cloud
 sessions a reviewer hands its report back before it stops, so the hook sends it back once for

@@ -50,11 +50,16 @@ def main():
     env = os.environ
     api = env.get("REVIEW_CHECK_GITHUB_API", GITHUB_API)
     head = env["HEAD_SHA"]
-    found = [
-        r for r in reviews(api, env["REPO"], env["PR"], env["GITHUB_TOKEN"]) if passes(r, head)
-    ]
+    try:
+        found = [
+            r for r in reviews(api, env["REPO"], env["PR"], env["GITHUB_TOKEN"]) if passes(r, head)
+        ]
+    except OSError as error:
+        print(f"Couldn't read the reviews of PR {env['PR']} ({error!r}).")
+        return 1
     if found:
-        print(f"Review summary for {head} posted by {found[-1]['user']['login']}.")
+        author = (found[-1].get("user") or {}).get("login", "a deleted account")
+        print(f"Review summary for {head} posted by {author}.")
         return 0
     print(
         f"No review summary for {head}. The reviewers must pass this commit, then post a PR "

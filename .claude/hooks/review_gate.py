@@ -65,7 +65,13 @@ SEPARATORS = {";", "&", "&&", "|", "||", "\n", "(", ")"}
 DRAFT_FLAGS = {"--draft", "-d", "--draft=true"}
 VERDICT = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
 # The line the Review gate workflow (.github/scripts/review_check.py) looks for in a PR review.
-MARKER = re.compile(r"<!--\s*review-gate:\s*passed\s+(\S*)\s*-->")
+# Matched loosely, so a marker the gate can't read (such as a sha from $(git rev-parse HEAD))
+# is caught and blocked rather than let through.
+MARKER = re.compile(r"review-gate\W*passed\s*([^\s<>-]*)", re.IGNORECASE)
+SHA = re.compile(r"[0-9a-f]{40}")
+# A review posted from the shell may take its body from a file the gate can't see.
+GH_REVIEW = re.compile(PR + r"review\b")
+API_REVIEW = re.compile(r"\bpulls/[^/\s]+/reviews\b")
 
 
 def git(cwd, *args):
@@ -256,6 +262,10 @@ def wants(event):
             return "merge", merges
         if marks_ready(command):
             return "ready", None
+        if re.search(r"\bgh\b", command) and (
+            GH_REVIEW.search(command) or API_REVIEW.search(command)
+        ):
+            return "post-review", None
         if creates_without_draft(command):
             return "create-not-draft", None
     return None, None
@@ -353,7 +363,7 @@ def check_ci(cwd, tool_input):
     # A check that was re-run counts by its latest run, as GitHub counts required checks.
     latest = {}
     for r in sorted(runs, key=lambda r: r.get("id") or 0):
-        latest[r["name"]] = r
+        latest[((r.get("app") or {}).get("id"), r["name"])] = r
     runs = list(latest.values())
     unfinished = [r["name"] for r in runs if r.get("status") != "completed"]
     if unfinished:
@@ -365,18 +375,30 @@ def check_ci(cwd, tool_input):
         block(f"There is no CI result for {commit[:7]} yet. Wait for it to run. " + LOOP)
 
 
+def strings(value):
+    """Every string inside a tool call's input."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings(item)
+
+
 def check_markers(cwd, shas):
     head = git(cwd, "rev-parse", "HEAD")
-    if any(sha != head for sha in shas):
+    if any(not SHA.fullmatch(sha) or sha != head for sha in shas):
         block(
-            f"The review-gate marker must name the reviewed commit, HEAD: "
+            f"The review-gate marker must name the reviewed commit, HEAD, written out: "
             f"<!-- review-gate: passed {head} -->. " + LOOP
         )
 
 
 def gate(event):
     action, detail = wants(event)
-    markers = MARKER.findall(json.dumps(event.get("tool_input") or {}))
+    markers = [sha for text in strings(event.get("tool_input")) for sha in MARKER.findall(text)]
     if action is None and not markers:
         return
     if action == "create-not-draft":
