@@ -325,3 +325,14 @@ def test_a_live_export_date_that_cant_be_read_is_rebuilt(tmp_path, data_dir):
     connection.close()
     assert _run(wca, data_dir) == "built"
     assert _meta(data_dir / "wca.sqlite") == FIRST_EXPORT
+
+
+def test_a_live_database_from_an_older_schema_is_rebuilt_from_the_same_export(tmp_path, data_dir, monkeypatch):
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    monkeypatch.setattr("wca_data.build.SCHEMA_VERSION", 2)
+    pings = Pings()
+    assert _run(wca, data_dir, pings) == "built"
+    assert _meta(data_dir / "wca.sqlite", "schema_version") == "2"
+    assert _meta(data_dir / "wca.sqlite", "export_date") == FIRST_EXPORT
+    assert pings.count == 1
