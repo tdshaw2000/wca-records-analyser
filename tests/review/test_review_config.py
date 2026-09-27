@@ -15,11 +15,14 @@ def hooks():
     return json.loads((ROOT / ".claude/settings.json").read_text())["hooks"]
 
 
-@pytest.fixture(scope="module")
-def reviewer():
-    text = (ROOT / ".claude/agents/reviewer.md").read_text()
+AGENTS = ["reviewer", "data-reviewer"]
+
+
+@pytest.fixture(scope="module", params=AGENTS)
+def reviewer(request):
+    text = (ROOT / f".claude/agents/{request.param}.md").read_text()
     _, frontmatter, body = text.split("---", 2)
-    return parse_frontmatter(frontmatter), body
+    return parse_frontmatter(frontmatter) | {"file": request.param}, body
 
 
 def parse_frontmatter(text):
@@ -60,8 +63,9 @@ def test_the_gate_does_not_run_on_unrelated_tools(hooks):
     assert commands_for(hooks, "PreToolUse", "Read") == []
 
 
-def test_the_reviewers_verdict_is_recorded_when_it_stops(hooks):
-    commands = commands_for(hooks, "SubagentStop", "reviewer")
+@pytest.mark.parametrize("agent", AGENTS)
+def test_the_reviewers_verdict_is_recorded_when_it_stops(hooks, agent):
+    commands = commands_for(hooks, "SubagentStop", agent)
 
     assert any("review_gate.py" in c and c.endswith(" record") for c in commands)
 
@@ -76,7 +80,7 @@ def test_hook_commands_use_the_project_dir_so_they_work_from_any_cwd(hooks):
 def test_the_reviewer_is_named_as_the_hook_expects(reviewer):
     frontmatter, _ = reviewer
 
-    assert frontmatter["name"] == "reviewer"
+    assert frontmatter["name"] == frontmatter["file"]
 
 
 def test_the_reviewer_cannot_edit_files(reviewer):
@@ -122,3 +126,23 @@ def test_claude_md_says_slashes_in_branch_names_become_double_underscores():
     text = (ROOT / "CLAUDE.md").read_text()
 
     assert "any / in the branch name written as __" in text
+
+
+def test_the_reviewer_blocks_on_missing_red_green_history(reviewer):
+    _, body = reviewer
+
+    assert "## Strict TDD" in body
+    assert "red commit" in body
+
+
+def test_claude_md_says_when_the_data_reviewer_runs():
+    text = (ROOT / "CLAUDE.md").read_text()
+
+    assert "`data-reviewer`" in text
+    assert "wca_data/" in text
+
+
+def test_claude_md_says_what_to_do_when_the_reviewers_disagree():
+    text = (ROOT / "CLAUDE.md").read_text()
+
+    assert "disagree" in text
