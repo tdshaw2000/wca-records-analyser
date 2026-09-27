@@ -1,6 +1,7 @@
 # Project plan: our own WCA data backend on OCI
 
-Status: **planned — not started.** Written 2026-09-26. Supersedes the open questions in
+Status: **planned — not started.** Written 2026-09-26; updated 2026-09-27 with the hosting,
+caching and working-practice decisions. Supersedes the open questions in
 [`docs/shared-backend-tradeoffs.md`](../shared-backend-tradeoffs.md), which remains the
 background reading (measurements, licence text, export format).
 
@@ -21,7 +22,10 @@ set) covers it.
 |---|---|
 | Data source | WCA daily results export, rebuilt only when `export_date` changes |
 | Storage | Trimmed SQLite database with FTS5 name search |
-| Hosting | One OCI A1 VM runs the web app and the build job. Render is retired at cutover |
+| Hosting | The **existing** scramble challenge OCI A1 VM also runs this web app and the build job. Render is retired at cutover |
+| Front door | The scramble stack's Caddy (already on 80/443) routes by hostname; this app gets one more site entry |
+| Domain | `wca-records-analyser.duckdns.org`, same IP as the scramble app (created 2026-09-27) |
+| Runtime | Docker Compose, matching the scramble stack |
 | Public API | None. The web app queries SQLite in-process |
 | Reuse | The data layer is built so **another app can use it** without touching this one (see below) |
 | Repo | Same repo as the web app, with the data layer as its own package |
@@ -29,6 +33,8 @@ set) covers it.
 | Repo visibility | The repo is to become public |
 | Dropped | Competitor avatars (not in the export); the mobile app (wca-analyser-mobile) |
 | Freshness | Up to a day behind WCA is acceptable |
+| PR caching | None up front. Measure the overview on SQLite in phase 3; precompute only if it is slow (see below) |
+| Working practice | Strict TDD for every change, through the review loop in `CLAUDE.md` |
 
 ## Architecture
 
@@ -41,7 +47,7 @@ WCA export (S3) ──daily──▶ build job (VM, systemd timer)
               ┌─────────────────┴──────────────────┐
               ▼                                    ▼
      wca-records-analyser web app          future app(s)
-     (container, behind Caddy/HTTPS)       (same file, read-only)
+     (container, behind the shared Caddy)  (same file, read-only)
 
 GitHub Actions (hosted) ──tests, build image──▶ GHCR ◀──polls── VM deploy timer
 ```
@@ -126,20 +132,37 @@ Test-first against a tiny hand-made export zip in the test suite — no network 
   “This information is based on competition results owned and maintained by the World Cube
   Association, published at https://worldcubeassociation.org/results as of {export date}.”
 - The existing TTL cache may become unnecessary; measure before removing.
+- **Measure before caching PRs.** The old overview was slow because it made one WCA API call
+  per event plus profile and competition calls, not because of the PR maths (one pass over a
+  few hundred values). On SQLite it becomes one indexed query. Time the overview for a heavy
+  competitor (Feliks Zemdegs, `2009ZEMD01`). Only if that is noticeable, precompute every
+  competitor's PR progressions during the nightly build into an **app-owned** file, never the
+  shared `wca_data` database; each build replaces it whole, so it never goes stale. Caching
+  on demand, or pre-warming for recent visitors, is ruled out: it needs visit logging and
+  still leaves first visits slow.
 - Turn `HOLDING_PAGE_ENABLED` off at cutover.
 
 ## Hosting (OCI)
 
-- **VM:** Ampere A1, 2 OCPU / 12 GB is enough (smaller than the free maximum, which also makes
-  it easier to get capacity). Ubuntu LTS (ARM64). Boot volume well within the 200 GB free
-  total.
-- **If "out of host capacity":** try each availability domain, retry later.
-- **Runtime:** Docker for the app and the builder (same image, different command). Caddy in
-  front for HTTPS with automatic certificates.
-- **Network:** OCI security list opens only 80 and 443 publicly. SSH limited to your IP or
-  via OCI Bastion.
+This app shares the VM the scramble challenge app already runs on, instead of a new VM.
+
+- **VM:** the existing `scramble-challenge` instance: Ampere A1, 2 OCPU, ≈11 GB RAM, 45 GB boot
+  volume with ≈40 GB free (checked 2026-09-27). That is enough for both apps plus a build
+  (a few GB of RAM and ≈1.5 GB of scratch disk while it runs).
+- **Front door:** the scramble stack's `caddy:2` container owns 80 and 443 and gets certificates
+  automatically. This app runs no Caddy of its own. Phase 4 adds a site entry for
+  `wca-records-analyser.duckdns.org` to the scramble stack's Caddyfile, which lives in the
+  scramble repo, and joins this app's container to that stack's Docker network so Caddy
+  reaches it by container name. The app publishes no port on the host.
+- **Later:** if a third app arrives, move Caddy into its own small stack (e.g. `/srv/edge`)
+  that every app joins. Not now: it means a short scramble outage for no gain yet.
+- **Runtime:** Docker Compose for the app and the builder (same image, different command), in
+  its own Compose project next to the scramble one.
+- **Network:** unchanged. The OCI security list already opens only 80 and 443 publicly.
 - **Data directory:** `/srv/wca-data/`, owned by the builder, read-only mount into app
   containers.
+- **Sharing politely:** the build runs at low CPU and IO priority and outside busy hours, and
+  containers get memory limits, so a build can't starve the scramble app.
 - **Image:** ARM64 (or multi-arch, so it still runs on x86 locally).
 
 ## CI/CD and keeping the repo public-safe
@@ -180,7 +203,8 @@ project must not repeat that.
 
 ## Build order
 
-Each phase leaves `main` green and deployable.
+Each phase leaves `main` green and deployable. Every phase is strict TDD: each change in
+behaviour is a red commit (failing tests) then a green commit, reviewed as `CLAUDE.md` describes.
 
 1. **`wca_data` builder** — package skeleton, isolation test, test export fixture, builder,
    `meta` table, `SCHEMA.md`. Done when a real export builds locally and the Feliks Zemdegs
@@ -188,18 +212,25 @@ Each phase leaves `main` green and deployable.
 2. **`wca_data` read library** — read-only connect, schema-version check, search, results,
    competitions, metadata.
 3. **Web app on the new data layer** — swap `wca_client.py` over, drop avatars, add licence
-   footer. Still behind the holding page on Render.
-4. **Server and deployment** — ARM64 image to GHCR, VM setup, Caddy, build timer, pull-deploy
-   timer, monitoring, runbook. Remove the Render deploy job.
-5. **Cutover** — holding page off, DNS to the VM, retire Render.
+   footer, time the overview (see "Measure before caching PRs"). Still behind the holding
+   page on Render.
+4. **Server and deployment** — ARM64 image to GHCR, Compose project and data directory on the
+   shared VM, the Caddy site entry in the scramble stack, build timer, pull-deploy timer,
+   monitoring, runbook. Remove the Render deploy job.
+5. **Cutover** — holding page off, the DuckDNS name serving the app from the VM, retire Render.
 6. **Go public** — history scan, repo settings, flip visibility.
 
 ## Open questions
 
-1. OCI region and availability domain.
-2. Domain name for the app (and whether it's already pointing at Render).
-3. Plain Docker, or Docker Compose for the app + Caddy + timers?
-4. Keep Render running (holding page) until cutover, or switch it off earlier?
+Answered on 2026-09-27:
+
+1. ~~OCI region and availability domain.~~ The existing scramble challenge VM.
+2. ~~Domain name.~~ `wca-records-analyser.duckdns.org`.
+3. ~~Plain Docker or Compose?~~ Compose, as the scramble stack does.
+4. ~~Keep Render until cutover?~~ Yes, showing the holding page.
+
+Still open, and fine to leave until a need appears:
+
 5. If another app arrives: does it live on the same VM (reads the file directly) or elsewhere
    (then the database needs publishing, e.g. to OCI Object Storage)?
 6. Should the builder also keep historic exports (e.g. one a month) for a future app that wants
@@ -213,5 +244,7 @@ Each phase leaves `main` green and deployable.
 | WCA restricts the export too | Unlikely (it is their sanctioned bulk route); would need a new plan |
 | No A1 capacity in the region | Smaller shape, other availability domains, retry |
 | Single VM goes down | Uptime alert; everything is rebuildable from git + export |
+| The two apps on one VM get in each other's way | Low-priority build, container memory limits; either app's deploy only touches its own Compose project |
+| A broken Caddyfile change takes the scramble app down too | Validate with `caddy validate` before reloading; reload, don't restart |
 | Charges beyond Always Free | Budget alert; keep to the free shapes and volumes |
 | Data layer grows app-specific and becomes hard to share | Package isolation test; review rule: no app logic in `wca_data` |
