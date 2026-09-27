@@ -82,9 +82,13 @@ def utc_timestamp(moment: datetime) -> str:
 
 
 def parse_export_date(value: str) -> datetime:
-    """WCA writes the export date in more than one ISO 8601 shape; this reads any of them."""
+    """Reads the export date in any ISO 8601 shape, or as metadata.json writes it:
+    "2026-09-27 00:00:42 UTC"."""
+    text = str(value)
+    if text.endswith(" UTC"):
+        text = text.removesuffix(" UTC") + "+00:00"
     try:
-        moment = datetime.fromisoformat(str(value))
+        moment = datetime.fromisoformat(text)
     except ValueError:
         raise ExportFormatError(f"Can't read the export date {value!r}") from None
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
