@@ -1081,3 +1081,60 @@ def test_a_check_that_failed_after_passing_still_blocks_the_merge(repo, ci):
 
     assert result.returncode == BLOCKED
     assert "review-gate" in result.stderr
+
+
+# --- Review round 1: the marker gate fails closed ---
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'gh pr review 8 --comment --body "<!-- review-gate: passed $(git rev-parse HEAD) -->"',
+        'gh pr review 8 --comment --body "<!-- review-gate: passed ${SHA} -->"',
+        "gh pr review 8 --comment --body 'review-gate:passed HEAD'",
+    ],
+)
+def test_a_marker_whose_sha_is_not_written_out_is_blocked_even_after_review(repo, command):
+    review(repo)
+
+    result = bash(repo, command)
+
+    assert result.returncode == BLOCKED
+    assert head(repo) in result.stderr
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh pr review 8 --comment --body-file /tmp/summary.md",
+        "gh pr review 8 -c -F /tmp/summary.md",
+        'gh pr review 8 --comment --body "$(cat /tmp/summary.md)"',
+        "gh api repos/o/r/pulls/8/reviews -F body=@/tmp/summary.md -f event=COMMENT",
+    ],
+)
+def test_posting_a_review_through_bash_waits_for_review_whatever_the_body(repo, command):
+    assert bash(repo, command).returncode == BLOCKED
+    review(repo)
+    assert bash(repo, command).returncode == 0
+
+
+def test_a_loosely_written_marker_for_another_commit_is_blocked(repo):
+    review(repo)
+
+    result = post_review(repo, f"review-gate:passed {'0' * 40}")
+
+    assert result.returncode == BLOCKED
+    assert head(repo) in result.stderr
+
+
+def test_checks_from_different_apps_with_the_same_name_are_counted_apart(repo, ci):
+    review(repo)
+    ci.check_runs = [
+        check_run(conclusion="failure") | {"id": 10, "app": {"id": 1}},
+        check_run() | {"id": 20, "app": {"id": 2}},
+    ]
+
+    result = merge(repo)
+
+    assert result.returncode == BLOCKED
+    assert "test" in result.stderr

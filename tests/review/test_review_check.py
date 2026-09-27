@@ -151,7 +151,16 @@ def test_an_unreachable_github_fails_the_check(github):
 
     result = check(github)
 
-    assert result.returncode != 0
+    assert result.returncode == 1
+    assert "Couldn't read the reviews" in result.stdout
+
+
+def test_a_summary_from_a_deleted_account_still_passes(github):
+    github.reviews = [a_review(marker(HEAD)) | {"user": None}]
+
+    result = check(github)
+
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 # --- The workflow ---
