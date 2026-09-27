@@ -2,6 +2,7 @@
 
 import json
 import zipfile
+from pathlib import Path
 
 METADATA = {
     "export_format_version": "v2.0.2",
@@ -26,3 +27,24 @@ def write_export_zip(path, tables, metadata=METADATA):
         for table, text in tables.items():
             archive.writestr(f"WCA_export_{table}.tsv", text.encode("utf-8"))
     return path
+
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "export"
+
+
+def fixture_tables():
+    """The hand-made test export's tables, as {table name: TSV text}."""
+    return {
+        path.name.removeprefix("WCA_export_").removesuffix(".tsv"): path.read_text("utf-8")
+        for path in sorted(FIXTURE_DIR.glob("WCA_export_*.tsv"))
+    }
+
+
+def fixture_metadata():
+    return json.loads((FIXTURE_DIR / "metadata.json").read_text("utf-8"))
+
+
+def write_fixture_zip(path, metadata=None, **overrides):
+    """The hand-made test export as a zip, with any table replaced by keyword."""
+    tables = fixture_tables() | overrides
+    return write_export_zip(path, tables, metadata or fixture_metadata())
