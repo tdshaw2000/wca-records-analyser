@@ -183,3 +183,9 @@ def test_refuses_to_overwrite_an_existing_file(tmp_path):
 
 def test_an_export_date_without_a_timezone_is_read_as_utc():
     assert parse_export_date("2026-09-23T00:00:00") == parse_export_date("2026-09-23T00:00:00Z")
+
+
+def test_reads_the_export_date_as_metadata_json_writes_it():
+    # The real export's metadata.json says "2026-09-27 00:00:42 UTC"; the API says
+    # "2026-09-27T00:00:42Z" for the same export.
+    assert parse_export_date("2026-09-27 00:00:42 UTC") == parse_export_date("2026-09-27T00:00:42Z")

@@ -8,7 +8,7 @@ METADATA = {
     "export_format_version": "v2.0.2",
     "version_label": "current",
     "end_of_life_date": None,
-    "export_date": "2026-09-23T00:00:00.000+00:00",
+    "export_date": "2026-09-23 00:00:00 UTC",  # as the real export writes it
 }
 
 
