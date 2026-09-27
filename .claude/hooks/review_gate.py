@@ -69,12 +69,19 @@ VERDICT = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
 # is caught and blocked rather than let through.
 MARKER = re.compile(r"review-gate\W*passed\s*([^\s<>-]*)", re.IGNORECASE)
 SHA = re.compile(r"[0-9a-f]{40}")
-# A review posted from the shell may take its body from a file the gate can't see.
+# A review posted from the shell may take its body from a file the gate can't see. So gh pr
+# review, and every gh api call that can write, count as posting a review. gh api writes when
+# it is sent graphql, a field or an input file (in any spelling), or a writing method.
 GH_REVIEW = re.compile(PR + r"review\b")
-API_REVIEW = re.compile(r"\bpulls/[^/\s]+/reviews\b")
-GRAPHQL_REVIEW = re.compile(r"(add|submit|update)PullRequestReview\b")
-# A GraphQL query read from a file could hold any mutation, so it is treated as one.
-GRAPHQL_FILE = re.compile(r"\bgraphql\b.*(?:-F|--field|--raw-field|-f)[\s=]+query=@", re.DOTALL)
+GH_API = re.compile(r"\bapi\b")
+API_WRITE = re.compile(
+    r"\bgraphql\b"
+    r"|(?:^|\s)(?:-[fF]|--field|--raw-field|--input)"
+    r"|(?:^|\s)(?:-X|--method)[\s=]*['\"]?(?:POST|PUT|PATCH|DELETE)",
+    re.IGNORECASE,
+)
+# The MCP tools that post text the Review gate workflow could read as a marker.
+POSTS_TEXT = ("__pull_request_review_write", "__add_issue_comment")
 
 
 def git(cwd, *args):
@@ -241,8 +248,8 @@ def gh_merges(command):
 
 def wants(event):
     """What the tool call does, as (action, detail). action is 'ready', 'merge', 'auto-merge',
-    'admin-merge', 'api-merge', 'create-not-draft', or None for anything else.
-    'post-review' is a review posted from the shell, whose body the gate may not see.
+    'admin-merge', 'api-merge', 'create-not-draft', 'post-review' (a review or other write
+    posted from the shell, whose body the gate may not see), or None for anything else.
     A merge's detail is [(method, head sha)]."""
     tool, args = event.get("tool_name") or "", event.get("tool_input") or {}
     if tool.startswith("mcp__") and tool.endswith("__update_pull_request"):
@@ -266,14 +273,23 @@ def wants(event):
             return "merge", merges
         if marks_ready(command):
             return "ready", None
-        if re.search(r"\bgh\b", command) and any(
-            pattern.search(command)
-            for pattern in (GH_REVIEW, API_REVIEW, GRAPHQL_REVIEW, GRAPHQL_FILE)
-        ):
+        if posts_from_the_shell(command):
             return "post-review", None
         if creates_without_draft(command):
             return "create-not-draft", None
     return None, None
+
+
+def posts_from_the_shell(command):
+    """True if the command runs gh pr review, or a gh api call that can write. As elsewhere,
+    gh may be named anywhere in the command, such as G=gh on one line and $G on the next."""
+    if not re.search(r"\bgh\b", command):
+        return False
+    if GH_REVIEW.search(command):
+        return True
+    return any(
+        GH_API.search(part) and API_WRITE.search(part) for part in re.split(r"[;&|\n]", command)
+    )
 
 
 def check_merge(cwd, merges):
@@ -403,7 +419,12 @@ def check_markers(cwd, shas):
 
 def gate(event):
     action, detail = wants(event)
-    markers = [sha for text in strings(event.get("tool_input")) for sha in MARKER.findall(text)]
+    # Only calls that post text are read for a marker, so grep or a commit message naming it
+    # is not blocked.
+    tool = event.get("tool_name") or ""
+    posts = action == "post-review" or (tool.startswith("mcp__") and tool.endswith(POSTS_TEXT))
+    texts = strings(event.get("tool_input")) if posts else []
+    markers = [sha for text in texts for sha in MARKER.findall(text)]
     if action is None and not markers:
         return
     if action == "create-not-draft":
