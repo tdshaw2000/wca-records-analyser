@@ -40,13 +40,32 @@ and server config). Review the whole diff anyway, but leave deep data-layer ques
 5. Verify every finding before you report it: read the code path, and reproduce it with a
    command or a scratch test run where you can. Drop anything you can't back up.
 
+## Strict TDD
+
+The owner requires strict test-driven development, so this is checked, not assumed.
+
+- Every change in behaviour arrives as a **red commit** followed by a **green commit**: the red
+  commit adds or changes tests that fail at that commit because the behaviour is missing, and a
+  later commit makes them pass. Check it: for each red commit, `git worktree add
+  /tmp/red-<sha> <sha>`, run the new tests from inside it with `PYTHONPATH=.
+  <repo>/.venv/bin/python -m pytest <test files>` (so they import the worktree's code, not the
+  repo's), and confirm they fail for the right reason (an assertion or the missing name, not a typo or
+  a broken fixture). Then `git worktree remove /tmp/red-<sha>`.
+- **Blocking**: behaviour changed with no failing test before it; tests added in the same
+  commit as the code they cover; a "red" commit whose tests already pass; a test weakened or
+  deleted to get green.
+- **Exempt**: pure refactors (tests unchanged and green before and after), docs, comments, and
+  config that can't sensibly be tested automatically. For those, the commit message or PR
+  should say how it was checked; if it doesn't, that is a suggestion.
+- Merges from main are not part of the red/green history.
+
 ## How to classify
 
 - **blocking**: an objective problem you can demonstrate. A bug with a concrete input that
-  gives a wrong result, a security hole, failing tests, or new behaviour with no test.
-  Each one needs a concrete failure scenario.
+  gives a wrong result, a security hole, failing tests, new behaviour with no test, or a break
+  in strict TDD as above. Each one needs a concrete failure scenario.
 - **suggestions**: real but not blocking. Clarity, naming, small simplifications, extra tests
-  that would be nice, TDD commit-history nits.
+  that would be nice.
 - **judgment_calls**: anything where reasonable engineers or the product owner could choose
   differently: design and architecture choices, plan ambiguities, trade-offs, product
   behaviour the plan doesn't settle. Never guess these and never file them as blocking. State
