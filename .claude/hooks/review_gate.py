@@ -1,10 +1,12 @@
-"""Claude Code hook: no pull request is marked ready for review until the reviewer passes it.
+"""Claude Code hook: no pull request is marked ready for review until the reviewers pass it.
 
-    review_gate.py record   SubagentStop, for the reviewer subagent. Saves its verdict
-                            against the commit it reviewed.
+    review_gate.py record   SubagentStop, for the reviewer and data-reviewer subagents. Saves
+                            the verdict against the commit it reviewed.
     review_gate.py gate     PreToolUse. Blocks opening a PR that isn't a draft, and blocks
                             marking a PR ready or merging it until the current commit has
-                            passed review. Merges must be merge commits of that exact commit.
+                            passed review: by the reviewer always, and by the data-reviewer too
+                            when the branch touches the data layer or server config. Merges
+                            must be merge commits of that exact commit, with green CI on it.
 
 Claude Code sends the event as JSON on stdin. Exit code 2 blocks, and stderr tells Claude why.
 Any other failure would let the tool call through, so the gate turns its own errors into blocks.
@@ -12,16 +14,35 @@ Verdicts are kept in .git/claude-review/, so they are never committed. Standard 
 so the hook runs with any python3.
 """
 
+import fnmatch
 import json
+import os
 import re
 import shlex
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 MAX_ROUNDS = 3
 BLOCK = 2
 REVIEWER = "reviewer"
+DATA_REVIEWER = "data-reviewer"
+REVIEWERS = (REVIEWER, DATA_REVIEWER)
+# Changes to any of these need the data-reviewer as well. fnmatch's * also matches /.
+DATA_PATHS = (
+    "wca_data/*",
+    "tests/wca_data/*",
+    "deploy/*",
+    "*.sql",
+    "Dockerfile",
+    "*compose*.y*ml",
+    "Caddyfile*",
+    "*.service",
+    "*.timer",
+)
+GITHUB_API = "https://api.github.com"
+CI_PASSES = {"success", "skipped", "neutral"}
 LOOP = "See 'Review loop' in CLAUDE.md."
 
 # Fail closed: anything that looks like marking ready is gated, even a quoted mention.
@@ -89,7 +110,8 @@ def parse_verdict(message):
 
 
 def record(event):
-    if event.get("agent_type") != REVIEWER:
+    reviewer = event.get("agent_type")
+    if reviewer not in REVIEWERS:
         return
     cwd = event.get("cwd")
     verdict = parse_verdict(event.get("last_assistant_message"))
@@ -121,6 +143,7 @@ def record(event):
         cwd,
         {
             "commit": commit,
+            "reviewer": reviewer,
             "blocking": len(verdict["blocking"]),
             "suggestions": len(verdict["suggestions"]),
             "judgment_calls": len(verdict["judgment_calls"]),
@@ -247,6 +270,18 @@ def check_merge(cwd, merges):
             )
 
 
+def needs_data_review(cwd):
+    base = git(cwd, "merge-base", "origin/main", "HEAD")
+    if base is None:
+        block(
+            "Can't find where this branch left main, so the gate can't tell which reviewers it "
+            "needs. git fetch origin main (add --depth=500 in a shallow clone), then try again. "
+            + LOOP
+        )
+    changed = (git(cwd, "diff", "--name-only", base, "HEAD") or "").splitlines()
+    return any(fnmatch.fnmatch(path, pattern) for path in changed for pattern in DATA_PATHS)
+
+
 def check_ready(cwd):
     if git(cwd, "rev-parse", "--abbrev-ref", "HEAD") in (None, "HEAD"):
         block("Not on a git branch here, so the review state can't be checked. " + LOOP)
@@ -266,15 +301,57 @@ def check_ready(cwd):
             f"Stop: {failed} review rounds found blocking issues. Leave the PR as a draft and "
             "tell the user what is still blocking. " + LOOP
         )
-    this = [r for r in rounds if r["commit"] == commit]
-    if this and this[-1]["blocking"] == 0:
-        return
-    if this:
+    needed = [REVIEWER, DATA_REVIEWER] if needs_data_review(cwd) else [REVIEWER]
+    latest = {}
+    for r in rounds:
+        if r["commit"] == commit:
+            latest[r.get("reviewer", REVIEWER)] = r
+    blocked = [name for name in needed if name in latest and latest[name]["blocking"] > 0]
+    if blocked:
+        found = ", ".join(f"{latest[name]['blocking']} from the {name}" for name in blocked)
         block(
-            f"Review round {failed} of {MAX_ROUNDS} found {this[-1]['blocking']} blocking "
-            "issue(s). Fix them (red/green), push, and run the reviewer subagent again. " + LOOP
+            f"Review round {failed} of {MAX_ROUNDS} found blocking issues ({found}). Fix them "
+            "(red/green), push, and run the reviewers again. " + LOOP
         )
-    block(f"Commit {commit[:7]} hasn't been reviewed. Run the reviewer subagent first. " + LOOP)
+    missing = [name for name in needed if name not in latest]
+    if missing:
+        names = " and ".join(f"`{name}`" for name in missing)
+        block(f"Commit {commit[:7]} hasn't been reviewed by {names}. Run it first. " + LOOP)
+
+
+def github_repo(cwd, tool_input):
+    """owner/repo for the merge: named by the MCP tool, or else the origin remote."""
+    owner, repo = tool_input.get("owner"), tool_input.get("repo")
+    if owner and repo:
+        return f"{owner}/{repo}"
+    url = git(cwd, "remote", "get-url", "origin") or ""
+    match = re.search(r"github\.com[:/]([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", url)
+    if not match:
+        block(f"Can't tell which GitHub repo origin ({url}) is, to check its CI. " + LOOP)
+    return f"{match.group(1)}/{match.group(2)}"
+
+
+def check_ci(cwd, tool_input):
+    commit = git(cwd, "rev-parse", "HEAD")
+    api = os.environ.get("REVIEW_GATE_GITHUB_API", GITHUB_API)
+    url = f"{api}/repos/{github_repo(cwd, tool_input)}/commits/{commit}/check-runs?per_page=100"
+    request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token and api == GITHUB_API:
+        request.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            runs = json.load(response)["check_runs"]
+    except Exception as error:  # noqa: BLE001 - any failure to read CI must block the merge
+        block(f"Couldn't read CI for {commit[:7]} ({error!r}). Try again shortly. " + LOOP)
+    unfinished = [r["name"] for r in runs if r.get("status") != "completed"]
+    if unfinished:
+        block(f"CI has not finished on {commit[:7]}: {', '.join(unfinished)}. Wait. " + LOOP)
+    failing = [r["name"] for r in runs if r.get("conclusion") not in CI_PASSES]
+    if failing:
+        block(f"CI failed on {commit[:7]}: {', '.join(failing)}. Fix it first. " + LOOP)
+    if not any(r.get("conclusion") == "success" for r in runs):
+        block(f"There is no CI result for {commit[:7]} yet. Wait for it to run. " + LOOP)
 
 
 def gate(event):
@@ -296,6 +373,8 @@ def gate(event):
         if action == "merge":
             check_merge(event.get("cwd"), detail)
         check_ready(event.get("cwd"))
+        if action == "merge":
+            check_ci(event.get("cwd"), event.get("tool_input") or {})
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         block(f"The review gate failed ({error!r}), so it is blocking to be safe. " + LOOP)
 
