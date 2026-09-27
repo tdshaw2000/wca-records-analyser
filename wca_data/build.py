@@ -1,8 +1,8 @@
 """Builds the trimmed WCA SQLite database from the WCA public results export.
 
-Run nightly as `python -m wca_data.build`. It builds only when WCA has published a new export,
-checks the new database against the live one, and renames it into place, keeping the old one
-as <name>.prev. Anything that goes wrong leaves the live database as it was. Settings come
+Run nightly as `python -m wca_data.build`. It builds only when WCA has published a new export
+or the live database was built for another schema version. It checks the new database against
+the live one and renames it into place, keeping the old one as <name>.prev. Anything that goes wrong leaves the live database as it was. Settings come
 from the environment: WCA_DATA_DB_PATH (default /srv/wca-data/wca.sqlite) and, optionally,
 WCA_DATA_PING_URL, a missed-build monitor that is pinged after every successful run.
 
@@ -21,6 +21,7 @@ import tempfile
 import urllib.request
 import zipfile
 from collections.abc import Callable, Mapping
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -315,16 +316,22 @@ def _open_read_only(path: Path) -> sqlite3.Connection:
     return sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
 
 
-def _live_export_date(db_path: Path) -> datetime | None:
-    """The live database's export date, or None if there is no readable one."""
+def _live_is_current(db_path: Path, export_date: datetime) -> bool:
+    """True if the live database was built from this export with the current schema.
+
+    A missing or unreadable database, or one built for another schema version, is not.
+    """
     if not db_path.exists():
-        return None
+        return False
     try:
-        with _open_read_only(db_path) as connection:
-            row = connection.execute("SELECT value FROM meta WHERE key = 'export_date'").fetchone()
-        return parse_export_date(row[0]) if row else None
+        with closing(_open_read_only(db_path)) as connection:
+            meta = dict(connection.execute("SELECT key, value FROM meta"))
+        return (
+            meta.get("schema_version") == str(SCHEMA_VERSION)
+            and parse_export_date(meta.get("export_date")) == export_date
+        )
     except (sqlite3.Error, ExportFormatError):
-        return None
+        return False
 
 
 def _counts(connection) -> dict[str, int]:
@@ -357,7 +364,7 @@ def check_sanity(new_path: Path, live_path: Path, sentinel: str = SENTINEL_PERSO
     database: no table loses more than 1% of its rows or grows by half again, and the
     sentinel's latest live result is still there, unchanged.
     """
-    with _open_read_only(new_path) as new:
+    with closing(_open_read_only(new_path)) as new:
         counts = _counts(new)
         empty = [table for table, count in counts.items() if count == 0]
         if empty:
@@ -366,7 +373,7 @@ def check_sanity(new_path: Path, live_path: Path, sentinel: str = SENTINEL_PERSO
         if known is None or _latest_result(new, sentinel) is None:
             raise SanityCheckFailed(f"The new build is missing {sentinel} or their 3x3 results")
         try:
-            with _open_read_only(live_path) as live:
+            with closing(_open_read_only(live_path)) as live:
                 live_counts = _counts(live)
                 live_latest = _latest_result(live, sentinel)
         except sqlite3.Error:
@@ -454,7 +461,7 @@ def run(
     with _DirectoryLock(db_path.parent):
         _clear_leftovers(db_path)
         info = fetch_json(EXPORT_INFO_URL)
-        if _live_export_date(db_path) == parse_export_date(info["export_date"]):
+        if _live_is_current(db_path, parse_export_date(info["export_date"])):
             ping()
             return "unchanged"
         check_export_version(info["export_version"])
