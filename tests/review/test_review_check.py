@@ -172,7 +172,14 @@ def workflow():
 
 
 def test_the_check_reruns_when_the_pr_changes_or_a_review_is_posted(workflow):
-    for trigger in ("pull_request:", "pull_request_review:", "synchronize", "submitted", "dismissed"):
+    for trigger in (
+        "pull_request:",
+        "pull_request_review:",
+        "synchronize",
+        "submitted",
+        "edited",
+        "dismissed",
+    ):
         assert trigger in workflow
 
 

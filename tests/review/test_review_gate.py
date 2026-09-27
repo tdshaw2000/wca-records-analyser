@@ -1138,3 +1138,22 @@ def test_checks_from_different_apps_with_the_same_name_are_counted_apart(repo, c
 
     assert result.returncode == BLOCKED
     assert "test" in result.stderr
+
+
+# --- Review round 2 judgment call: GraphQL reviews wait for review too ---
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh api graphql -f query='mutation{addPullRequestReview(input:{}){x}}'",
+        "gh api graphql -f query='mutation{submitPullRequestReview(input:{}){x}}'",
+        "gh api graphql -f query='mutation{updatePullRequestReview(input:{}){x}}'",
+        "gh api graphql -F query=@/tmp/q.graphql",
+        "gh api graphql --field query=@/tmp/q.graphql",
+    ],
+)
+def test_reviews_posted_through_graphql_wait_for_review(repo, command):
+    assert bash(repo, command).returncode == BLOCKED
+    review(repo)
+    assert bash(repo, command).returncode == 0
