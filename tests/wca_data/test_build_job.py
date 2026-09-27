@@ -294,3 +294,34 @@ def test_main_without_a_ping_url_pings_nothing(tmp_path, data_dir):
     code = main({"WCA_DATA_DB_PATH": str(data_dir / "wca.sqlite")}, fetch_json=wca.fetch_json, download=wca.download, open_url=opened.append)
     assert code == 0
     assert opened == []
+
+
+def test_a_failed_monitor_ping_does_not_fail_a_good_build(tmp_path, data_dir, capsys):
+    wca = FakeWca(tmp_path)
+
+    def monitor_down(url):
+        raise OSError("monitor unreachable")
+
+    environ = {"WCA_DATA_DB_PATH": str(data_dir / "wca.sqlite"), "WCA_DATA_PING_URL": "https://hc.example/ping/abc"}
+    code = main(environ, fetch_json=wca.fetch_json, download=wca.download, open_url=monitor_down)
+    assert code == 0
+    assert _meta(data_dir / "wca.sqlite") == FIRST_EXPORT
+    assert "monitor unreachable" in capsys.readouterr().err
+
+
+def test_a_killed_download_and_a_half_made_prev_link_are_cleared_first(tmp_path, data_dir):
+    (data_dir / ".wca-download-xyz").mkdir()
+    (data_dir / ".wca-download-xyz" / "export.zip").write_bytes(b"most of an export")
+    (data_dir / "wca.sqlite.prev.tmp").write_bytes(b"old database")
+    assert _run(FakeWca(tmp_path), data_dir) == "built"
+    assert _files(data_dir) == ["wca.sqlite"]
+
+
+def test_a_live_export_date_that_cant_be_read_is_rebuilt(tmp_path, data_dir):
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    with sqlite3.connect(data_dir / "wca.sqlite") as connection:
+        connection.execute("UPDATE meta SET value = 'not a date' WHERE key = 'export_date'")
+    connection.close()
+    assert _run(wca, data_dir) == "built"
+    assert _meta(data_dir / "wca.sqlite") == FIRST_EXPORT

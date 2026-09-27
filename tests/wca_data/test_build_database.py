@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from wca_data.build import UnsupportedExportVersion, build_database
+from wca_data.build import UnsupportedExportVersion, build_database, parse_export_date
 from wca_data.export import ExportFormatError
 from wca_data.schema import SCHEMA_VERSION
 
@@ -179,3 +179,7 @@ def test_refuses_to_overwrite_an_existing_file(tmp_path):
     with pytest.raises(FileExistsError):
         build_database(write_fixture_zip(tmp_path / "export.zip"), existing, BUILT_AT)
     assert existing.read_text() == "the live database"
+
+
+def test_an_export_date_without_a_timezone_is_read_as_utc():
+    assert parse_export_date("2026-09-23T00:00:00") == parse_export_date("2026-09-23T00:00:00Z")
