@@ -47,7 +47,7 @@ SENTINEL_EVENT = "333"
 # A new build must keep this share of each table's rows, and grow it by less than GROWTH_LIMIT.
 MIN_KEPT = 0.99
 GROWTH_LIMIT = 1.5
-COUNTED_TABLES = ("persons", "competitions", "events", "results")
+COUNTED_TABLES = ("persons", "competitions", "events", "round_types", "results")
 SCRATCH_PREFIXES = (".wca-build-", ".wca-download-")
 MICRODEGREES = 1_000_000
 BATCH = 50_000

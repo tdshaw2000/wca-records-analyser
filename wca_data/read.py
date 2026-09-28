@@ -106,7 +106,8 @@ def _search_queries(text: str) -> tuple[str | None, str | None]:
     """
     words, phrases = [], []
     for word in _query_words(text):
-        if characters := spaced_cjk_characters(word):
+        characters = spaced_cjk_characters(word)
+        if any(char.isalnum() for char in characters):  # not punctuation such as ・ alone
             phrases.append(_quoted(characters))
         words += [
             part for part in CJK_CHARACTER.sub(" ", word).split()
