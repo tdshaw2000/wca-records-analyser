@@ -248,7 +248,8 @@ class WcaData:
         """A person's results, for one event or all of them.
 
         Ordered by competition date, then competition, then WCA's round order, so a running
-        minimum over them follows the order the rounds were competed in.
+        minimum over them follows the order the rounds were competed in. A result whose
+        competition or round type isn't in the database comes after the rest.
         """
         sql = (
             "SELECT r.id, r.person_id, r.competition_id, r.event_id, r.round_type_id, "
@@ -262,7 +263,9 @@ class WcaData:
         if event_id is not None:
             sql += " AND r.event_id = ?"
             params.append(event_id)
-        sql += " ORDER BY c.start_date, r.competition_id, t.rank, r.id"
+        sql += (
+            " ORDER BY c.start_date NULLS LAST, r.competition_id, t.rank NULLS LAST, r.id"
+        )
         return [
             Result(*row[:7], attempts=_attempts(row[7]))
             for row in self.connection.execute(sql, params)
