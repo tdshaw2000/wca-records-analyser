@@ -1,6 +1,6 @@
 # WCA data: database schema
 
-Schema version: **1**
+Schema version: **2**
 
 The database is a single SQLite file built nightly from the
 [WCA results export](https://www.worldcubeassociation.org/export/results) (format v2) by
@@ -83,6 +83,17 @@ Competitions WCA publishes (the export leaves out ones it hides).
 | `name` | TEXT | Name, e.g. `3x3x3 Cube` |
 | `rank` | INTEGER | WCA's display order (ascending) |
 
+### `round_types`
+
+WCA's round types. Order a competitor's rounds within a competition by `rank`.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | TEXT, primary key | Round type id, as in `results.round_type_id` |
+| `name` | TEXT | Name, e.g. `First round`, `Final` |
+| `rank` | INTEGER | WCA's round order (ascending): qualification, then first round, and so on to the final |
+| `final` | INTEGER | `1` for a final round type, else `0` |
+
 ### `results`
 
 One row per competitor per round. Indexed on `(person_id, event_id)`.
@@ -93,7 +104,7 @@ One row per competitor per round. Indexed on `(person_id, event_id)`.
 | `person_id` | TEXT | `persons.wca_id` |
 | `competition_id` | TEXT | `competitions.id` |
 | `event_id` | TEXT | `events.id` |
-| `round_type_id` | TEXT | WCA round type, e.g. `1`, `2`, `f` (final), `c` (combined final) |
+| `round_type_id` | TEXT | `round_types.id`, e.g. `1`, `2`, `f` (final), `c` (combined final) |
 | `best` | INTEGER | Best single |
 | `average` | INTEGER | Average or mean, `0` if the round has none |
 | `attempts` | TEXT | Every attempt, comma-separated in attempt order, e.g. `623,593,705,693,629`. A missing attempt number is `0`; empty if WCA lists no attempts |
@@ -103,3 +114,4 @@ One row per competitor per round. Indexed on `(person_id, event_id)`.
 | Version | Change |
 |---|---|
 | 1 | First version |
+| 2 | Adds `round_types` |

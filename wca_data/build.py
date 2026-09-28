@@ -187,6 +187,15 @@ def _load_events(connection, archive):
     )
 
 
+def _load_round_types(connection, archive):
+    columns = {"id": TEXT, "name": TEXT, "rank": INTEGER, "final": INTEGER}
+    _insert(
+        connection,
+        "INSERT INTO round_types (id, name, rank, final) VALUES (?, ?, ?, ?)",
+        (tuple(r.values()) for r in read_table(archive, "round_types", columns)),
+    )
+
+
 def _stage_results(connection, archive):
     """Results and attempts into the scratch database, keyed so they can be merged in order."""
     _run_script(
@@ -298,6 +307,7 @@ def _build(archive, metadata, db_path, staging_path, built_at):
         _load_persons(connection, archive)
         _load_competitions(connection, archive)
         _load_events(connection, archive)
+        _load_round_types(connection, archive)
         _stage_results(connection, archive)
         _load_results(connection)
         _run_script(connection, INDEXES)

@@ -3,7 +3,7 @@
 Bump SCHEMA_VERSION on any change that could break an existing reader.
 """
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 TABLES = """
 CREATE TABLE meta (
@@ -31,6 +31,12 @@ CREATE TABLE events (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     rank INTEGER NOT NULL
+);
+CREATE TABLE round_types (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    final INTEGER NOT NULL
 );
 CREATE TABLE results (
     id INTEGER PRIMARY KEY,
