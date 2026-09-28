@@ -319,7 +319,9 @@ def _with_export_date(export_date=EXPORT_DATE):
 def _assert_shows_licence_notice(response_text):
     assert "owned and maintained by the" in response_text
     assert "World Cube Association" in response_text
-    assert "https://worldcubeassociation.org/results" in response_text
+    # WCA restructured their site; the bare /results path is a dead link there now.
+    # /export/results is the page WCA actually publishes the results export from.
+    assert 'href="https://www.worldcubeassociation.org/export/results"' in response_text
     assert "as of 2026-09-23." in response_text
 
 
