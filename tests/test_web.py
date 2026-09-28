@@ -385,6 +385,15 @@ def test_the_licence_notice_is_pinned_to_the_bottom_of_the_viewport():
     assert ".site-footer" in css and "margin-top: auto" in css
 
 
+def test_the_pinned_footer_uses_the_dynamic_viewport_height_on_mobile():
+    # Plain 100vh is the *largest possible* viewport on mobile browsers (address bar
+    # hidden), so a page sized to it overflows once the address bar is shown, pushing
+    # the footer below the visible screen. 100dvh tracks the actual visible viewport.
+    css = (STATIC_DIRECTORY / "styles.css").read_text()
+
+    assert "min-height: 100dvh" in css
+
+
 def test_index_page_shows_a_name_search_form():
     client = TestClient(app)
 
