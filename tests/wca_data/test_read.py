@@ -341,7 +341,9 @@ def cjk_data(tmp_path):
                     ["Ken'ichi Ueno (上野健一)", "m", "1982UENO01", "1", "Japan"],
                     ["Taro Tanaka (たなかタロウ)", "m", "2015TANA01", "1", "Japan"],
                     ["Minsoo Kim (김민수)", "m", "2016KIMM01", "1", "Korea"],
-                    ["Yi Wang (王一)", "f", "2018WANG02", "1", "China"]),
+                    ["Yi Wang (王一)", "f", "2018WANG02", "1", "China"],
+                    ["Yuki Sasaki (佐々木雄貴)", "m", "2019SASA01", "1", "Japan"],
+                    ["Ling Wang (王〇玲)", "f", "2020WANG05", "1", "China"]),
     )
     with WcaData.open(path) as opened:
         yield opened
@@ -352,7 +354,7 @@ def cjk_data(tmp_path):
     [
         ("小明", ["2010WANG01"]),  # any run of characters inside the name
         ("明", ["2010WANG01"]),
-        ("王", ["2010WANG01", "2018WANG02"]),
+        ("王", ["2020WANG05", "2010WANG01", "2018WANG02"]),
         ("王小明", ["2010WANG01"]),
         ("(王小明)", ["2010WANG01"]),
         ("明小", []),  # the characters must be in that order
@@ -361,7 +363,11 @@ def cjk_data(tmp_path):
         ("タロウ", ["2015TANA01"]),  # katakana
         ("なか", ["2015TANA01"]),  # hiragana
         ("민수", ["2016KIMM01"]),  # hangul
-        ("wang 王", ["2010WANG01", "2018WANG02"]),  # mixed with a latin word
+        ("wang 王", ["2020WANG05", "2010WANG01", "2018WANG02"]),
+        ("佐々木", ["2019SASA01"]),  # the iteration mark 々 is part of the name
+        ("々木", ["2019SASA01"]),
+        ("佐々木雄貴", ["2019SASA01"]),
+        ("王〇玲", ["2020WANG05"]),  # 〇, the ideographic zero  # mixed with a latin word
         ("xiao 王", ["2010WANG01"]),
         ("Wang王一", ["2018WANG02"]),
         ("feliks 王", []),
