@@ -1,0 +1,14 @@
+# The nightly WCA data build (python -m wca_data.build) in this app's Compose project.
+# The build lowers its own CPU and IO priority inside the container (deploy/compose.yaml).
+[Unit]
+Description=WCA data build (wca-records-analyser)
+Requires=docker.service
+Wants=network-online.target
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/wca-records-analyser
+ExecStart=/usr/bin/docker compose run --rm build
+# A real build takes about four minutes; anything near this is stuck.
+TimeoutStartSec=2h
