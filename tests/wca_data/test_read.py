@@ -274,6 +274,23 @@ def test_rounds_of_two_competitions_on_the_same_day_are_not_interleaved(tmp_path
         assert [result.id for result in data.results("2009ZEMD01", "333")] == [1, 3, 2, 4]
 
 
+def test_a_result_with_an_unknown_competition_or_round_type_comes_last(tmp_path):
+    # Undated, it can't be placed, and must never lead a running minimum.
+    path = _build(
+        tmp_path,
+        results=tsv(
+            RESULT_HEADER,
+            [1, "GhostOpen2001", "1", "333", "2009ZEMD01", 500, 600],
+            [2, "MelbourneWinterOpen2009", "z", "333", "2009ZEMD01", 900, 1000],
+            [3, "MelbourneWinterOpen2009", "1", "333", "2009ZEMD01", 1052, 1157],
+            [4, "AustralianNationals2026", "f", "333", "2009ZEMD01", 593, 648],
+        ),
+        result_attempts=tsv(ATTEMPT_HEADER),
+    )
+    with WcaData.open(path) as data:
+        assert [result.id for result in data.results("2009ZEMD01", "333")] == [3, 2, 4, 1]
+
+
 def test_an_unknown_person_or_event_has_no_results(data):
     assert data.results("1999NONE01", "333") == []
     assert data.results("2009ZEMD01", "sq1") == []
