@@ -11,7 +11,8 @@ fails if it drifts from what the builder creates.
 ## Reading it safely
 
 - **Location:** the path is in the environment variable `WCA_DATA_DB_PATH`
-  (on the server, `/srv/wca-data/wca.sqlite`). Don't hard-code it.
+  (on the server, `/srv/wca-data/wca.sqlite`). Don't hard-code it. The `wca_data` read
+  library refuses to open without it (or a path passed in).
 - **Read-only:** open with a URI such as `file:/srv/wca-data/wca.sqlite?mode=ro`. Never write.
 - **Per request:** each build writes a new file and renames it over the old one, so open a
   connection per request (or per short job) to see the latest build. A connection that is

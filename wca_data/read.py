@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from wca_data.build import database_path, parse_export_date
+from wca_data.build import parse_export_date
 from wca_data.schema import CJK_CHARACTER, SCHEMA_VERSION, spaced_cjk_characters
 
 
@@ -139,11 +139,15 @@ class WcaData:
     ) -> "WcaData":
         """Open the database at path, or else the one WCA_DATA_DB_PATH names.
 
-        Raises DatabaseUnavailable if there is no readable database there, and
-        SchemaVersionMismatch if it was built for another schema version.
+        Raises DatabaseUnavailable if neither is given or there is no readable database
+        there, and SchemaVersionMismatch if it was built for another schema version.
         """
         if path is None:
-            path = database_path(os.environ if environ is None else environ)
+            path = (os.environ if environ is None else environ).get("WCA_DATA_DB_PATH")
+            if not path:
+                raise DatabaseUnavailable(
+                    "Set WCA_DATA_DB_PATH to the WCA database's path, or pass the path"
+                )
         path = Path(path)
         try:
             connection = _connect_read_only(path)
