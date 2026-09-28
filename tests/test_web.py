@@ -449,20 +449,25 @@ def test_index_stylesheet_link_is_cache_busted():
     assert f"{STYLESHEET_PATH}?v={version}" in response.text
 
 
-def test_build_number_feature_is_removed(monkeypatch):
-    """The build number was sourced from Render's RENDER_GIT_COMMIT; dead since
-    Render was retired at the phase 5 cutover (nothing sets that env var on the
-    VM/GHCR pipeline, so it always showed nothing)."""
-    from wca_records_analyser import web
+def test_build_number_shown_from_git_commit_env_var(monkeypatch):
+    """The Docker build now bakes the deployed commit SHA into the image as
+    GIT_COMMIT (set via a build arg in ci.yml's publish job), replacing the old
+    Render-only RENDER_GIT_COMMIT source."""
+    monkeypatch.setenv("GIT_COMMIT", "abc1234567890def1234567890abc1234567890")
+    client = TestClient(app)
 
-    monkeypatch.setenv("RENDER_GIT_COMMIT", "abc1234567890def1234567890abc1234567890")
+    response = client.get("/")
+
+    assert "[build abc1234]" in response.text
+
+
+def test_build_number_hidden_without_git_commit_env_var(monkeypatch):
+    monkeypatch.delenv("GIT_COMMIT", raising=False)
     client = TestClient(app)
 
     response = client.get("/")
 
     assert "build-number" not in response.text
-    assert not hasattr(web, "build_number")
-    assert not hasattr(web, "RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE")
 
 
 def test_records_stylesheet_link_is_cache_busted():
