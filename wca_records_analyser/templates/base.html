@@ -9,6 +9,10 @@
 <body>
     <header class="site-header">
         <a class="site-title" href="/">WCA Records Analyser</a>
+        {% set current_build_number = build_number() %}
+        {% if current_build_number %}
+            <span class="build-number">[build {{ current_build_number }}]</span>
+        {% endif %}
     </header>
     <main class="site-main">
         {% block content %}{% endblock %}
