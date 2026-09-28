@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ from wca_records_analyser.web import (
     Overview,
     RecordProgressions,
     app,
+    get_export_date_function,
     get_map_function,
     get_overview_function,
     get_overview_map_function,
@@ -288,6 +290,72 @@ def test_records_of_an_unknown_wca_id_is_a_404():
         app.dependency_overrides.clear()
 
     assert response.status_code == 404
+
+
+EXPORT_DATE = date(2026, 9, 23)
+EXPECTED_LICENCE_TEXT = (
+    "This information is based on competition results owned and maintained by the "
+    "World Cube Association, published at https://worldcubeassociation.org/results "
+    "as of 2026-09-23."
+)
+
+
+def _with_export_date(export_date=EXPORT_DATE):
+    app.dependency_overrides[get_export_date_function] = lambda: (lambda: export_date)
+
+
+def test_every_page_shows_the_wca_licence_notice_with_the_export_date():
+    _with_export_date()
+    try:
+        client = TestClient(app)
+        response = client.get("/")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert EXPECTED_LICENCE_TEXT in response.text
+
+
+def test_overview_page_shows_the_wca_licence_notice():
+    _with_export_date()
+    app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
+        MATS_VALK_PROFILE
+    )
+    app.dependency_overrides[get_overview_function] = lambda: _overview_returning(
+        MATS_VALK_OVERVIEW
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            OVERVIEW_ROUTE, params={"wca_id": MATS_VALK_PROFILE.person.wca_id}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert EXPECTED_LICENCE_TEXT in response.text
+
+
+def test_records_page_shows_the_wca_licence_notice():
+    _with_export_date()
+    app.dependency_overrides[get_progression_function] = (
+        lambda: _progression_returning(PROGRESSIONS)
+    )
+    app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
+        MATS_VALK_PROFILE
+    )
+    app.dependency_overrides[get_map_function] = lambda: _map_returning([], [])
+    try:
+        client = TestClient(app)
+        response = client.get(
+            RECORDS_ROUTE,
+            params={"wca_id": MATS_VALK_PROFILE.person.wca_id, "event_id": EVENT_ID},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert EXPECTED_LICENCE_TEXT in response.text
 
 
 def test_index_page_shows_a_name_search_form():
