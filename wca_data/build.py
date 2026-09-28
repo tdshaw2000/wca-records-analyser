@@ -4,7 +4,9 @@ Run nightly as `python -m wca_data.build`. It builds only when WCA has published
 or the live database was built for another schema version. It checks the new database against
 the live one and renames it into place, keeping the old one as <name>.prev. Anything that goes wrong leaves the live database as it was. Settings come
 from the environment: WCA_DATA_DB_PATH (default /srv/wca-data/wca.sqlite) and, optionally,
-WCA_DATA_PING_URL, a missed-build monitor that is pinged after every successful run.
+WCA_DATA_PING_URL, a missed-build monitor that is pinged after every successful run. For one
+run, WCA_DATA_ACCEPT_SENTINEL_CHANGE=1 lets through a change to the sentinel competitor's latest
+result (WCA corrected it); every other check still applies. See docs/runbook.md.
 
 The export's result_attempts table has about 32 million rows, so nothing is held in memory:
 tables stream from the zip into SQLite, and attempts are packed into their results by a query
@@ -378,12 +380,18 @@ def _result(connection, result_id):
     ).fetchone()
 
 
-def check_sanity(new_path: Path, live_path: Path, sentinel: str = SENTINEL_PERSON) -> None:
+def check_sanity(
+    new_path: Path,
+    live_path: Path,
+    sentinel: str = SENTINEL_PERSON,
+    *,
+    accept_sentinel_change: bool = False,
+) -> None:
     """Raise SanityCheckFailed unless the new database looks like a good build.
 
     Every table has rows, and the sentinel competitor is there with a 3x3 result. Against a readable live
     database: no table loses more than 1% of its rows or grows by half again, and the
-    sentinel's latest live result is still there, unchanged.
+    sentinel's latest live result is still there, unchanged, unless accept_sentinel_change.
     """
     with closing(_open_read_only(new_path)) as new:
         counts = _counts(new)
@@ -405,6 +413,8 @@ def check_sanity(new_path: Path, live_path: Path, sentinel: str = SENTINEL_PERSO
                 raise SanityCheckFailed(
                     f"{table} would go from {before} rows to {after}, outside the expected range"
                 )
+        if accept_sentinel_change:
+            return
         if live_latest is not None and _result(new, live_latest[0]) != live_latest:
             raise SanityCheckFailed(
                 f"{sentinel}'s latest result {live_latest} is missing or changed in the new build"
@@ -473,10 +483,12 @@ def run(
     download: Callable[[str, Path], None],
     now: Callable[[], datetime],
     ping: Callable[[], None],
+    accept_sentinel_change: bool = False,
 ) -> str:
     """One nightly run. Returns "unchanged" or "built"; raises if anything fails.
 
     ping is called only when the run succeeds, whether or not there was a new export.
+    accept_sentinel_change is passed on to check_sanity.
     """
     db_path = Path(db_path)
     with _DirectoryLock(db_path.parent):
@@ -497,7 +509,7 @@ def run(
                         f"Downloaded {export_zip.stat().st_size} bytes, WCA says {expected}"
                     )
                 build_database(export_zip, new_path, now())
-            check_sanity(new_path, db_path)
+            check_sanity(new_path, db_path, accept_sentinel_change=accept_sentinel_change)
             swap_into_place(new_path, db_path)
         finally:
             new_path.unlink(missing_ok=True)
@@ -536,6 +548,9 @@ def main(
     environ = os.environ if environ is None else environ
     db_path = database_path(environ)
     ping_url = environ.get("WCA_DATA_PING_URL")
+    accept_sentinel_change = environ.get("WCA_DATA_ACCEPT_SENTINEL_CHANGE") == "1"
+    if accept_sentinel_change:
+        print(f"wca_data build: accepting a change to {SENTINEL_PERSON}'s latest sentinel result")
 
     def ping():
         if not ping_url:
@@ -552,6 +567,7 @@ def main(
             download=download,
             now=lambda: datetime.now(UTC),
             ping=ping,
+            accept_sentinel_change=accept_sentinel_change,
         )
     except Exception as error:  # noqa: BLE001 - report every failure, keep the old database
         print(f"wca_data build failed: {type(error).__name__}: {error}", file=sys.stderr)
