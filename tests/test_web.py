@@ -22,7 +22,7 @@ from wca_records_analyser.web import (
     get_search_function,
     static_asset_version,
 )
-from wca_records_analyser.wca_client import Person, Profile
+from wca_records_analyser.wca_client import Person, PersonNotFound, Profile
 
 SEARCH_ROUTE = "/search"
 API_SEARCH_ROUTE = "/api/search"
@@ -255,6 +255,39 @@ def _get_overview_rows(overview=MATS_VALK_OVERVIEW):
         )
     finally:
         app.dependency_overrides.clear()
+
+
+def test_overview_of_an_unknown_wca_id_is_a_404():
+    def not_found(wca_id):
+        raise PersonNotFound(f"No competitor has the WCA ID {wca_id}")
+
+    app.dependency_overrides[get_profile_function] = lambda: not_found
+    try:
+        client = TestClient(app)
+        response = client.get(OVERVIEW_ROUTE, params={"wca_id": "1999NONE01"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+
+
+def test_records_of_an_unknown_wca_id_is_a_404():
+    def not_found(wca_id):
+        raise PersonNotFound(f"No competitor has the WCA ID {wca_id}")
+
+    app.dependency_overrides[get_profile_function] = lambda: not_found
+    app.dependency_overrides[get_progression_function] = (
+        lambda: _progression_returning(PROGRESSIONS)
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            RECORDS_ROUTE, params={"wca_id": "1999NONE01", "event_id": EVENT_ID}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
 
 
 def test_index_page_shows_a_name_search_form():
