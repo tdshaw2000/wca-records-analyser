@@ -11,6 +11,7 @@ Everything comes back as plain frozen dataclasses, with values as WCA defines th
 
 import os
 import sqlite3
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -89,7 +90,12 @@ MAX_QUERY_WORDS = 10
 
 
 def _query_words(text: str) -> list[str]:
-    return text[:MAX_QUERY_CHARACTERS].split()[:MAX_QUERY_WORDS]
+    # Control characters (NUL above all, which ends an FTS5 query early) are dropped.
+    text = "".join(
+        char for char in text[:MAX_QUERY_CHARACTERS]
+        if char.isspace() or unicodedata.category(char) != "Cc"
+    )
+    return text.split()[:MAX_QUERY_WORDS]
 
 
 def _quoted(text: str) -> str:

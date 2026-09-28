@@ -358,9 +358,12 @@ def _live_is_current(db_path: Path, export_date: datetime) -> bool:
 
 
 def _counts(connection) -> dict[str, int]:
+    """Row counts of the counted tables this database has. An older schema may lack some."""
+    present = {name for (name,) in connection.execute("SELECT name FROM sqlite_master")}
     return {
         table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
         for table in COUNTED_TABLES
+        if table in present
     }
 
 
@@ -389,7 +392,7 @@ def check_sanity(new_path: Path, live_path: Path, sentinel: str = SENTINEL_PERSO
     """
     with closing(_open_read_only(new_path)) as new:
         counts = _counts(new)
-        empty = [table for table, count in counts.items() if count == 0]
+        empty = [table for table in COUNTED_TABLES if counts.get(table, 0) == 0]
         if empty:
             raise SanityCheckFailed(f"The new build has no rows in {', '.join(empty)}")
         known = new.execute("SELECT 1 FROM persons WHERE wca_id = ?", (sentinel,)).fetchone()
