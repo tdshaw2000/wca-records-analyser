@@ -17,6 +17,7 @@ from pathlib import Path
 
 REPOSITORY = "ghcr.io/tdshaw2000/wca-records-analyser"
 IMAGE = f"{REPOSITORY}:main"
+BUILD_SERVICE = "wca-data-build.service"
 SOURCE_LABEL = "org.opencontainers.image.source=https://github.com/tdshaw2000/wca-records-analyser"
 INSTALL_DIR = Path("/srv/wca-records-analyser")
 ENV_FILE = ".env"
@@ -98,6 +99,11 @@ def deploy(folder, run):
     _pin(folder, new)
     if _start_web(run):
         run(["docker", "image", "prune", "--force", "--filter", f"label={SOURCE_LABEL}"])
+        # A new image may carry a bumped SCHEMA_VERSION; the health check doesn't read the
+        # database, so rebuild straight away rather than waiting for the nightly timer.
+        # --no-block: nothing here waits on the build, and a real build can run for
+        # minutes, longer than this service's own TimeoutStartSec.
+        run(["systemctl", "start", "--no-block", BUILD_SERVICE])
         return "deployed"
     _remember_bad(folder, new)
     _pin(folder, live)

@@ -1,8 +1,9 @@
 # Project plan: our own WCA data backend on OCI
 
-Status: **phases 1 through 3 done** (2026-09-28); **phase 4's repo side done**, the VM setup
-follows [`docs/runbook.md`](../runbook.md). Written 2026-09-26; updated 2026-09-27 with the
-hosting, caching and working-practice decisions. Supersedes the open questions in
+Status: **phases 1 through 5 done** (2026-09-28); the app now serves from the VM with the
+holding page off, and Render is retired. Phase 6 (go public) is next. Written 2026-09-26;
+updated 2026-09-27 with the hosting, caching and working-practice decisions. Supersedes the
+open questions in
 [`docs/shared-backend-tradeoffs.md`](../shared-backend-tradeoffs.md), which remains the
 background reading (measurements, licence text, export format).
 
@@ -236,6 +237,12 @@ behaviour is a red commit (failing tests) then a green commit, reviewed as `CLAU
    let through by one run with `WCA_DATA_ACCEPT_SENTINEL_CHANGE=1`. The VM steps, including
    the Caddyfile change in the scramble repo, are in [`docs/runbook.md`](../runbook.md).
 5. **Cutover** — holding page off, the DuckDNS name serving the app from the VM, retire Render.
+   Done 2026-09-28: `HOLDING_PAGE_ENABLED` defaults to `False`; the app has been fully served
+   from the VM behind `wca-records-analyser.duckdns.org` since phase 4's VM setup, with Render's
+   auto-deploy already off and its deploy hook already removed from CI, so nothing there needed
+   changing to retire it as the live site. Also fixed the noted follow-up from phase 4:
+   `pull_deploy.py` now starts `wca-data-build.service` right after every deploy, so a
+   `SCHEMA_VERSION` bump rebuilds automatically instead of waiting for the nightly timer.
 6. **Go public** — history scan, repo settings, flip visibility.
 
 ## Open questions

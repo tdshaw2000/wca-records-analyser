@@ -63,6 +63,8 @@ class FakeDocker:
             return Result(0 if self.healthy or env != NEW else 1)
         if args[:3] == ["docker", "image", "prune"]:
             return Result(0)
+        if args[:2] == ["systemctl", "start"]:
+            return Result(0)
         raise AssertionError(f"unexpected command {args}")
 
     def ran(self, *prefix):
@@ -121,6 +123,7 @@ def test_the_image_already_running_is_left_alone(tmp_path):
     docker = FakeDocker(tmp_path)
     assert pull_deploy.deploy(tmp_path, docker) == "up to date"
     assert docker.ran("docker", "compose") == []
+    assert docker.ran("systemctl") == []
 
 
 def test_an_unhealthy_image_is_rolled_back_and_remembered(tmp_path):
@@ -132,6 +135,16 @@ def test_an_unhealthy_image_is_rolled_back_and_remembered(tmp_path):
     assert _env(tmp_path) == {"WCA_DATA_PING_URL": "https://hc.example/ping/abc", "WCA_IMAGE": OLD}
     assert _bad(tmp_path) == [NEW]
     assert docker.ran("docker", "image", "prune") == []
+    assert docker.ran("systemctl") == []
+
+
+def test_a_new_deploy_restarts_the_data_build_so_a_schema_bump_rebuilds(tmp_path):
+    _write_env(tmp_path, f"WCA_IMAGE={OLD}\n")
+    docker = FakeDocker(tmp_path)
+    assert pull_deploy.deploy(tmp_path, docker) == "deployed"
+    assert docker.ran("systemctl", "start") == [
+        ["systemctl", "start", "--no-block", "wca-data-build.service"]
+    ]
 
 
 def test_a_remembered_bad_image_is_not_tried_again(tmp_path):

@@ -108,9 +108,10 @@ RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE = "RENDER_GIT_COMMIT"
 BUILD_NUMBER_LENGTH = 7
 # The WCA changed its API access policy on 24 September 2026, cutting off the
 # data every page relies on. While this is on, every page (static assets aside)
-# is replaced by a holding page that explains why; turn it off to restore the
-# app once a new data source is in place.
-HOLDING_PAGE_ENABLED = True
+# is replaced by a holding page that explains why. Off since the phase 5
+# cutover to our own data backend (2026-09-28); flip it back on if the app
+# ever needs to show a holding page again.
+HOLDING_PAGE_ENABLED = False
 
 app = FastAPI()
 

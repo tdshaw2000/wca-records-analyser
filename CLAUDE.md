@@ -37,7 +37,7 @@ Each module owns one concern; keep HTTP, analysis, presentation, and web wiring 
 - `formatting.py` — `format_single` renders centiseconds as a cubing time string.
 - `chart.py` — shapes `RecordPoint` progressions into JSON-serialisable chart series (no HTTP); rendered client-side by `static/records-chart.js`.
 - `web.py` — FastAPI routes (`/`, `/search`, `/records`) with injectable `Depends` seams (`get_search_function`, `get_events_function`, `get_progression_function`) so web tests never hit the network. Templates in `templates/`.
-  - **Holding page:** since the WCA API access change of 24 September 2026, `HOLDING_PAGE_ENABLED = True` makes a middleware answer every non-static request with `templates/holding.html` (status 200, so Render's `/` health check still passes; `/healthz`, the image's database-free health check, is let through). Set it to `False` to restore the app. `tests/conftest.py` disables it for the normal suite; `tests/test_holding_page.py` re-enables it.
+  - **Holding page:** a middleware that, when `HOLDING_PAGE_ENABLED` is `True`, answers every non-static request with `templates/holding.html` (status 200; `/healthz`, the image's database-free health check, is let through). It shielded the app during the WCA API access change of 24 September 2026 and is off since the phase 5 cutover to the own data backend (2026-09-28). `tests/conftest.py` disables it for the normal suite; `tests/test_holding_page.py` re-enables it to test it, and checks the default is off.
 
 The data layer is a separate package, `wca_data/`, being built to replace the WCA API (plan:
 `docs/plans/own-data-backend.md`). It must never import `wca_records_analyser` or anything
