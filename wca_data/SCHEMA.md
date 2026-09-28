@@ -22,7 +22,10 @@ fails if it drifts from what the builder creates.
 - **Licence:** WCA requires apps showing this data to say: "This information is based on
   competition results owned and maintained by the World Cube Association, published at
   https://worldcubeassociation.org/results as of {export date}." The export date is
-  `meta.export_date`.
+  `meta.export_date`. Note (2026-09-28): that URL 404s on WCA's site now (it was restructured);
+  consuming apps should link to https://www.worldcubeassociation.org/export/results instead,
+  but this quote is WCA's original required wording and hasn't been independently re-confirmed
+  against their current terms.
 
 Values are kept as WCA defines them. Times are centiseconds; `-1` is DNF, `-2` is DNS and `0`
 is no result. Fewest moves is a move count (averages ×100) and multi-blind is WCA's packed
