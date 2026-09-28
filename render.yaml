@@ -1,0 +1,10 @@
+services:
+  # The app itself deploys to the VM now (docs/runbook.md). This is only a
+  # tiny static "we've moved" page for anyone who still lands on the old
+  # Render URL, so it needs no Docker build, secrets or CI job — Render's
+  # own GitHub integration deploys it straight from pushes to main.
+  - type: web
+    name: wca-records-analyser
+    runtime: static
+    staticPublishPath: ./deploy/render-holding
+    autoDeploy: true
