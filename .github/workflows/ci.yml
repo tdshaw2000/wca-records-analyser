@@ -69,6 +69,8 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
           tags: |
             ghcr.io/tdshaw2000/wca-records-analyser:main
             ghcr.io/tdshaw2000/wca-records-analyser:sha-${{ github.sha }}

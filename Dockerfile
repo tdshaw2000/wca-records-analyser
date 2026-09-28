@@ -4,6 +4,12 @@ LABEL org.opencontainers.image.source=https://github.com/tdshaw2000/wca-records-
 
 WORKDIR /app
 
+# The commit the image was built from (ci.yml's publish job passes --build-arg
+# GIT_COMMIT=${{ github.sha }}); read by wca_records_analyser.web.build_number()
+# to show the deployed build in the page header. Empty outside that job.
+ARG GIT_COMMIT=""
+ENV GIT_COMMIT=${GIT_COMMIT}
+
 # Install dependencies and both packages: the web app and the data layer it reads with.
 COPY pyproject.toml LICENSE ./
 COPY wca_records_analyser ./wca_records_analyser
