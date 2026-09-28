@@ -92,8 +92,8 @@ It does not stop direct pushes to main.
 GitHub enforces the same thing outside Claude sessions. The `review-gate` check
 (.github/workflows/review-gate.yml, .github/scripts/review_check.py) passes only when someone
 with write access has posted a PR review holding the marker for the PR's head commit. Every
-new push fails it again until the new head is reviewed. Owner to-do, until done: in main's
-ruleset, add `review-gate` to the required checks and allow only merge commits.
+new push fails it again until the new head is reviewed. main's ruleset requires it and `test`,
+and allows only merge commits.
 
 1. Finish the work (red then green), push, and open the PR as a draft.
 2. Run `reviewer`, and `data-reviewer` too if the PR touches the paths above. Run them in
