@@ -4,8 +4,9 @@ Bump SCHEMA_VERSION on any change that could break an existing reader.
 """
 
 import re
+import unicodedata
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # Scripts that write names without spaces between words: Han ideographs (with the iteration
 # marks 々 and 〻, 〆 and the ideographic zero 〇), kana and Hangul. persons_cjk indexes these
@@ -17,8 +18,11 @@ CJK_CHARACTER = re.compile(
 
 
 def spaced_cjk_characters(text: str) -> str:
-    """text's CJK characters, in order, one space between each: "王小明" -> "王 小 明"."""
-    return " ".join(CJK_CHARACTER.findall(text))
+    """text's CJK characters, in order, one space between each: "王小明" -> "王 小 明".
+
+    NFKC first, so half-width kana are indexed and searched as their full-width forms.
+    """
+    return " ".join(CJK_CHARACTER.findall(unicodedata.normalize("NFKC", text)))
 
 
 TABLES = """

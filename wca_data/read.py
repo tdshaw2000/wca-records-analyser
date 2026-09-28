@@ -90,12 +90,27 @@ MAX_QUERY_WORDS = 10
 
 
 def _query_words(text: str) -> list[str]:
-    # Control characters (NUL above all, which ends an FTS5 query early) are dropped.
+    # Control characters (NUL above all, which ends an FTS5 query early) and lone
+    # surrogates (which SQLite can't encode) are dropped. NFKC folds full-width letters and
+    # digits, and half-width kana, to the forms names are written in.
     text = "".join(
         char for char in text[:MAX_QUERY_CHARACTERS]
-        if char.isspace() or unicodedata.category(char) != "Cc"
+        if char.isspace() or unicodedata.category(char) not in ("Cc", "Cs")
     )
+    text = unicodedata.normalize("NFKC", text)[:MAX_QUERY_CHARACTERS]
     return text.split()[:MAX_QUERY_WORDS]
+
+
+def _needed(words: list[str]) -> list[str]:
+    """words without repeats, or any that start another: every word must start a word of
+    the name, so "2009" adds nothing beside "2009zemd" but would cost a search of its own."""
+    folded = [word.casefold() for word in words]
+    kept = []
+    for index, word in enumerate(folded):
+        longer = any(other != word and other.startswith(word) for other in folded)
+        if not longer and word not in folded[:index]:
+            kept.append(words[index])
+    return kept
 
 
 def _quoted(text: str) -> str:
@@ -119,7 +134,7 @@ def _search_queries(text: str) -> tuple[str | None, str | None]:
             part for part in CJK_CHARACTER.sub(" ", word).split()
             if any(char.isalnum() for char in part)
         ]
-    word_query = " ".join(_quoted(word) + "*" for word in words) or None
+    word_query = " ".join(_quoted(word) + "*" for word in _needed(words)) or None
     return word_query, " ".join(phrases) or None
 
 
