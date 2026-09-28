@@ -61,6 +61,14 @@ def test_events_come_from_the_export_with_their_rank(db):
     ]
 
 
+def test_round_types_come_from_the_export_with_their_rank_and_whether_they_are_finals(db):
+    rows = db.execute("SELECT id, name, rank, final FROM round_types ORDER BY rank").fetchall()
+    assert rows[:3] == [("h", "Qualification round", 10, 0), ("0", "Qualification round", 19, 0),
+                        ("d", "First round", 20, 0)]
+    assert rows[-2:] == [("c", "Final", 90, 1), ("f", "Final", 99, 1)]
+    assert len(rows) == 11
+
+
 def test_feliks_zemdegs_latest_three_by_three_result_matches_the_wca(db):
     # The known-good check from docs/shared-backend-tradeoffs.md, on the fixture's copy of it.
     row = db.execute(
