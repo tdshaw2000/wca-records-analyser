@@ -37,7 +37,7 @@ Each module owns one concern; keep HTTP, analysis, presentation, and web wiring 
 - `formatting.py` — `format_single` renders centiseconds as a cubing time string.
 - `chart.py` — shapes `RecordPoint` progressions into JSON-serialisable chart series (no HTTP); rendered client-side by `static/records-chart.js`.
 - `web.py` — FastAPI routes (`/`, `/search`, `/records`) with injectable `Depends` seams (`get_search_function`, `get_events_function`, `get_progression_function`) so web tests never hit the network. Templates in `templates/`.
-  - **Holding page:** since the WCA API access change of 24 September 2026, `HOLDING_PAGE_ENABLED = True` makes a middleware answer every non-static request with `templates/holding.html` (status 200, so Render's `/` health check still passes). Set it to `False` to restore the app. `tests/conftest.py` disables it for the normal suite; `tests/test_holding_page.py` re-enables it.
+  - **Holding page:** since the WCA API access change of 24 September 2026, `HOLDING_PAGE_ENABLED = True` makes a middleware answer every non-static request with `templates/holding.html` (status 200, so Render's and the VM image's `/` health checks still pass). Set it to `False` to restore the app. `tests/conftest.py` disables it for the normal suite; `tests/test_holding_page.py` re-enables it.
 
 The data layer is a separate package, `wca_data/`, being built to replace the WCA API (plan:
 `docs/plans/own-data-backend.md`). It must never import `wca_records_analyser` or anything
@@ -48,6 +48,17 @@ web; `tests/wca_data/test_isolation.py` enforces that. App-specific analysis sta
 - `wca_data/build.py` — `build_database` (export zip → SQLite) and the nightly job, `python -m wca_data.build`: skips an unchanged export, checks the version, sanity-checks against the live database, swaps atomically keeping `.prev`. Settings: `WCA_DATA_DB_PATH`, `WCA_DATA_PING_URL`.
 - `wca_data/read.py` — the read library: `WcaData.open()` (read-only, per request, checks the schema version) with `metadata`, `person`, `search_persons`, `events`, `competed_events`, `competitions`, `results`; plain dataclasses. Search is word-prefix FTS plus `persons_cjk` for any run of CJK characters.
 - Tests in `tests/wca_data/`, against the hand-made export in `tests/wca_data/fixtures/export/`. No network.
+
+Deployment (phase 4): the VM shared with the scramble app pulls the image; nothing in Actions
+connects to it. How to set up and operate it: `docs/runbook.md`.
+
+- `Dockerfile` — one image for the web app and the build; uid 10001, a health check on `/`, and a copy of `deploy/` at `/opt/wca-records-analyser/deploy`.
+- `.github/workflows/ci.yml` — `test`; `image` (build, start, wait for healthy) on every branch; `publish` to `ghcr.io/tdshaw2000/wca-records-analyser` (amd64+arm64) on `main` only.
+- `deploy/compose.yaml` — services `web` (read-only `/srv/wca-data`, no ports, alias `wca-records-analyser` on the scramble stack's network) and `build` (profile only, nice 19 / idle IO in the container, capped CPU and memory). Both run `${WCA_IMAGE}`.
+- `deploy/pull_deploy.py` — stdlib script for the host, every 5 minutes: pins the new digest in `.env`, `compose up --wait web`, rolls back and records an unhealthy image in `bad-images`.
+- `deploy/systemd/` — `wca-data-build` (03:30 UTC nightly) and `wca-deploy` services and timers.
+- `deploy/caddy/` — reference copy of the site block that lives in the scramble repo's Caddyfile.
+- Tests in `tests/deploy/`.
 
 ## repo rules (the repo is to become public)
 
@@ -66,7 +77,7 @@ web; `tests/wca_data/test_isolation.py` enforces that. App-specific analysis sta
 The owner does not review or merge PRs. Claude opens every PR as a draft, gets it through
 review and CI, then marks it ready and merges it with a merge commit (never squash or rebase).
 The owner is told what shipped, and is only asked when a decision is theirs (see step 6 and
-the three-round cap). Merging to main deploys.
+the three-round cap). Merging to main deploys: CI publishes the image and the VM pulls it.
 
 Work is strict TDD: every change in behaviour is a red commit (failing tests) then a green
 commit (the code that passes them). Both reviewers check this and block on a break.
