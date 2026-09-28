@@ -409,3 +409,14 @@ def test_a_full_wca_id_comes_before_names_that_merely_start_with_it(tmp_path):
 @pytest.mark.parametrize("limit", [0, -1])
 def test_a_limit_below_one_finds_nobody(data, limit):
     assert data.search_persons("feliks", limit=limit) == []
+
+
+def test_search_reads_only_the_first_ten_words(data):
+    # A stranger's query can't make the search arbitrarily expensive.
+    assert _ids(data.search_persons("feliks " * 10 + "nobody")) == ["2009ZEMD01"]
+    assert data.search_persons("feliks " * 9 + "nobody") == []
+
+
+def test_search_reads_only_the_first_hundred_characters(data):
+    assert _ids(data.search_persons("feliks" + " " * 94 + "nobody")) == ["2009ZEMD01"]
+    assert data.search_persons("feliks" + " " * 93 + "nobody") == []
