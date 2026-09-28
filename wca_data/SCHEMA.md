@@ -48,6 +48,7 @@ Every competitor, with their current name and country only (the export's `sub_id
 | `wca_id` | TEXT, primary key | WCA ID, e.g. `2009ZEMD01` |
 | `name` | TEXT | Name as WCA shows it, UTF-8, e.g. `Xiaoming Wang (王小明)` |
 | `country_id` | TEXT | WCA country id, e.g. `Australia` |
+| `sort_name` | TEXT | `name` folded for sorting: lower case, accents removed, and `ł ø đ ð ħ ı ŧ þ æ œ` spelt as plain letters (`wca_data.schema.sort_name`). `ORDER BY sort_name` puts `Łukasz` with `Lukasz`, not after `Z` |
 
 ### `persons_fts`
 
@@ -134,4 +135,4 @@ One row per competitor per round. Indexed on `(person_id, event_id)`.
 |---|---|
 | 1 | First version |
 | 2 | Adds `round_types` and `persons_cjk` |
-| 3 | `persons_cjk` holds NFKC-normalised characters |
+| 3 | `persons_cjk` holds NFKC-normalised characters; adds `persons.sort_name` |

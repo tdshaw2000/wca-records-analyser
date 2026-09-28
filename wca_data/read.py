@@ -295,7 +295,7 @@ class WcaData:
         rows = self.connection.execute(
             "SELECT wca_id, name, country_id FROM persons WHERE "
             + " AND ".join(conditions)
-            + f" ORDER BY wca_id IN ({', '.join('?' * len(typed_ids))}) DESC, name, wca_id"
+            + f" ORDER BY wca_id IN ({', '.join('?' * len(typed_ids))}) DESC, sort_name, wca_id"
             + " LIMIT ?",
             (*params, *typed_ids, limit),
         )

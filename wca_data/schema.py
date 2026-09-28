@@ -25,6 +25,20 @@ def spaced_cjk_characters(text: str) -> str:
     return " ".join(CJK_CHARACTER.findall(unicodedata.normalize("NFKC", text)))
 
 
+# Letters that NFKD leaves whole, spelt as the plain letters they sort with.
+_SORT_SPELLINGS = str.maketrans(
+    {"ł": "l", "ø": "o", "đ": "d", "ð": "d", "ħ": "h", "ı": "i", "ŧ": "t", "þ": "th",
+     "æ": "ae", "œ": "oe"}
+)
+
+
+def sort_name(name: str) -> str:
+    """name folded for sorting: case and accents ignored, so "Łukasz" sorts with "Lukasz"."""
+    decomposed = unicodedata.normalize("NFKD", name.casefold())
+    plain = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return plain.translate(_SORT_SPELLINGS)
+
+
 TABLES = """
 CREATE TABLE meta (
     key TEXT PRIMARY KEY,
@@ -33,7 +47,8 @@ CREATE TABLE meta (
 CREATE TABLE persons (
     wca_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    country_id TEXT NOT NULL
+    country_id TEXT NOT NULL,
+    sort_name TEXT NOT NULL
 );
 CREATE VIRTUAL TABLE persons_fts USING fts5(
     name, wca_id, content='persons', tokenize='unicode61 remove_diacritics 2'

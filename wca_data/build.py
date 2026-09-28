@@ -35,7 +35,13 @@ from wca_data.export import (
     read_table,
     utc_timestamp,
 )
-from wca_data.schema import INDEXES, SCHEMA_VERSION, TABLES, spaced_cjk_characters
+from wca_data.schema import (
+    INDEXES,
+    SCHEMA_VERSION,
+    TABLES,
+    sort_name,
+    spaced_cjk_characters,
+)
 
 EXPORT_INFO_URL = "https://www.worldcubeassociation.org/api/v0/export/public"
 DEFAULT_DB_PATH = "/srv/wca-data/wca.sqlite"
@@ -122,8 +128,12 @@ def _load_persons(connection, archive):
     rows = read_table(archive, "persons", columns)
     _insert(
         connection,
-        "INSERT INTO persons (wca_id, name, country_id) VALUES (?, ?, ?)",
-        ((r["wca_id"], r["name"], r["country_id"]) for r in rows if r["sub_id"] == 1),
+        "INSERT INTO persons (wca_id, name, country_id, sort_name) VALUES (?, ?, ?, ?)",
+        (
+            (r["wca_id"], r["name"], r["country_id"], sort_name(r["name"]))
+            for r in rows
+            if r["sub_id"] == 1
+        ),
     )
     connection.execute("INSERT INTO persons_fts (persons_fts) VALUES ('rebuild')")
     _insert(
