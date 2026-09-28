@@ -57,3 +57,10 @@ def test_the_image_names_its_source_repository():
 def test_the_image_carries_the_deploy_files_for_installing_on_the_vm():
     copies = [arguments.split() for keyword, arguments in _instructions() if keyword == "COPY"]
     assert ["deploy", "/opt/wca-records-analyser/deploy"] in copies
+
+
+def test_bytecode_caches_anywhere_in_the_tree_stay_out_of_the_image():
+    # A bare "__pycache__" only matches at the root; tests leave one in deploy/.
+    patterns = (ROOT / ".dockerignore").read_text().split()
+    assert "**/__pycache__" in patterns
+    assert "**/*.py[cod]" in patterns
