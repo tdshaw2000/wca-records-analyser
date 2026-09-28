@@ -402,6 +402,24 @@ def test_search_results_are_whole_persons_in_name_order(tmp_path):
         ]
 
 
+def test_search_sorts_names_ignoring_accents_and_case(tmp_path):
+    header = ["name", "gender", "wca_id", "sub_id", "country_id"]
+    path = _build(
+        tmp_path,
+        persons=tsv(header,
+                    ["Zed Nowak", "m", "2010NOWA01", "1", "Poland"],
+                    ["Łukasz Nowak", "m", "2011NOWA01", "1", "Poland"],
+                    ["Ádám Nowak", "m", "2012NOWA01", "1", "Hungary"],
+                    ["bob Nowak", "m", "2013NOWA01", "1", "USA"],
+                    ["Øystein Nowak", "m", "2014NOWA01", "1", "Norway"],
+                    ["Ana Nowak", "f", "2015NOWA01", "1", "Chile"]),
+    )
+    with WcaData.open(path) as data:
+        assert [person.name for person in data.search_persons("nowak")] == [
+            "Ádám Nowak", "Ana Nowak", "bob Nowak", "Łukasz Nowak", "Øystein Nowak", "Zed Nowak",
+        ]
+
+
 def test_search_returns_at_most_the_limit(tmp_path):
     header = ["name", "gender", "wca_id", "sub_id", "country_id"]
     rows = [[f"Sam Lee {n:02d}", "m", f"20{n:02d}LEES01", "1", "USA"] for n in range(30)]
