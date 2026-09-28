@@ -83,6 +83,13 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
 
 
 SEARCH_LIMIT = 25
+# Past these, a search query is ignored, so no query can make a search arbitrarily expensive.
+MAX_QUERY_CHARACTERS = 100
+MAX_QUERY_WORDS = 10
+
+
+def _query_words(text: str) -> list[str]:
+    return text[:MAX_QUERY_CHARACTERS].split()[:MAX_QUERY_WORDS]
 
 
 def _quoted(text: str) -> str:
@@ -98,7 +105,7 @@ def _search_queries(text: str) -> tuple[str | None, str | None]:
     the index has no tokens for them. None for an index with nothing to look for.
     """
     words, phrases = [], []
-    for word in text.split():
+    for word in _query_words(text):
         if characters := spaced_cjk_characters(word):
             phrases.append(_quoted(characters))
         words += [
@@ -240,8 +247,9 @@ class WcaData:
 
         Chinese, Japanese and Korean characters match anywhere in the name, in the order
         typed, since those names have no spaces between words. Case and accents don't
-        matter. A person whose whole WCA ID was typed comes first, then the rest by name and
-        WCA ID; at most limit of them.
+        matter. Only the first MAX_QUERY_WORDS words of the first MAX_QUERY_CHARACTERS
+        characters are read. A person whose whole WCA ID was typed comes first, then the
+        rest by name and WCA ID; at most limit of them.
         """
         word_query, cjk_query = _search_queries(text)
         if (word_query is None and cjk_query is None) or limit < 1:
@@ -254,7 +262,7 @@ class WcaData:
             conditions.append("rowid IN (SELECT rowid FROM persons_cjk WHERE persons_cjk MATCH ?)")
             params.append(cjk_query)
         # Someone who types a whole WCA ID wants that person first.
-        typed_ids = [word.upper() for word in text.split()]
+        typed_ids = [word.upper() for word in _query_words(text)]
         rows = self.connection.execute(
             "SELECT wca_id, name, country_id FROM persons WHERE "
             + " AND ".join(conditions)
