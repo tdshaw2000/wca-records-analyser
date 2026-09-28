@@ -375,3 +375,37 @@ def cjk_data(tmp_path):
 )
 def test_search_finds_any_part_of_a_cjk_name(cjk_data, query, expected):
     assert _ids(cjk_data.search_persons(query)) == expected
+
+
+def test_a_full_wca_id_puts_that_person_first(tmp_path):
+    header = ["name", "gender", "wca_id", "sub_id", "country_id"]
+    path = _build(
+        tmp_path,
+        persons=tsv(header,
+                    ["Aaron Smith", "m", "2021SMIT01", "1", "USA"],
+                    ["Zed Smith", "m", "2021SMIT02", "1", "USA"],
+                    ["Anna Smith", "f", "2021SMIT03", "1", "Canada"]),
+    )
+    with WcaData.open(path) as data:
+        assert _ids(data.search_persons("2021smit02")) == ["2021SMIT02"]
+        assert _ids(data.search_persons("2021SMIT")) == ["2021SMIT01", "2021SMIT03", "2021SMIT02"]
+        assert _ids(data.search_persons("smith 2021SMIT03")) == ["2021SMIT03"]
+        assert _ids(data.search_persons("smith 2021smit02 ")) == ["2021SMIT02"]
+
+
+def test_a_full_wca_id_comes_before_names_that_merely_start_with_it(tmp_path):
+    header = ["name", "gender", "wca_id", "sub_id", "country_id"]
+    path = _build(
+        tmp_path,
+        persons=tsv(header,
+                    ["Aaron Lee", "m", "2019LEEA01", "1", "USA"],
+                    ["Zoe Lee", "f", "2019LEEZ01", "1", "USA"],
+                    ["Bob 2019leez01", "m", "2020BOBB01", "1", "USA"]),
+    )
+    with WcaData.open(path) as data:
+        assert _ids(data.search_persons("2019LEEZ01")) == ["2019LEEZ01", "2020BOBB01"]
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_a_limit_below_one_finds_nobody(data, limit):
+    assert data.search_persons("feliks", limit=limit) == []
