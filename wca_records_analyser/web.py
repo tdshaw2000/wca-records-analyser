@@ -40,6 +40,7 @@ from wca_records_analyser.records import (
 )
 from wca_records_analyser.map import to_map_series, to_overview_map_series
 from wca_records_analyser.wca_client import (
+    PersonNotFound,
     get_competition_dates,
     get_competitions,
     get_profile,
@@ -109,6 +110,13 @@ BUILD_NUMBER_LENGTH = 7
 HOLDING_PAGE_ENABLED = True
 
 app = FastAPI()
+
+
+@app.exception_handler(PersonNotFound)
+def _person_not_found(request: Request, exc: PersonNotFound):
+    return HTMLResponse(status_code=404, content=str(exc))
+
+
 app.mount(
     STATIC_ROUTE,
     StaticFiles(directory=STATIC_DIRECTORY),
