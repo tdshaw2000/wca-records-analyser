@@ -64,11 +64,11 @@ as query syntax.
 ### `persons_cjk`
 
 A second FTS5 index, for Chinese, Japanese and Korean names. Those scripts put no spaces
-between words, so `persons_fts` sees `王小明` as one word and can't find `小明`. This table
-holds each name's CJK characters (Han ideographs, kana and Hangul) in order, one space between
-each: `王 小 明`. Search it with the characters you want, spaced the same way, as a quoted
-phrase: `WHERE persons_cjk MATCH '"小 明"'` finds names with `小明` anywhere in them.
-If a name has more than one CJK run, they are joined, so a phrase can span them.
+between words, so `persons_fts` sees `王小明` as one word and can't find `小明`. This table holds
+each name's CJK characters (Han ideographs with marks such as 々 and 〇, kana and Hangul) in
+order, one space between each: `王 小 明`. Search it with the characters you want, spaced the same
+way, as a quoted phrase: `WHERE persons_cjk MATCH '"小 明"'` finds names with `小明` anywhere in
+them. If a name has more than one CJK run, they are joined, so a phrase can span them.
 `wca_data.schema.CJK_CHARACTER` lists the exact characters.
 
 Only names with CJK characters have a row. It is contentless: read `rowid` and join to

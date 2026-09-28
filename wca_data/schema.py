@@ -7,17 +7,19 @@ import re
 
 SCHEMA_VERSION = 2
 
-# Scripts that write names without spaces between words: Han ideographs, kana and Hangul.
-# persons_cjk indexes these characters one by one, so any run of them can be searched for.
+# Scripts that write names without spaces between words: Han ideographs (with the iteration
+# marks 々 and 〻, 〆 and the ideographic zero 〇), kana and Hangul. persons_cjk indexes these
+# characters one by one, so any run of them can be searched for.
 CJK_CHARACTER = re.compile(
-    "[\u1100-\u11ff\u3040-\u30ff\u3130-\u318f\u31f0-\u31ff\u3400-\u4dbf"
-    "\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\uff66-\uff9f\U00020000-\U0003134f]"
+    "[\u1100-\u11ff\u3005-\u3007\u303b\u3040-\u30ff\u3130-\u318f\u31f0-\u31ff"
+    "\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\uff66-\uff9f\U00020000-\U0003134f]"
 )
 
 
 def spaced_cjk_characters(text: str) -> str:
     """text's CJK characters, in order, one space between each: "王小明" -> "王 小 明"."""
     return " ".join(CJK_CHARACTER.findall(text))
+
 
 TABLES = """
 CREATE TABLE meta (
