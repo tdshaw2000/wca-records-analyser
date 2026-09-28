@@ -98,8 +98,6 @@ step 8, and step 8 only reloads its Caddy.
    curl -sI https://wca-records-analyser.duckdns.org/ | head -1    # HTTP/2 200
    ```
 
-   The page is the holding page until the cutover (phase 5) turns it off.
-
 9. **Uptime check.** Add a free external check (healthchecks.io, UptimeRobot or similar) on
    `https://wca-records-analyser.duckdns.org/`.
 
@@ -122,13 +120,10 @@ step 8, and step 8 only reloads its Caddy.
 
 The container's health check is `/healthz`, which doesn't read the database, so an image
 with a new `SCHEMA_VERSION` deploys even though the live database has the old one. Until the
-database is rebuilt, pages that read it fail (`WcaData.open` refuses a schema mismatch). The
-build service runs the newly pinned image, so rebuild straight after the deploy:
-
-```sh
-journalctl -u wca-deploy.service -n 5      # wait for "pull deploy: deployed"
-sudo systemctl start wca-data-build.service
-```
+database is rebuilt, pages that read it fail (`WcaData.open` refuses a schema mismatch).
+`pull_deploy.py` starts `wca-data-build.service` itself right after every deploy, so this
+rebuild is automatic; watch it with `journalctl -u wca-data-build.service -n 20` if you want to
+confirm it ran.
 
 The build rebuilds the same export for the new schema (it treats a database of another schema
 version as out of date).
