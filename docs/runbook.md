@@ -12,7 +12,7 @@ in [`deploy/`](../deploy); the plan behind it is
 | `publish` job in `.github/workflows/ci.yml` | GitHub-hosted runner | On `main`, pushes `ghcr.io/tdshaw2000/wca-records-analyser:main` (amd64 and arm64). Never connects to the VM |
 | `wca-deploy.timer` → `pull_deploy.py` | VM, every 5 minutes | Pulls `:main`; if its digest is new, pins it in `.env`, restarts `web`, keeps it if it turns healthy, otherwise rolls back |
 | `web` service (`compose.yaml`) | VM, container | The app on port 8000 of the scramble stack's Docker network, alias `wca-records-analyser`. No host port |
-| `wca-data-build.timer` → `build` service | VM, 03:30 UTC nightly | `python -m wca_data.build` at nice 19 and idle IO, capped at 1 CPU and 1 GB |
+| `wca-data-build.timer` → `build` service | VM, 03:30 UTC nightly | `python -m wca_data.build` at nice 19, capped at 1 CPU and 1 GB. It also asks for idle IO, which only BFQ honours; the CPU caps are what protect the scramble app |
 | Site block in the scramble repo's Caddyfile | VM, scramble's Caddy | `wca-records-analyser.duckdns.org` → `wca-records-analyser:8000` |
 | `/srv/wca-data/` | VM, owned by uid 10001 | `wca.sqlite` (live) and `wca.sqlite.prev` (the one before). Mounted read-only into `web` |
 | `/srv/wca-records-analyser/` | VM | `deploy/` installed from the image, plus `.env` and `bad-images` (never committed) |
@@ -81,6 +81,10 @@ step 8, and step 8 only reloads its Caddy.
    systemctl list-timers 'wca-*'
    ```
 
+   If this first deploy fails its health check there is nothing to roll back to, so the
+   unhealthy `web` container is left running: `sudo docker compose logs web` says why. Fix it,
+   remove the digest from `bad-images`, and run `pull_deploy.py` again.
+
 8. **Route the hostname.** In the scramble challenge repo, add
    [`deploy/caddy/wca-records-analyser.caddy`](../deploy/caddy/wca-records-analyser.caddy)'s
    site block to its Caddyfile, so the scramble app's own deploys keep it. On the VM, check
@@ -113,6 +117,21 @@ step 8, and step 8 only reloads its Caddy.
   - units changed: `sudo cp /srv/wca-records-analyser/systemd/* /etc/systemd/system/ && sudo systemctl daemon-reload`;
   - `compose.yaml` changed: `cd /srv/wca-records-analyser && sudo docker compose up -d --wait web`;
   - the Caddy block changed: copy it into the scramble repo and repeat step 8.
+
+## When a release bumps the database schema
+
+The container's health check is `/healthz`, which doesn't read the database, so an image
+with a new `SCHEMA_VERSION` deploys even though the live database has the old one. Until the
+database is rebuilt, pages that read it fail (`WcaData.open` refuses a schema mismatch). The
+build service runs the newly pinned image, so rebuild straight after the deploy:
+
+```sh
+journalctl -u wca-deploy.service -n 5      # wait for "pull deploy: deployed"
+sudo systemctl start wca-data-build.service
+```
+
+The build rebuilds the same export for the new schema (it treats a database of another schema
+version as out of date).
 
 ## When the build fails on the sentinel competitor
 
@@ -155,6 +174,11 @@ grace period.
   sudoedit .env          # WCA_IMAGE=<previous digest>
   sudo docker compose up -d --wait web
   ```
+
+- **A good image recorded as bad.** Any failed start counts, including host-side causes: a
+  missing network, a Docker hiccup, a start slower than two minutes. Once the host is fixed,
+  delete the digest's line from `/srv/wca-records-analyser/bad-images`; the next timer run
+  deploys it.
 
 - **A bad database** that passed the sanity checks: the one before is `wca.sqlite.prev`.
   Stop the timer first, or the next build rebuilds from the same export:
