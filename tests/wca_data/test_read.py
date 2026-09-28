@@ -326,7 +326,7 @@ def test_a_query_with_nothing_to_search_for_finds_nobody(data, query):
     "query",
     ['feliks"', '"feliks', "feliks AND", "OR max", "NOT zoe", "NEAR(max park)", "name:max",
      "-zoe", "max*", "(max", "feliks + max", "{wca_id}: 2009", "zoe'", "feliks\x00", "\x00",
-     "王\x00小", "\x00\x01\x1f"],
+     "王\x00小", "\x00\x01\x1f", "\ud822휴", "feliks\udfff", "\ud800"],
 )
 def test_search_input_is_never_read_as_query_syntax(data, query):
     data.search_persons(query)  # no sqlite3.OperationalError
@@ -335,6 +335,30 @@ def test_search_input_is_never_read_as_query_syntax(data, query):
 def test_control_characters_in_search_input_are_ignored(data):
     assert _ids(data.search_persons("feli\x00ks")) == ["2009ZEMD01"]
     assert _ids(data.search_persons("feliks\x00")) == ["2009ZEMD01"]
+
+
+def test_a_lone_surrogate_in_search_input_is_ignored(data):
+    assert _ids(data.search_persons("feli\ud800ks")) == ["2009ZEMD01"]
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [("Ｆｅｌｉｋｓ", ["2009ZEMD01"]), ("２００９ＺＥＭＤ０１", ["2009ZEMD01"]),
+     ("ｚｏｅ", ["2015MART01"])],
+)
+def test_fullwidth_letters_and_digits_find_people(data, query, expected):
+    # A Japanese or Chinese keyboard often types Latin letters and digits full width.
+    assert _ids(data.search_persons(query)) == expected
+
+
+def test_a_repeated_or_redundant_word_is_searched_once(data):
+    statements = []
+    data.connection.set_trace_callback(statements.append)
+    assert _ids(data.search_persons("2 2 20 2009 2 2009zemd")) == ["2009ZEMD01"]
+    data.connection.set_trace_callback(None)
+    [query] = [sql for sql in statements if "persons_fts MATCH" in sql]
+    # Each shorter word is the start of a longer one, so only the longest is needed.
+    assert '\'"2009zemd"*\'' in query
 
 
 def test_search_treats_query_operators_as_words(data):
@@ -386,7 +410,8 @@ def cjk_data(tmp_path):
                     ["Minsoo Kim (김민수)", "m", "2016KIMM01", "1", "Korea"],
                     ["Yi Wang (王一)", "f", "2018WANG02", "1", "China"],
                     ["Yuki Sasaki (佐々木雄貴)", "m", "2019SASA01", "1", "Japan"],
-                    ["Ling Wang (王〇玲)", "f", "2020WANG05", "1", "China"]),
+                    ["Ling Wang (王〇玲)", "f", "2020WANG05", "1", "China"],
+                    ["Kana Kata (ｶﾀｶﾅ)", "f", "2021KATA01", "1", "Japan"]),
     )
     with WcaData.open(path) as opened:
         yield opened
@@ -415,6 +440,9 @@ def cjk_data(tmp_path):
         ("Wang王一", ["2018WANG02"]),
         ("feliks 王", []),
         ("feliks ・", ["2009ZEMD01"]),  # the katakana middle dot is punctuation
+        ("ﾀﾛｳ", ["2015TANA01"]),  # half-width katakana finds full-width
+        ("ｶﾀｶﾅ", ["2021KATA01"]),
+        ("カタカナ", ["2021KATA01"]),  # and full-width finds a half-width name
         ("・", []),
     ],
 )
