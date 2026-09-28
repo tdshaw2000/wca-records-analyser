@@ -43,10 +43,10 @@ def test_the_image_runs_as_a_non_root_user():
     assert users[-1] > last_run
 
 
-def test_the_image_checks_its_own_health_on_the_home_page():
+def test_the_image_checks_its_own_health_without_the_database():
     healthchecks = [arguments for keyword, arguments in _instructions() if keyword == "HEALTHCHECK"]
     assert len(healthchecks) == 1
-    assert "http://127.0.0.1:8000/" in healthchecks[0]
+    assert "http://127.0.0.1:8000/healthz" in healthchecks[0]
 
 
 def test_the_image_names_its_source_repository():
