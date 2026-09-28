@@ -11,6 +11,7 @@ import json
 import re
 import zipfile
 from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 
 METADATA_FILE = "metadata.json"
 ESCAPES = {"t": "\t", "n": "\n", "\\": "\\", "0": "\0"}
@@ -46,6 +47,23 @@ def read_metadata(archive: zipfile.ZipFile) -> dict:
         raise ExportFormatError(f"The export has no {METADATA_FILE}") from None
     except ValueError as error:
         raise ExportFormatError(f"The export's {METADATA_FILE} can't be read: {error}") from None
+
+
+def utc_timestamp(moment: datetime) -> str:
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def parse_export_date(value: str) -> datetime:
+    """Reads the export date in any ISO 8601 shape, or as metadata.json writes it:
+    "2026-09-27 00:00:42 UTC"."""
+    text = str(value)
+    if text.endswith(" UTC"):
+        text = text.removesuffix(" UTC") + "+00:00"
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        raise ExportFormatError(f"Can't read the export date {value!r}") from None
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def _unescape(field: str) -> str:

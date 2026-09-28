@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from wca_data.build import parse_export_date
+from wca_data.export import parse_export_date
 from wca_data.schema import CJK_CHARACTER, SCHEMA_VERSION, spaced_cjk_characters
 
 
