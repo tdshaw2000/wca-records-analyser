@@ -318,10 +318,16 @@ def test_a_query_with_nothing_to_search_for_finds_nobody(data, query):
 @pytest.mark.parametrize(
     "query",
     ['feliks"', '"feliks', "feliks AND", "OR max", "NOT zoe", "NEAR(max park)", "name:max",
-     "-zoe", "max*", "(max", "feliks + max", "{wca_id}: 2009", "zoe'"],
+     "-zoe", "max*", "(max", "feliks + max", "{wca_id}: 2009", "zoe'", "feliks\x00", "\x00",
+     "王\x00小", "\x00\x01\x1f"],
 )
 def test_search_input_is_never_read_as_query_syntax(data, query):
     data.search_persons(query)  # no sqlite3.OperationalError
+
+
+def test_control_characters_in_search_input_are_ignored(data):
+    assert _ids(data.search_persons("feli\x00ks")) == ["2009ZEMD01"]
+    assert _ids(data.search_persons("feliks\x00")) == ["2009ZEMD01"]
 
 
 def test_search_treats_query_operators_as_words(data):

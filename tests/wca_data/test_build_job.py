@@ -210,6 +210,17 @@ def test_an_export_with_no_round_types_fails_the_sanity_check(tmp_path, data_dir
     _assert_failed_run_changed_nothing(wca, data_dir, SanityCheckFailed, "round_types")
 
 
+def test_a_live_database_from_before_a_table_existed_is_still_compared(tmp_path, data_dir):
+    # The first build after a schema bump that adds a counted table still checks the
+    # tables both databases have.
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    with sqlite3.connect(data_dir / "wca.sqlite") as live:
+        live.execute("DROP TABLE round_types")
+    wca.publish(NEXT_EXPORT, results=_results_without(105), result_attempts=_attempts_without(105))
+    _assert_failed_run_changed_nothing(wca, data_dir, SanityCheckFailed, "results")
+
+
 def test_a_table_growing_by_half_again_fails_the_sanity_check(tmp_path, data_dir):
     wca = FakeWca(tmp_path)
     _run(wca, data_dir)
