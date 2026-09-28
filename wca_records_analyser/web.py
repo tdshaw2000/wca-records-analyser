@@ -2,7 +2,6 @@
 
 import hashlib
 import html
-import os
 import time
 from dataclasses import dataclass, field
 from datetime import date
@@ -103,9 +102,6 @@ SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
 STATIC_VERSION_GLOBAL = "static_version"
 VERSION_HASH_LENGTH = 8
-BUILD_NUMBER_GLOBAL = "build_number"
-RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE = "RENDER_GIT_COMMIT"
-BUILD_NUMBER_LENGTH = 7
 # The WCA changed its API access policy on 24 September 2026, cutting off the
 # data every page relies on. While this is on, every page (static assets aside)
 # is replaced by a holding page that explains why. Off since the phase 5
@@ -132,19 +128,10 @@ def static_asset_version(filename):
     return hashlib.sha256(contents).hexdigest()[:VERSION_HASH_LENGTH]
 
 
-def build_number():
-    """Return the deployed commit's short SHA, or None outside of Render."""
-    commit_sha = os.environ.get(RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE)
-    if not commit_sha:
-        return None
-    return commit_sha[:BUILD_NUMBER_LENGTH]
-
-
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 templates.env.filters[SINGLE_FILTER] = format_single
 templates.env.filters[AVERAGE_FILTER] = format_average
 templates.env.globals[STATIC_VERSION_GLOBAL] = static_asset_version
-templates.env.globals[BUILD_NUMBER_GLOBAL] = build_number
 
 
 @app.middleware("http")

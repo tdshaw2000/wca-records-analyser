@@ -449,42 +449,20 @@ def test_index_stylesheet_link_is_cache_busted():
     assert f"{STYLESHEET_PATH}?v={version}" in response.text
 
 
-def test_page_header_shows_the_build_number_when_render_git_commit_is_set(monkeypatch):
+def test_build_number_feature_is_removed(monkeypatch):
+    """The build number was sourced from Render's RENDER_GIT_COMMIT; dead since
+    Render was retired at the phase 5 cutover (nothing sets that env var on the
+    VM/GHCR pipeline, so it always showed nothing)."""
+    from wca_records_analyser import web
+
     monkeypatch.setenv("RENDER_GIT_COMMIT", "abc1234567890def1234567890abc1234567890")
-    client = TestClient(app)
-
-    response = client.get("/")
-
-    assert '<span class="build-number">[build abc1234]</span>' in response.text
-
-
-def test_page_header_omits_the_build_number_when_render_git_commit_is_unset(monkeypatch):
-    monkeypatch.delenv("RENDER_GIT_COMMIT", raising=False)
     client = TestClient(app)
 
     response = client.get("/")
 
     assert "build-number" not in response.text
-
-
-def test_records_page_header_shows_the_build_number_when_render_git_commit_is_set(
-    monkeypatch,
-):
-    monkeypatch.setenv("RENDER_GIT_COMMIT", "abc1234567890def1234567890abc1234567890")
-
-    response = _get_records_page()
-
-    assert '<span class="build-number">[build abc1234]</span>' in response.text
-
-
-def test_overview_page_header_shows_the_build_number_when_render_git_commit_is_set(
-    monkeypatch,
-):
-    monkeypatch.setenv("RENDER_GIT_COMMIT", "abc1234567890def1234567890abc1234567890")
-
-    response = _get_overview_page()
-
-    assert '<span class="build-number">[build abc1234]</span>' in response.text
+    assert not hasattr(web, "build_number")
+    assert not hasattr(web, "RENDER_GIT_COMMIT_ENVIRONMENT_VARIABLE")
 
 
 def test_records_stylesheet_link_is_cache_busted():
