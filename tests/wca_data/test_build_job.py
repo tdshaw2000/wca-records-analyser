@@ -358,3 +358,76 @@ def test_a_live_database_from_an_older_schema_is_rebuilt_from_the_same_export(tm
     assert _meta(data_dir / "wca.sqlite", "schema_version") == str(newer)
     assert _meta(data_dir / "wca.sqlite", "export_date") == FIRST_EXPORT
     assert pings.count == 1
+
+
+# --- forcing a build past a corrected sentinel result (see docs/runbook.md) ---
+
+
+def _publish_corrected_sentinel(tmp_path, data_dir):
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    changed = fixture_tables()["result_attempts"].replace("623\t1\t103", "624\t1\t103")
+    wca.publish(NEXT_EXPORT, result_attempts=changed)
+    return wca
+
+
+def test_accepting_a_sentinel_change_lets_a_corrected_result_through(tmp_path, data_dir):
+    wca = _publish_corrected_sentinel(tmp_path, data_dir)
+    outcome = run(
+        data_dir / "wca.sqlite",
+        fetch_json=wca.fetch_json,
+        download=wca.download,
+        now=lambda: NOW,
+        ping=Pings(),
+        accept_sentinel_change=True,
+    )
+    assert outcome == "built"
+    assert _meta(data_dir / "wca.sqlite") == NEXT_EXPORT
+
+
+def test_accepting_a_sentinel_change_still_checks_row_counts(tmp_path, data_dir):
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    wca.publish(NEXT_EXPORT, results=_results_without(105), result_attempts=_attempts_without(105))
+    with pytest.raises(SanityCheckFailed, match="results"):
+        run(
+            data_dir / "wca.sqlite",
+            fetch_json=wca.fetch_json,
+            download=wca.download,
+            now=lambda: NOW,
+            ping=Pings(),
+            accept_sentinel_change=True,
+        )
+    assert _meta(data_dir / "wca.sqlite") == FIRST_EXPORT
+
+
+def test_accepting_a_sentinel_change_still_needs_the_competitor(tmp_path, data_dir):
+    persons = tsv(["name", "wca_id", "sub_id", "country_id"], ["Max Park", "2012PARK03", 1, "USA"])
+    wca = FakeWca(tmp_path, persons=persons)
+    with pytest.raises(SanityCheckFailed, match="2009ZEMD01"):
+        run(
+            data_dir / "wca.sqlite",
+            fetch_json=wca.fetch_json,
+            download=wca.download,
+            now=lambda: NOW,
+            ping=Pings(),
+            accept_sentinel_change=True,
+        )
+
+
+def test_main_accepts_a_sentinel_change_only_when_the_environment_says_so(tmp_path, data_dir, capsys):
+    wca = _publish_corrected_sentinel(tmp_path, data_dir)
+    environ = {"WCA_DATA_DB_PATH": str(data_dir / "wca.sqlite")}
+    assert main(environ, fetch_json=wca.fetch_json, download=wca.download, open_url=print) == 1
+    assert "2009ZEMD01" in capsys.readouterr().err
+    environ["WCA_DATA_ACCEPT_SENTINEL_CHANGE"] = "1"
+    assert main(environ, fetch_json=wca.fetch_json, download=wca.download, open_url=print) == 0
+    assert "sentinel" in capsys.readouterr().out
+    assert _meta(data_dir / "wca.sqlite") == NEXT_EXPORT
+
+
+def test_only_the_value_1_accepts_a_sentinel_change(tmp_path, data_dir):
+    wca = _publish_corrected_sentinel(tmp_path, data_dir)
+    for value in ("", "0", "false", "yes"):
+        environ = {"WCA_DATA_DB_PATH": str(data_dir / "wca.sqlite"), "WCA_DATA_ACCEPT_SENTINEL_CHANGE": value}
+        assert main(environ, fetch_json=wca.fetch_json, download=wca.download, open_url=print) == 1
