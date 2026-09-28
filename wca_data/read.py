@@ -239,7 +239,8 @@ class WcaData:
         """Persons with a word of their name or WCA ID starting with every word of text.
 
         Chinese, Japanese and Korean characters match anywhere in the name, in the order
-        typed, since those names have no spaces between words. Case and accents don't matter. Sorted by name, then WCA ID; at most limit of them.
+        typed, since those names have no spaces between words. Case and accents don't
+        matter. Sorted by name, then WCA ID; at most limit of them.
         """
         word_query, cjk_query = _search_queries(text)
         if word_query is None and cjk_query is None:
