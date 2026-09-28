@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -53,3 +56,14 @@ def test_holding_page_still_serves_static_assets(client):
 
     assert response.status_code == 200
     assert HOLDING_MESSAGE not in response.text
+
+
+def test_holding_page_is_off_by_default():
+    """The cutover (phase 5) turns this off; a fresh import must reflect that, not a test override."""
+    result = subprocess.run(
+        [sys.executable, "-c", "from wca_records_analyser import web; print(web.HOLDING_PAGE_ENABLED)"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "False"
