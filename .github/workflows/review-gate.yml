@@ -1,0 +1,27 @@
+name: Review gate
+
+# Passes only when the PR's head commit has a review summary from the reviewer agents (see
+# "Review loop" in CLAUDE.md). main's ruleset requires the review-gate check, so no merge skips
+# review, whichever session or person does it. It reruns on every push to the PR and on every
+# review, and GitHub counts the latest run.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  review-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/review_check.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}

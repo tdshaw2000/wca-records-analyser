@@ -7,6 +7,8 @@
                             passed review: by the reviewer always, and by the data-reviewer too
                             when the branch touches the data layer or server config. Merges
                             must be merge commits of that exact commit, with green CI on it.
+                            Also blocks posting the review-gate marker (the review summary the
+                            GitHub check looks for) until the same review has passed.
 
 Claude Code sends the event as JSON on stdin. Exit code 2 blocks, and stderr tells Claude why.
 Any other failure would let the tool call through, so the gate turns its own errors into blocks.
@@ -62,6 +64,24 @@ GH_CREATE = re.compile(r"\bgh\b.*\bpr\s+create\b", re.DOTALL)
 SEPARATORS = {";", "&", "&&", "|", "||", "\n", "(", ")"}
 DRAFT_FLAGS = {"--draft", "-d", "--draft=true"}
 VERDICT = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
+# The line the Review gate workflow (.github/scripts/review_check.py) looks for in a PR review.
+# Matched loosely, so a marker the gate can't read (such as a sha from $(git rev-parse HEAD))
+# is caught and blocked rather than let through.
+MARKER = re.compile(r"review-gate\W*passed\s*([^\s<>-]*)", re.IGNORECASE)
+SHA = re.compile(r"[0-9a-f]{40}")
+# A review posted from the shell may take its body from a file the gate can't see. So gh pr
+# review, and every gh api call that can write, count as posting a review. gh api writes when
+# it is sent graphql, a field or an input file (in any spelling), or a writing method.
+GH_REVIEW = re.compile(PR + r"review\b")
+GH_API = re.compile(r"\bapi\b")
+API_WRITE = re.compile(
+    r"\bgraphql\b"
+    r"|(?:^|\s)(?:-[fF]|--field|--raw-field|--input)"
+    r"|(?:^|\s)(?:-X|--method)[\s=]*['\"]?(?:POST|PUT|PATCH|DELETE)",
+    re.IGNORECASE,
+)
+# The MCP tools that post text the Review gate workflow could read as a marker.
+POSTS_TEXT = ("__pull_request_review_write", "__add_issue_comment")
 
 
 def git(cwd, *args):
@@ -157,10 +177,12 @@ def record(event):
 def marks_ready(command):
     if GRAPHQL_READY in command:
         return True
+    # gh may be named anywhere in the command, such as G=gh on one line and $G on the next.
+    if not re.search(r"\bgh\b", command):
+        return False
     return any(
         "--undo" not in match.group(1).split()
         for line in command.split("\n")
-        if re.search(r"\bgh\b", line)
         for match in GH_READY.finditer(line)
     )
 
@@ -197,9 +219,9 @@ def gh_merges(command):
     """(method, head sha) for each gh pr merge in the command, or 'auto' or 'admin' if any
     uses those flags."""
     merges = []
+    if not re.search(r"\bgh\b", command):
+        return merges
     for line in command.split("\n"):
-        if not re.search(r"\bgh\b", line):
-            continue
         for match in GH_MERGE.finditer(line):
             flags = match.group(1).split()
             if any(f == "--auto" or f.startswith("--auto=") for f in flags):
@@ -226,7 +248,8 @@ def gh_merges(command):
 
 def wants(event):
     """What the tool call does, as (action, detail). action is 'ready', 'merge', 'auto-merge',
-    'admin-merge', 'api-merge', 'create-not-draft', or None for anything else.
+    'admin-merge', 'api-merge', 'create-not-draft', 'post-review' (a review or other write
+    posted from the shell, whose body the gate may not see), or None for anything else.
     A merge's detail is [(method, head sha)]."""
     tool, args = event.get("tool_name") or "", event.get("tool_input") or {}
     if tool.startswith("mcp__") and tool.endswith("__update_pull_request"):
@@ -250,9 +273,23 @@ def wants(event):
             return "merge", merges
         if marks_ready(command):
             return "ready", None
+        if posts_from_the_shell(command):
+            return "post-review", None
         if creates_without_draft(command):
             return "create-not-draft", None
     return None, None
+
+
+def posts_from_the_shell(command):
+    """True if the command runs gh pr review, or a gh api call that can write. As elsewhere,
+    gh may be named anywhere in the command, such as G=gh on one line and $G on the next."""
+    if not re.search(r"\bgh\b", command):
+        return False
+    if GH_REVIEW.search(command):
+        return True
+    return any(
+        GH_API.search(part) and API_WRITE.search(part) for part in re.split(r"[;&|\n]", command)
+    )
 
 
 def check_merge(cwd, merges):
@@ -344,6 +381,11 @@ def check_ci(cwd, tool_input):
             runs = json.load(response)["check_runs"]
     except Exception as error:  # noqa: BLE001 - any failure to read CI must block the merge
         block(f"Couldn't read CI for {commit[:7]} ({error!r}). Try again shortly. " + LOOP)
+    # A check that was re-run counts by its latest run, as GitHub counts required checks.
+    latest = {}
+    for r in sorted(runs, key=lambda r: r.get("id") or 0):
+        latest[((r.get("app") or {}).get("id"), r["name"])] = r
+    runs = list(latest.values())
     unfinished = [r["name"] for r in runs if r.get("status") != "completed"]
     if unfinished:
         block(f"CI has not finished on {commit[:7]}: {', '.join(unfinished)}. Wait. " + LOOP)
@@ -354,9 +396,36 @@ def check_ci(cwd, tool_input):
         block(f"There is no CI result for {commit[:7]} yet. Wait for it to run. " + LOOP)
 
 
+def strings(value):
+    """Every string inside a tool call's input."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings(item)
+
+
+def check_markers(cwd, shas):
+    head = git(cwd, "rev-parse", "HEAD")
+    if any(not SHA.fullmatch(sha) or sha != head for sha in shas):
+        block(
+            f"The review-gate marker must name the reviewed commit, HEAD, written out: "
+            f"<!-- review-gate: passed {head} -->. " + LOOP
+        )
+
+
 def gate(event):
     action, detail = wants(event)
-    if action is None:
+    # Only calls that post text are read for a marker, so grep or a commit message naming it
+    # is not blocked.
+    tool = event.get("tool_name") or ""
+    posts = action == "post-review" or (tool.startswith("mcp__") and tool.endswith(POSTS_TEXT))
+    texts = strings(event.get("tool_input")) if posts else []
+    markers = [sha for text in texts for sha in MARKER.findall(text)]
+    if action is None and not markers:
         return
     if action == "create-not-draft":
         block("Open the pull request as a draft. It is marked ready only after review. " + LOOP)
@@ -369,19 +438,31 @@ def gate(event):
             "Merge with gh pr merge --merge --match-head-commit <HEAD sha>, or the MCP "
             "merge_pull_request tool, so the review gate can check it. " + LOOP
         )
+    if action == "merge":
+        check_merge(event.get("cwd"), detail)
+    check_ready(event.get("cwd"))
+    if markers:
+        check_markers(event.get("cwd"), markers)
+    if action == "merge":
+        check_ci(event.get("cwd"), event.get("tool_input") or {})
+
+
+def safe_gate(stdin):
+    """The gate, failing closed: any error, even in reading the event, blocks the tool call."""
     try:
-        if action == "merge":
-            check_merge(event.get("cwd"), detail)
-        check_ready(event.get("cwd"))
-        if action == "merge":
-            check_ci(event.get("cwd"), event.get("tool_input") or {})
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        event = json.load(stdin)
+        if not isinstance(event, dict) or not isinstance(event.get("tool_input") or {}, dict):
+            raise TypeError(f"not a tool call event: {str(event)[:80]}")
+        gate(event)
+    except Exception as error:  # noqa: BLE001 - exit 1 would let the tool call through
         block(f"The review gate failed ({error!r}), so it is blocking to be safe. " + LOOP)
 
 
 def main():
-    event = json.load(sys.stdin)
-    {"record": record, "gate": gate}[sys.argv[1]](event)
+    if sys.argv[1] == "gate":
+        safe_gate(sys.stdin)
+    else:
+        record(json.load(sys.stdin))
 
 
 if __name__ == "__main__":

@@ -82,7 +82,18 @@ It blocks marking ready or merging until the pushed HEAD commit has passed every
 needs (it works out from the diff against origin/main whether that includes `data-reviewer`).
 It blocks merges that aren't merge commits of that exact commit, merges while any CI check run
 on that commit is unfinished or failed, auto-merge, --admin merges, and merges through gh api.
+It blocks posting the review-gate marker (below) until the same review has passed, and a
+marker that doesn't name HEAD as a written-out sha. It also holds gh pr review and every
+gh api call that can write (graphql, a field or input flag, or a writing method) until then,
+since the body may come from a file. Plain gh api reads, grep and commit messages that
+mention the marker are not held. Any error in the hook, even bad input, blocks.
 It does not stop direct pushes to main.
+
+GitHub enforces the same thing outside Claude sessions. The `review-gate` check
+(.github/workflows/review-gate.yml, .github/scripts/review_check.py) passes only when someone
+with write access has posted a PR review holding the marker for the PR's head commit. Every
+new push fails it again until the new head is reviewed. Owner to-do, until done: in main's
+ruleset, add `review-gate` to the required checks and allow only merge commits.
 
 1. Finish the work (red then green), push, and open the PR as a draft.
 2. Run `reviewer`, and `data-reviewer` too if the PR touches the paths above. Run them in
@@ -95,22 +106,32 @@ It does not stop direct pushes to main.
    finding is wrong, give that reviewer your evidence on the next round; it still counts.
 4. **Once both pass**, post the suggestions as one PR review with event COMMENT and one inline
    comment per suggestion (pull_request_review_write create, add_comment_to_pending_review,
-   then submit_pending). Don't act on suggestions unless they are trivial.
+   then submit_pending). Don't act on suggestions unless they are trivial. The review body
+   always ends with the marker line `<!-- review-gate: passed <sha> -->`, with `<sha>` the full
+   reviewed commit; post the review even when there are no suggestions.
 5. **Judgment calls** take the reviewer's recommendation (the owner chose this). List each one,
    with the choice made, in the PR review body and in the message to the owner.
 6. **If the reviewers disagree** (they recommend different answers to the same judgment call,
    or one blocks what the other recommends), don't pick a side. Stop, leave the PR as a draft,
    and ask the owner in the thread, with each reviewer's position in a line.
-7. Wait for CI to be green on the reviewed commit (pull_request_read get_check_runs). Then mark
+7. Wait for CI, including the rerun of `review-gate`, to be green on the reviewed commit
+   (pull_request_read get_check_runs; a re-run check counts by its latest run). Then mark
    the PR ready and merge it: merge_pull_request with merge_method "merge" and
    expectedHeadSha set to the reviewed commit.
 8. Tell the owner in the thread, in plain words, what shipped and any judgment calls taken.
 
-Limits, on purpose: the hook only runs inside Claude Code sessions, so a PR pushed by hand is
-not reviewed. It checks the branch you are on, so mark ready and merge from the PR's own
-branch (expectedHeadSha makes GitHub refuse a merge of any other head). It guards against
-mistakes, not against an agent that edits its state.
+Limits, on purpose: the hook only runs inside Claude Code sessions; outside them only the
+`review-gate` check stands, and it trusts any marker from someone with write access. The check
+runs the PR's own copy of its workflow and script, so a PR could edit it to pass; that is
+accepted, since only someone with write access can merge. The hook can't see into
+curl calls or ad-hoc scripts, so post reviews with the GitHub MCP tools. The hook checks the branch
+you are on, so mark ready and merge from the PR's own branch (expectedHeadSha makes GitHub
+refuse a merge of any other head). It guards against mistakes, not against an agent that
+edits its state.
 
-Verdicts live in .git/claude-review/, one file per branch, and are never committed. Rounds are
+Verdicts live in .git/claude-review/, one file per branch, and are never committed. In cloud
+sessions a reviewer hands its report back before it stops, so the hook sends it back once for
+the JSON verdict and records it a few seconds after the report arrives; check for the file
+after the reviewer's task has finished. Rounds are
 counted per commit reviewed. To start a branch's count again (only when the owner says so):
 `rm .git/claude-review/<branch>.json`, with any / in the branch name written as __.

@@ -944,3 +944,255 @@ def test_an_unreachable_github_blocks_the_merge(repo, monkeypatch):
 
     assert result.returncode == BLOCKED
     assert "CI" in result.stderr
+
+
+# --- Fail-closed edge cases from the PR #4 review ---
+
+
+@pytest.mark.parametrize(
+    "stdin",
+    [
+        "not json",
+        "[1, 2]",
+        json.dumps({"tool_name": "Bash", "tool_input": "gh pr ready 12"}),
+    ],
+)
+def test_a_malformed_event_blocks_instead_of_failing_open(repo, stdin):
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "gate"],
+        input=stdin,
+        capture_output=True,
+        text=True,
+        cwd=repo,
+    )
+
+    assert result.returncode == BLOCKED
+    assert "review gate" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "G=gh\n$G pr ready 4",
+        "G=gh\n$G pr merge 4 --squash",
+    ],
+)
+def test_gh_named_on_another_line_is_still_gated(repo, command):
+    assert bash(repo, command).returncode == BLOCKED
+
+
+# --- The review-gate marker: the review summary the GitHub check looks for ---
+
+
+def marker(sha):
+    return f"<!-- review-gate: passed {sha} -->"
+
+
+def post_review(repo, body, tool_name="mcp__github__pull_request_review_write"):
+    return run(
+        "gate",
+        {
+            "cwd": str(repo),
+            "tool_name": tool_name,
+            "tool_input": {
+                "owner": "o",
+                "repo": "r",
+                "pullNumber": 1,
+                "method": "create",
+                "event": "COMMENT",
+                "body": f"Both reviewers passed.\n\n{body}",
+            },
+        },
+    )
+
+
+def test_the_marker_cannot_be_posted_before_the_commit_passes_review(repo):
+    result = post_review(repo, marker(head(repo)))
+
+    assert result.returncode == BLOCKED
+    assert "reviewer" in result.stderr
+
+
+def test_the_marker_can_be_posted_once_the_commit_passes_review(repo):
+    review(repo)
+
+    result = post_review(repo, marker(head(repo)))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_the_marker_needs_the_data_reviewer_when_the_data_layer_changed(repo):
+    touch(repo, "wca_data/build.py")
+    review(repo)
+
+    assert post_review(repo, marker(head(repo))).returncode == BLOCKED
+
+
+def test_the_marker_must_name_the_reviewed_head(repo):
+    old = head(repo)
+    review(repo)
+    new_commit(repo)
+    review(repo)
+
+    result = post_review(repo, marker(old))
+
+    assert result.returncode == BLOCKED
+    assert head(repo) in result.stderr
+
+
+def test_the_marker_is_gated_when_posted_as_a_comment_or_through_bash(repo):
+    body = marker(head(repo))
+
+    assert post_review(repo, body, "mcp__github__add_issue_comment").returncode == BLOCKED
+    assert bash(repo, f"gh pr review 1 --comment --body '{body}'").returncode == BLOCKED
+
+
+def test_reviews_without_the_marker_are_not_gated(repo):
+    result = post_review(repo, "Suggestion: rename x.")
+
+    assert result.returncode == 0, result.stderr
+
+
+# --- CI: only the latest run of each check counts ---
+
+
+def test_a_failed_check_that_was_rerun_green_does_not_block_the_merge(repo, ci):
+    review(repo)
+    ci.check_runs = [
+        check_run("review-gate", conclusion="success") | {"id": 20},
+        check_run() | {"id": 5},
+        check_run("review-gate", conclusion="failure") | {"id": 10},
+    ]
+
+    result = merge(repo)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_check_that_failed_after_passing_still_blocks_the_merge(repo, ci):
+    review(repo)
+    ci.check_runs = [
+        check_run("review-gate", conclusion="success") | {"id": 10},
+        check_run() | {"id": 5},
+        check_run("review-gate", conclusion="failure") | {"id": 20},
+    ]
+
+    result = merge(repo)
+
+    assert result.returncode == BLOCKED
+    assert "review-gate" in result.stderr
+
+
+# --- Review round 1: the marker gate fails closed ---
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'gh pr review 8 --comment --body "<!-- review-gate: passed $(git rev-parse HEAD) -->"',
+        'gh pr review 8 --comment --body "<!-- review-gate: passed ${SHA} -->"',
+        "gh pr review 8 --comment --body 'review-gate:passed HEAD'",
+    ],
+)
+def test_a_marker_whose_sha_is_not_written_out_is_blocked_even_after_review(repo, command):
+    review(repo)
+
+    result = bash(repo, command)
+
+    assert result.returncode == BLOCKED
+    assert head(repo) in result.stderr
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh pr review 8 --comment --body-file /tmp/summary.md",
+        "gh pr review 8 -c -F /tmp/summary.md",
+        'gh pr review 8 --comment --body "$(cat /tmp/summary.md)"',
+        "gh api repos/o/r/pulls/8/reviews -F body=@/tmp/summary.md -f event=COMMENT",
+    ],
+)
+def test_posting_a_review_through_bash_waits_for_review_whatever_the_body(repo, command):
+    assert bash(repo, command).returncode == BLOCKED
+    review(repo)
+    assert bash(repo, command).returncode == 0
+
+
+def test_a_loosely_written_marker_for_another_commit_is_blocked(repo):
+    review(repo)
+
+    result = post_review(repo, f"review-gate:passed {'0' * 40}")
+
+    assert result.returncode == BLOCKED
+    assert head(repo) in result.stderr
+
+
+def test_checks_from_different_apps_with_the_same_name_are_counted_apart(repo, ci):
+    review(repo)
+    ci.check_runs = [
+        check_run(conclusion="failure") | {"id": 10, "app": {"id": 1}},
+        check_run() | {"id": 20, "app": {"id": 2}},
+    ]
+
+    result = merge(repo)
+
+    assert result.returncode == BLOCKED
+    assert "test" in result.stderr
+
+
+# --- Review round 2 judgment call: GraphQL reviews wait for review too ---
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh api graphql -f query='mutation{addPullRequestReview(input:{}){x}}'",
+        "gh api graphql -f query='mutation{submitPullRequestReview(input:{}){x}}'",
+        "gh api graphql -f query='mutation{updatePullRequestReview(input:{}){x}}'",
+        "gh api graphql -F query=@/tmp/q.graphql",
+        "gh api graphql --field query=@/tmp/q.graphql",
+    ],
+)
+def test_reviews_posted_through_graphql_wait_for_review(repo, command):
+    assert bash(repo, command).returncode == BLOCKED
+    review(repo)
+    assert bash(repo, command).returncode == 0
+
+
+# --- Review round 3: every write through gh api waits for review ---
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh api graphql --input /tmp/q.json",
+        "gh api graphql -Fquery=@/tmp/q.graphql",
+        "gh api graphql -f query='query { viewer { login } }'",
+        "gh api --input /tmp/review.json repos/o/r/pulls/8/reviews",
+        "gh api -X POST $URL -f body=x",
+        "gh api --method=PUT $URL",
+        "echo start; gh api $URL -fbody=x && echo done",
+        "G=gh\n$G api graphql --input /tmp/q.json",
+        "echo '{}' | gh api graphql --input -",
+        "gh api -XPOST $URL",
+    ],
+)
+def test_every_write_through_gh_api_waits_for_review(repo, command):
+    assert bash(repo, command).returncode == BLOCKED
+    review(repo)
+    assert bash(repo, command).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gh api repos/o/r/pulls/8/reviews --jq '.[].body'",
+        "gh api repos/o/r/pulls/8/reviews && rm -f /tmp/x",
+        'grep -rn "review-gate: passed" .github',
+        'git commit -m "docs: explain the review-gate: passed marker"',
+    ],
+)
+def test_reads_and_mentions_of_the_marker_are_not_gated(repo, command):
+    result = bash(repo, command)
+
+    assert result.returncode == 0, result.stderr
