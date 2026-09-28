@@ -46,6 +46,7 @@ web; `tests/wca_data/test_isolation.py` enforces that. App-specific analysis sta
 - `wca_data/export.py` — streams tables from the WCA export zip by header name (`read_table`, `read_metadata`), undoing MySQL batch escapes.
 - `wca_data/schema.py` — the database's tables and `SCHEMA_VERSION`; documented for other apps in `wca_data/SCHEMA.md` (a test keeps them in sync).
 - `wca_data/build.py` — `build_database` (export zip → SQLite) and the nightly job, `python -m wca_data.build`: skips an unchanged export, checks the version, sanity-checks against the live database, swaps atomically keeping `.prev`. Settings: `WCA_DATA_DB_PATH`, `WCA_DATA_PING_URL`.
+- `wca_data/read.py` — the read library: `WcaData.open()` (read-only, per request, checks the schema version) with `metadata`, `person`, `search_persons`, `events`, `competed_events`, `competitions`, `results`; plain dataclasses. Search is word-prefix FTS plus `persons_cjk` for any run of CJK characters.
 - Tests in `tests/wca_data/`, against the hand-made export in `tests/wca_data/fixtures/export/`. No network.
 
 ## repo rules (the repo is to become public)

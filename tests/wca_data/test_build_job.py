@@ -15,6 +15,7 @@ from wca_data.build import (
     main,
     run,
 )
+from wca_data.schema import SCHEMA_VERSION
 
 from .export_zip import fixture_tables, tsv, write_fixture_zip
 
@@ -200,6 +201,26 @@ def test_losing_more_than_one_percent_of_any_table_fails_the_sanity_check(tmp_pa
     _assert_failed_run_changed_nothing(wca, data_dir, SanityCheckFailed, "results")
 
 
+def test_an_export_with_no_round_types_fails_the_sanity_check(tmp_path, data_dir):
+    # Without them, readers would order rounds by result id and nothing would say so.
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    header = fixture_tables()["round_types"].splitlines()[0]
+    wca.publish(NEXT_EXPORT, round_types=header + "\n")
+    _assert_failed_run_changed_nothing(wca, data_dir, SanityCheckFailed, "round_types")
+
+
+def test_a_live_database_from_before_a_table_existed_is_still_compared(tmp_path, data_dir):
+    # The first build after a schema bump that adds a counted table still checks the
+    # tables both databases have.
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    with sqlite3.connect(data_dir / "wca.sqlite") as live:
+        live.execute("DROP TABLE round_types")
+    wca.publish(NEXT_EXPORT, results=_results_without(105), result_attempts=_attempts_without(105))
+    _assert_failed_run_changed_nothing(wca, data_dir, SanityCheckFailed, "results")
+
+
 def test_a_table_growing_by_half_again_fails_the_sanity_check(tmp_path, data_dir):
     wca = FakeWca(tmp_path)
     _run(wca, data_dir)
@@ -330,9 +351,10 @@ def test_a_live_export_date_that_cant_be_read_is_rebuilt(tmp_path, data_dir):
 def test_a_live_database_from_an_older_schema_is_rebuilt_from_the_same_export(tmp_path, data_dir, monkeypatch):
     wca = FakeWca(tmp_path)
     _run(wca, data_dir)
-    monkeypatch.setattr("wca_data.build.SCHEMA_VERSION", 2)
+    newer = SCHEMA_VERSION + 1
+    monkeypatch.setattr("wca_data.build.SCHEMA_VERSION", newer)
     pings = Pings()
     assert _run(wca, data_dir, pings) == "built"
-    assert _meta(data_dir / "wca.sqlite", "schema_version") == "2"
+    assert _meta(data_dir / "wca.sqlite", "schema_version") == str(newer)
     assert _meta(data_dir / "wca.sqlite", "export_date") == FIRST_EXPORT
     assert pings.count == 1

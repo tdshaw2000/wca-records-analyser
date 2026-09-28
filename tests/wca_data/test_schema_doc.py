@@ -35,7 +35,7 @@ def _built_columns(tmp_path):
         tables = [
             name for (name,) in connection.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
-                "AND name NOT LIKE 'persons_fts_%'"
+                "AND name NOT LIKE 'persons_fts_%' AND name NOT LIKE 'persons_cjk_%'"
             )
         ]
         return {

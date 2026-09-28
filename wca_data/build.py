@@ -33,7 +33,7 @@ from wca_data.export import (
     read_metadata,
     read_table,
 )
-from wca_data.schema import INDEXES, SCHEMA_VERSION, TABLES
+from wca_data.schema import INDEXES, SCHEMA_VERSION, TABLES, spaced_cjk_characters
 
 EXPORT_INFO_URL = "https://www.worldcubeassociation.org/api/v0/export/public"
 DEFAULT_DB_PATH = "/srv/wca-data/wca.sqlite"
@@ -47,7 +47,7 @@ SENTINEL_EVENT = "333"
 # A new build must keep this share of each table's rows, and grow it by less than GROWTH_LIMIT.
 MIN_KEPT = 0.99
 GROWTH_LIMIT = 1.5
-COUNTED_TABLES = ("persons", "competitions", "events", "results")
+COUNTED_TABLES = ("persons", "competitions", "events", "round_types", "results")
 SCRATCH_PREFIXES = (".wca-build-", ".wca-download-")
 MICRODEGREES = 1_000_000
 BATCH = 50_000
@@ -141,6 +141,15 @@ def _load_persons(connection, archive):
         ((r["wca_id"], r["name"], r["country_id"]) for r in rows if r["sub_id"] == 1),
     )
     connection.execute("INSERT INTO persons_fts (persons_fts) VALUES ('rebuild')")
+    _insert(
+        connection,
+        "INSERT INTO persons_cjk (rowid, characters) VALUES (?, ?)",
+        (
+            (rowid, characters)
+            for rowid, name in connection.execute("SELECT rowid, name FROM persons")
+            if (characters := spaced_cjk_characters(name))
+        ),
+    )
 
 
 def _degrees(microdegrees):
@@ -184,6 +193,15 @@ def _load_events(connection, archive):
         connection,
         "INSERT INTO events (id, name, rank) VALUES (?, ?, ?)",
         ((r["id"], r["name"], r["rank"]) for r in read_table(archive, "events", columns)),
+    )
+
+
+def _load_round_types(connection, archive):
+    columns = {"id": TEXT, "name": TEXT, "rank": INTEGER, "final": INTEGER}
+    _insert(
+        connection,
+        "INSERT INTO round_types (id, name, rank, final) VALUES (?, ?, ?, ?)",
+        (tuple(r.values()) for r in read_table(archive, "round_types", columns)),
     )
 
 
@@ -298,6 +316,7 @@ def _build(archive, metadata, db_path, staging_path, built_at):
         _load_persons(connection, archive)
         _load_competitions(connection, archive)
         _load_events(connection, archive)
+        _load_round_types(connection, archive)
         _stage_results(connection, archive)
         _load_results(connection)
         _run_script(connection, INDEXES)
@@ -339,9 +358,12 @@ def _live_is_current(db_path: Path, export_date: datetime) -> bool:
 
 
 def _counts(connection) -> dict[str, int]:
+    """Row counts of the counted tables this database has. An older schema may lack some."""
+    present = {name for (name,) in connection.execute("SELECT name FROM sqlite_master")}
     return {
         table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
         for table in COUNTED_TABLES
+        if table in present
     }
 
 
@@ -370,7 +392,7 @@ def check_sanity(new_path: Path, live_path: Path, sentinel: str = SENTINEL_PERSO
     """
     with closing(_open_read_only(new_path)) as new:
         counts = _counts(new)
-        empty = [table for table, count in counts.items() if count == 0]
+        empty = [table for table in COUNTED_TABLES if counts.get(table, 0) == 0]
         if empty:
             raise SanityCheckFailed(f"The new build has no rows in {', '.join(empty)}")
         known = new.execute("SELECT 1 FROM persons WHERE wca_id = ?", (sentinel,)).fetchone()

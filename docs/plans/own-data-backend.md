@@ -1,7 +1,7 @@
 # Project plan: our own WCA data backend on OCI
 
-Status: **planned — not started.** Written 2026-09-26; updated 2026-09-27 with the hosting,
-caching and working-practice decisions. Supersedes the open questions in
+Status: **phases 1 and 2 done** (2026-09-28). Written 2026-09-26; updated 2026-09-27 with the
+hosting, caching and working-practice decisions. Supersedes the open questions in
 [`docs/shared-backend-tradeoffs.md`](../shared-backend-tradeoffs.md), which remains the
 background reading (measurements, licence text, export format).
 
@@ -210,7 +210,10 @@ behaviour is a red commit (failing tests) then a green commit, reviewed as `CLAU
    `meta` table, `SCHEMA.md`. Done when a real export builds locally and the Feliks Zemdegs
    check from the tradeoffs doc matches.
 2. **`wca_data` read library** — read-only connect, schema-version check, search, results,
-   competitions, metadata.
+   competitions, metadata. Done: `wca_data/read.py`. Schema version 2 adds `round_types` (to
+   order rounds within a competition) and `persons_cjk`, a per-character index so any part of
+   a Chinese, Japanese or Korean name can be searched (a trigram index can't match the one- and
+   two-character queries those names need).
 3. **Web app on the new data layer** — swap `wca_client.py` over, drop avatars, add licence
    footer, time the overview (see "Measure before caching PRs"). Still behind the holding
    page on Render.
