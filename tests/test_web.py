@@ -377,6 +377,14 @@ def test_records_page_shows_the_wca_licence_notice():
     _assert_shows_licence_notice(response.text)
 
 
+def test_the_licence_notice_is_pinned_to_the_bottom_of_the_viewport():
+    css = (STATIC_DIRECTORY / "styles.css").read_text()
+
+    assert "min-height: 100vh" in css
+    assert ".site-main" in css and "flex: 1" in css
+    assert ".site-footer" in css and "margin-top: auto" in css
+
+
 def test_index_page_shows_a_name_search_form():
     client = TestClient(app)
 
