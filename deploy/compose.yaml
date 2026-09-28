@@ -1,0 +1,67 @@
+# The WCA Records Analyser on the VM it shares with the scramble challenge app.
+# Installed at /srv/wca-records-analyser/compose.yaml (docs/runbook.md). Its own project
+# name, so nothing here can touch the scramble stack's containers.
+#
+# Settings, from /srv/wca-records-analyser/.env (never committed):
+#   WCA_IMAGE          the image both services run, pinned by digest; pull_deploy.py writes it
+#   WCA_DATA_PING_URL  the missed-build monitor the build pings after every good run
+#   EDGE_NETWORK       the scramble stack's Docker network, if not scramble-challenge_default
+name: wca-records-analyser
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  web:
+    image: ${WCA_IMAGE:-ghcr.io/tdshaw2000/wca-records-analyser:main}
+    restart: unless-stopped
+    environment:
+      WCA_DATA_DB_PATH: /srv/wca-data/wca.sqlite
+    volumes:
+      # The directory, not the file: the build renames a new database into place.
+      - type: bind
+        source: /srv/wca-data
+        target: /srv/wca-data
+        read_only: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    # No ports: the scramble stack's Caddy reaches the app over its network by this alias.
+    networks:
+      edge:
+        aliases:
+          - wca-records-analyser
+    mem_limit: 512m
+    logging: *logging
+
+  build:
+    image: ${WCA_IMAGE:-ghcr.io/tdshaw2000/wca-records-analyser:main}
+    # Run by wca-data-build.service: docker compose run --rm build
+    profiles:
+      - build
+    # systemd's Nice= and IOSchedulingClass= would reach only the docker client, not this
+    # process (containerd starts it), so it lowers its own priority.
+    command: ["nice", "-n", "19", "ionice", "-c", "3", "python", "-m", "wca_data.build"]
+    environment:
+      WCA_DATA_DB_PATH: /srv/wca-data/wca.sqlite
+      WCA_DATA_PING_URL: ${WCA_DATA_PING_URL:-}
+    volumes:
+      - type: bind
+        source: /srv/wca-data
+        target: /srv/wca-data
+    healthcheck:
+      disable: true
+    # At most one of the VM's two OCPUs, and a low share of it when the scramble app is busy.
+    cpus: 1.0
+    cpu_shares: 256
+    # The real build peaked at 48 MB RSS; this leaves room for SQLite's caches.
+    mem_limit: 1g
+    logging: *logging
+
+networks:
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-scramble-challenge_default}

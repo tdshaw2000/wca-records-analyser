@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.status import HTTP_303_SEE_OTHER
@@ -71,6 +71,7 @@ OVERVIEW_TEMPLATE = "overview.html"
 OVERVIEW_ROWS_TEMPLATE = "overview_rows.html"
 TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
 STATIC_ROUTE = "/static"
+HEALTH_ROUTE = "/healthz"
 STATIC_NAME = "static"
 STATIC_DIRECTORY = Path(__file__).parent / "static"
 RESULTS_CONTEXT_KEY = "results"
@@ -148,7 +149,8 @@ templates.env.globals[BUILD_NUMBER_GLOBAL] = build_number
 @app.middleware("http")
 async def serve_holding_page(request: Request, call_next):
     """Answer every non-static request with the holding page while it is enabled."""
-    if HOLDING_PAGE_ENABLED and not request.url.path.startswith(STATIC_ROUTE + "/"):
+    path = request.url.path
+    if HOLDING_PAGE_ENABLED and path != HEALTH_ROUTE and not path.startswith(STATIC_ROUTE + "/"):
         # 200 rather than 503: Render health-checks /, and the holding page is
         # the intended content, not an outage of this service.
         return templates.TemplateResponse(request=request, name=HOLDING_TEMPLATE)
@@ -288,6 +290,12 @@ def _render_index(request, searched_name, results, export_date):
             EXPORT_DATE_CONTEXT_KEY: export_date,
         },
     )
+
+
+@app.get(HEALTH_ROUTE, response_class=PlainTextResponse)
+def health():
+    """Liveness for the container's health check: never touches the database (docs/runbook.md)."""
+    return "ok"
 
 
 @app.get(INDEX_ROUTE, response_class=HTMLResponse)

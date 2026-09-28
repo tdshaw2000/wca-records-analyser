@@ -1,6 +1,8 @@
 name: CI
 
-# Every branch runs the tests; only the default branch can reach the deploy job.
+# Every branch runs the tests and checks the image; only the default branch publishes it.
+# Nothing here connects to the server: the VM pulls the published image itself
+# (deploy/pull_deploy.py, docs/runbook.md).
 on: push
 
 permissions:
@@ -8,9 +10,8 @@ permissions:
 
 jobs:
   # Python 3.12 matches both the Dockerfile base image and requires-python in
-  # pyproject.toml. The suite is fully offline (httpx.MockTransport plus the
-  # Depends seams in web.py), so a hosted runner needs no network access or
-  # custom trust store.
+  # pyproject.toml. The suite is fully offline (the Depends seams in web.py and a
+  # hand-made export for wca_data), so a hosted runner needs no network access.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -21,17 +22,53 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest
 
-  # Triggers a Render deploy via its Deploy Hook, but only after the test job
-  # passes on the default branch - so a red pipeline cannot reach the live
-  # Render site. Render's own push auto-deploy is OFF (autoDeploy: false in
-  # render.yaml), making this the single gated path to production.
-  # RENDER_DEPLOY_HOOK_URL is a repository secret holding the hook URL
-  # (Render service > Settings > Deploy Hook).
-  deploy_render:
+  # Builds the image and starts it, so a broken Dockerfile fails on its branch rather
+  # than on the VM (where the pull deploy would roll it back).
+  image:
     needs: test
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      - uses: actions/checkout@v4
+      - run: docker build -t wca-records-analyser:ci .
+      - run: docker compose -f deploy/compose.yaml config --quiet
+      - name: Start the image and wait for its health check
+        run: |
+          docker run -d --name smoke wca-records-analyser:ci
+          for attempt in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' smoke)
+            echo "health: $status"
+            [ "$status" = healthy ] && break
+            [ "$status" = unhealthy ] && break
+            sleep 2
+          done
+          docker logs smoke
+          [ "$status" = healthy ]
+      - name: Check the build command's tools and packages are in the image
+        run: docker run --rm wca-records-analyser:ci nice -n 19 ionice -c 3 python -c "import wca_data.build, wca_records_analyser.web"
+
+  # Publishes the image the VM pulls: amd64 for local runs, arm64 for the OCI A1 VM.
+  # The only job that can write packages, with the automatic GITHUB_TOKEN.
+  publish:
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/tdshaw2000/wca-records-analyser:main
+            ghcr.io/tdshaw2000/wca-records-analyser:sha-${{ github.sha }}

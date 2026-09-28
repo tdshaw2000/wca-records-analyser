@@ -1,6 +1,7 @@
 # Project plan: our own WCA data backend on OCI
 
-Status: **phases 1 through 3 done** (2026-09-28). Written 2026-09-26; updated 2026-09-27 with the
+Status: **phases 1 through 3 done** (2026-09-28); **phase 4's repo side done**, the VM setup
+follows [`docs/runbook.md`](../runbook.md). Written 2026-09-26; updated 2026-09-27 with the
 hosting, caching and working-practice decisions. Supersedes the open questions in
 [`docs/shared-backend-tradeoffs.md`](../shared-backend-tradeoffs.md), which remains the
 background reading (measurements, licence text, export format).
@@ -186,13 +187,13 @@ project must not repeat that.
 - **Before making the repo public:** scan the full git history for secrets (e.g. gitleaks);
   remove the Render deploy job, its `RENDER_DEPLOY_HOOK_URL` secret and `render.yaml`.
 
-## Maintenance plan (to become a runbook in phase 4)
+## Maintenance plan (now in [`docs/runbook.md`](../runbook.md))
 
 | Area | Approach |
 |---|---|
 | OS security patches | `unattended-upgrades`, automatic reboot in a quiet window (e.g. Sunday 04:00) |
 | App updates | Automatic via the pull deploy; rollback to the previous image on failed health check |
-| Data build failures | Old database keeps serving; missed-build alert (e.g. healthchecks.io ping) |
+| Data build failures | Old database keeps serving; missed-build alert (healthchecks.io ping) |
 | Uptime | Free external check on `/` |
 | Disk | Delete export downloads after each build; disk-usage alert |
 | Logs | Docker log rotation; journald size cap |
@@ -225,7 +226,15 @@ behaviour is a red commit (failing tests) then a green commit, reviewed as `CLAU
    anything that would need one.
 4. **Server and deployment** — ARM64 image to GHCR, Compose project and data directory on the
    shared VM, the Caddy site entry in the scramble stack, build timer, pull-deploy timer,
-   monitoring, runbook. Remove the Render deploy job.
+   monitoring, runbook. Remove the Render deploy job. Repo side done: the image now carries
+   `wca_data` and runs as uid 10001 with a health check; CI builds and health-checks it on
+   every branch and publishes amd64+arm64 to GHCR from `main`; `deploy/` holds the Compose
+   project, the systemd units, `pull_deploy.py` (pins the digest, rolls back an unhealthy
+   image) and the reference Caddy block; the Render deploy job is gone (Render keeps serving
+   the holding page until cutover). The build lowers its own priority inside the container,
+   since systemd's `Nice=` would only reach the docker client. A corrected sentinel result is
+   let through by one run with `WCA_DATA_ACCEPT_SENTINEL_CHANGE=1`. The VM steps, including
+   the Caddyfile change in the scramble repo, are in [`docs/runbook.md`](../runbook.md).
 5. **Cutover** — holding page off, the DuckDNS name serving the app from the VM, retire Render.
 6. **Go public** — history scan, repo settings, flip visibility.
 
