@@ -73,6 +73,13 @@ def test_a_database_built_for_another_schema_version_is_refused(db_path):
         WcaData.open(db_path)
 
 
+def test_a_database_with_no_schema_version_is_reported_clearly(db_path):
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("DELETE FROM meta WHERE key = 'schema_version'")
+    with pytest.raises(DatabaseUnavailable, match="wca.sqlite.*no schema version"):
+        WcaData.open(db_path)
+
+
 def test_the_database_is_opened_read_only(data):
     with pytest.raises(sqlite3.OperationalError, match="readonly"):
         data.connection.execute("DELETE FROM persons")
@@ -235,6 +242,29 @@ def test_results_are_in_date_order_then_round_order_whatever_their_ids(tmp_path)
     )
     with WcaData.open(path) as data:
         assert [result.id for result in data.results("2009ZEMD01", "333")] == [4, 3, 2, 1]
+
+
+def test_rounds_of_two_competitions_on_the_same_day_are_not_interleaved(tmp_path):
+    competitions = (
+        "id\tname\tcity_name\tcountry_id\tyear\tmonth\tday\tlatitude_microdegrees\t"
+        "longitude_microdegrees\n"
+        "BOpen2020\tB Open 2020\tSydney\tAustralia\t2020\t3\t1\tNULL\tNULL\n"
+        "AOpen2020\tA Open 2020\tPerth\tAustralia\t2020\t3\t1\tNULL\tNULL\n"
+    )
+    path = _build(
+        tmp_path,
+        competitions=competitions,
+        results=tsv(
+            RESULT_HEADER,
+            [1, "AOpen2020", "1", "333", "2009ZEMD01", 900, 1000],
+            [2, "BOpen2020", "1", "333", "2009ZEMD01", 800, 900],
+            [3, "AOpen2020", "f", "333", "2009ZEMD01", 700, 800],
+            [4, "BOpen2020", "f", "333", "2009ZEMD01", 600, 700],
+        ),
+        result_attempts=tsv(ATTEMPT_HEADER),
+    )
+    with WcaData.open(path) as data:
+        assert [result.id for result in data.results("2009ZEMD01", "333")] == [1, 3, 2, 4]
 
 
 def test_an_unknown_person_or_event_has_no_results(data):
