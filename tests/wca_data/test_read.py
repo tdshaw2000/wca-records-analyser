@@ -363,14 +363,16 @@ def cjk_data(tmp_path):
         ("タロウ", ["2015TANA01"]),  # katakana
         ("なか", ["2015TANA01"]),  # hiragana
         ("민수", ["2016KIMM01"]),  # hangul
-        ("wang 王", ["2020WANG05", "2010WANG01", "2018WANG02"]),
+        ("wang 王", ["2020WANG05", "2010WANG01", "2018WANG02"]),  # mixed with a latin word
         ("佐々木", ["2019SASA01"]),  # the iteration mark 々 is part of the name
         ("々木", ["2019SASA01"]),
         ("佐々木雄貴", ["2019SASA01"]),
-        ("王〇玲", ["2020WANG05"]),  # 〇, the ideographic zero  # mixed with a latin word
+        ("王〇玲", ["2020WANG05"]),  # 〇, the ideographic zero
         ("xiao 王", ["2010WANG01"]),
         ("Wang王一", ["2018WANG02"]),
         ("feliks 王", []),
+        ("feliks ・", ["2009ZEMD01"]),  # the katakana middle dot is punctuation
+        ("・", []),
     ],
 )
 def test_search_finds_any_part_of_a_cjk_name(cjk_data, query, expected):

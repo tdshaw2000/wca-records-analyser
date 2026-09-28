@@ -201,6 +201,15 @@ def test_losing_more_than_one_percent_of_any_table_fails_the_sanity_check(tmp_pa
     _assert_failed_run_changed_nothing(wca, data_dir, SanityCheckFailed, "results")
 
 
+def test_an_export_with_no_round_types_fails_the_sanity_check(tmp_path, data_dir):
+    # Without them, readers would order rounds by result id and nothing would say so.
+    wca = FakeWca(tmp_path)
+    _run(wca, data_dir)
+    header = fixture_tables()["round_types"].splitlines()[0]
+    wca.publish(NEXT_EXPORT, round_types=header + "\n")
+    _assert_failed_run_changed_nothing(wca, data_dir, SanityCheckFailed, "round_types")
+
+
 def test_a_table_growing_by_half_again_fails_the_sanity_check(tmp_path, data_dir):
     wca = FakeWca(tmp_path)
     _run(wca, data_dir)
