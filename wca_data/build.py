@@ -33,7 +33,7 @@ from wca_data.export import (
     read_metadata,
     read_table,
 )
-from wca_data.schema import INDEXES, SCHEMA_VERSION, TABLES
+from wca_data.schema import INDEXES, SCHEMA_VERSION, TABLES, spaced_cjk_characters
 
 EXPORT_INFO_URL = "https://www.worldcubeassociation.org/api/v0/export/public"
 DEFAULT_DB_PATH = "/srv/wca-data/wca.sqlite"
@@ -141,6 +141,15 @@ def _load_persons(connection, archive):
         ((r["wca_id"], r["name"], r["country_id"]) for r in rows if r["sub_id"] == 1),
     )
     connection.execute("INSERT INTO persons_fts (persons_fts) VALUES ('rebuild')")
+    _insert(
+        connection,
+        "INSERT INTO persons_cjk (rowid, characters) VALUES (?, ?)",
+        (
+            (rowid, characters)
+            for rowid, name in connection.execute("SELECT rowid, name FROM persons")
+            if (characters := spaced_cjk_characters(name))
+        ),
+    )
 
 
 def _degrees(microdegrees):

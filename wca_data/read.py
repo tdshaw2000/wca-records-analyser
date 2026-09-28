@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 
 from wca_data.build import database_path, parse_export_date
-from wca_data.schema import SCHEMA_VERSION
+from wca_data.schema import CJK_CHARACTER, SCHEMA_VERSION, spaced_cjk_characters
 
 
 class DatabaseUnavailable(Exception):
@@ -85,17 +85,28 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
 SEARCH_LIMIT = 25
 
 
-def _prefix_query(text: str) -> str | None:
-    """An FTS5 query matching names or WCA IDs with a word starting with each word of text.
+def _quoted(text: str) -> str:
+    return '"' + text.replace('"', '""') + '"'
 
-    Each word is quoted, so nothing the user types is read as FTS5 syntax. Words with no
-    letters or digits are dropped, since the index has no tokens for them. None if no word
-    is left.
+
+def _search_queries(text: str) -> tuple[str | None, str | None]:
+    """FTS5 queries for persons_fts and persons_cjk from what the user typed.
+
+    Each CJK run becomes a phrase of its characters for persons_cjk; every other word must
+    start a word of the name or WCA ID in persons_fts. Everything is quoted, so nothing the
+    user types is read as FTS5 syntax. Words with no letters or digits are dropped, since
+    the index has no tokens for them. None for an index with nothing to look for.
     """
-    words = [word for word in text.split() if any(char.isalnum() for char in word)]
-    if not words:
-        return None
-    return " ".join('"' + word.replace('"', '""') + '"*' for word in words)
+    words, phrases = [], []
+    for word in text.split():
+        if characters := spaced_cjk_characters(word):
+            phrases.append(_quoted(characters))
+        words += [
+            part for part in CJK_CHARACTER.sub(" ", word).split()
+            if any(char.isalnum() for char in part)
+        ]
+    word_query = " ".join(_quoted(word) + "*" for word in words) or None
+    return word_query, " ".join(phrases) or None
 
 
 def _attempts(packed: str) -> tuple[int, ...]:
@@ -227,15 +238,23 @@ class WcaData:
     def search_persons(self, text: str, limit: int = SEARCH_LIMIT) -> list[Person]:
         """Persons with a word of their name or WCA ID starting with every word of text.
 
-        Case and accents don't matter. Sorted by name, then WCA ID; at most limit of them.
+        Chinese, Japanese and Korean characters match anywhere in the name, in the order
+        typed, since those names have no spaces between words. Case and accents don't matter. Sorted by name, then WCA ID; at most limit of them.
         """
-        query = _prefix_query(text)
-        if query is None:
+        word_query, cjk_query = _search_queries(text)
+        if word_query is None and cjk_query is None:
             return []
+        conditions, params = [], []
+        if word_query is not None:
+            conditions.append("rowid IN (SELECT rowid FROM persons_fts WHERE persons_fts MATCH ?)")
+            params.append(word_query)
+        if cjk_query is not None:
+            conditions.append("rowid IN (SELECT rowid FROM persons_cjk WHERE persons_cjk MATCH ?)")
+            params.append(cjk_query)
         rows = self.connection.execute(
-            "SELECT wca_id, name, country_id FROM persons "
-            "WHERE rowid IN (SELECT rowid FROM persons_fts WHERE persons_fts MATCH ?) "
-            "ORDER BY name, wca_id LIMIT ?",
-            (query, limit),
+            "SELECT wca_id, name, country_id FROM persons WHERE "
+            + " AND ".join(conditions)
+            + " ORDER BY name, wca_id LIMIT ?",
+            (*params, limit),
         )
         return [Person(*row) for row in rows]
