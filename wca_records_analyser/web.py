@@ -1,6 +1,7 @@
 """Web page for searching World Cube Association competitors by name."""
 
 import hashlib
+import html
 import os
 import time
 from dataclasses import dataclass, field
@@ -14,7 +15,6 @@ from fastapi.templating import Jinja2Templates
 from starlette.status import HTTP_303_SEE_OTHER
 
 from wca_records_analyser.cache import ttl_cached
-from wca_records_analyser.concurrency import run_concurrently
 from wca_records_analyser.chart import (
     to_consistency_series,
     to_daily_range_series,
@@ -40,8 +40,10 @@ from wca_records_analyser.records import (
 )
 from wca_records_analyser.map import to_map_series, to_overview_map_series
 from wca_records_analyser.wca_client import (
+    PersonNotFound,
     get_competition_dates,
     get_competitions,
+    get_export_date,
     get_profile,
     get_results,
     search_persons,
@@ -75,7 +77,7 @@ RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 WCA_ID_CONTEXT_KEY = "wca_id"
 NAME_CONTEXT_KEY = "name"
-AVATAR_THUMB_URL_CONTEXT_KEY = "avatar_thumb_url"
+EXPORT_DATE_CONTEXT_KEY = "export_date"
 EVENT_ID_CONTEXT_KEY = "event_id"
 EVENTS_CONTEXT_KEY = "events"
 PROFILE_URL_CONTEXT_KEY = "profile_url"
@@ -110,6 +112,13 @@ BUILD_NUMBER_LENGTH = 7
 HOLDING_PAGE_ENABLED = True
 
 app = FastAPI()
+
+
+@app.exception_handler(PersonNotFound)
+def _person_not_found(request: Request, exc: PersonNotFound):
+    return HTMLResponse(status_code=404, content=html.escape(str(exc)))
+
+
 app.mount(
     STATIC_ROUTE,
     StaticFiles(directory=STATIC_DIRECTORY),
@@ -170,10 +179,6 @@ class Overview:
 # fetch for an hour spares the overview its burst of per-event calls on revisits
 # (and speeds the records pages, which share the same lookups).
 CACHE_TTL_SECONDS = 60 * 60
-# Cap on simultaneous per-event fetches when building an overview: enough to
-# collapse the sequential wait for a many-event competitor, while staying a
-# considerate caller against an API that publishes no rate limit of its own.
-MAX_CONCURRENT_FETCHES = 8
 cached_profile = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_profile)
 cached_competition_dates = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(
     get_competition_dates
@@ -186,6 +191,12 @@ SEARCH_CACHE_TTL_SECONDS = 5 * 60
 cached_search = ttl_cached(SEARCH_CACHE_TTL_SECONDS, time.monotonic)(
     search_persons
 )
+cached_export_date = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_export_date)
+
+
+def get_export_date_function():
+    """Provide the function used to get the WCA export date (overridable in tests)."""
+    return cached_export_date
 
 
 def get_search_function():
@@ -199,16 +210,12 @@ def get_overview_function():
     def build_overview(wca_id):
         profile = cached_profile(wca_id)
         competition_dates = cached_competition_dates(wca_id)
-        # The per-event result fetches are independent, so fan them out rather
-        # than paying one sequential round-trip per event.
-        results_per_event = run_concurrently(
-            [
-                lambda event_id=event_id: cached_results(wca_id, event_id)
-                for event_id in profile.event_ids
-            ],
-            MAX_CONCURRENT_FETCHES,
-        )
-        results_by_event = dict(zip(profile.event_ids, results_per_event))
+        # Each lookup is an indexed SQLite read (no network round-trip to hide),
+        # so fetching sequentially is both simplest and, measured, faster than
+        # fanning the per-event fetches out across threads.
+        results_by_event = {
+            event_id: cached_results(wca_id, event_id) for event_id in profile.event_ids
+        }
         rows = overview_rows(
             profile.event_ids,
             results_by_event,
@@ -263,33 +270,34 @@ def get_overview_map_function():
     def build_overview_map(wca_id):
         profile = cached_profile(wca_id)
         competitions = cached_competitions(wca_id)
-        results_per_event = run_concurrently(
-            [
-                lambda event_id=event_id: cached_results(wca_id, event_id)
-                for event_id in profile.event_ids
-            ],
-            MAX_CONCURRENT_FETCHES,
-        )
-        results_by_event = dict(zip(profile.event_ids, results_per_event))
+        results_by_event = {
+            event_id: cached_results(wca_id, event_id) for event_id in profile.event_ids
+        }
         return to_overview_map_series(results_by_event, competitions, EVENT_NAMES)
 
     return build_overview_map
 
 
-def _render_index(request, searched_name, results):
+def _render_index(request, searched_name, results, export_date):
     return templates.TemplateResponse(
         request=request,
         name=INDEX_TEMPLATE,
         context={
             SEARCHED_NAME_CONTEXT_KEY: searched_name,
             RESULTS_CONTEXT_KEY: results,
+            EXPORT_DATE_CONTEXT_KEY: export_date,
         },
     )
 
 
 @app.get(INDEX_ROUTE, response_class=HTMLResponse)
-def index(request: Request):
-    return _render_index(request, searched_name=None, results=None)
+def index(
+    request: Request,
+    export_date_function=Depends(get_export_date_function),
+):
+    return _render_index(
+        request, searched_name=None, results=None, export_date=export_date_function()
+    )
 
 
 @app.get(SEARCH_ROUTE, response_class=HTMLResponse)
@@ -297,6 +305,7 @@ def search(
     request: Request,
     name: str,
     search_function=Depends(get_search_function),
+    export_date_function=Depends(get_export_date_function),
 ):
     results = search_function(name)
     # A search that pins down exactly one competitor may as well skip the
@@ -306,7 +315,9 @@ def search(
             f"{OVERVIEW_ROUTE}?{WCA_ID_QUERY_PARAMETER}={results[0].wca_id}"
         )
         return RedirectResponse(overview_url, status_code=HTTP_303_SEE_OTHER)
-    return _render_index(request, searched_name=name, results=results)
+    return _render_index(
+        request, searched_name=name, results=results, export_date=export_date_function()
+    )
 
 
 @app.get(API_SEARCH_ROUTE)
@@ -333,6 +344,7 @@ def overview(
     request: Request,
     wca_id: str,
     profile_function=Depends(get_profile_function),
+    export_date_function=Depends(get_export_date_function),
 ):
     # Only the profile (one fetch) is needed to render the shell instantly; the
     # slow per-event rows arrive afterwards from the fragment endpoint. One
@@ -345,12 +357,12 @@ def overview(
         context={
             WCA_ID_CONTEXT_KEY: wca_id,
             NAME_CONTEXT_KEY: person.name,
-            AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
             SKELETON_ROW_COUNT_CONTEXT_KEY: len(profile.event_ids),
             OVERVIEW_ROWS_URL_CONTEXT_KEY: (
                 f"{OVERVIEW_ROWS_ROUTE}?{WCA_ID_QUERY_PARAMETER}={wca_id}"
             ),
+            EXPORT_DATE_CONTEXT_KEY: export_date_function(),
         },
     )
 
@@ -388,6 +400,7 @@ def records(
     progression_function=Depends(get_progression_function),
     profile_function=Depends(get_profile_function),
     map_function=Depends(get_map_function),
+    export_date_function=Depends(get_export_date_function),
 ):
     progressions = progression_function(wca_id, event_id)
     profile = profile_function(wca_id)
@@ -412,7 +425,6 @@ def records(
         context={
             WCA_ID_CONTEXT_KEY: wca_id,
             NAME_CONTEXT_KEY: person.name,
-            AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             EVENT_ID_CONTEXT_KEY: event_id,
             EVENTS_CONTEXT_KEY: named_events(profile.event_ids),
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
@@ -438,5 +450,6 @@ def records(
             EVENT_HAS_AVERAGE_CONTEXT_KEY: event_has_average(event_id),
             SINGLE_MAP_SERIES_CONTEXT_KEY: map_series["singles"],
             AVERAGE_MAP_SERIES_CONTEXT_KEY: map_series["averages"],
+            EXPORT_DATE_CONTEXT_KEY: export_date_function(),
         },
     )

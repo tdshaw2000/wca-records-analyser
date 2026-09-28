@@ -42,3 +42,17 @@ def test_wca_data_is_packaged_alongside_the_web_app():
     with open(REPO_ROOT / "pyproject.toml", "rb") as pyproject_file:
         config = tomllib.load(pyproject_file)
     assert "wca_data*" in config["tool"]["setuptools"]["packages"]["find"]["include"]
+
+
+def test_the_read_library_does_not_load_the_build_job():
+    # Readers stay light and portable: the build job pulls in fcntl (POSIX only) and urllib.
+    completed = subprocess.run(
+        [sys.executable, "-c", "import sys, wca_data.read; print('\\n'.join(sys.modules))"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    assert completed.returncode == 0, completed.stderr
+    loaded = completed.stdout.split()
+    assert "wca_data.build" not in loaded
+    assert "fcntl" not in loaded

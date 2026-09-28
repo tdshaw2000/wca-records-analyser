@@ -1,68 +1,44 @@
-"""Client for searching competitors via the World Cube Association API."""
+"""A competitor's WCA data, read from the wca_data database built from the WCA export.
 
+Each function opens the database WCA_DATA_DB_PATH names for the one lookup, so it sees the
+latest nightly build; pass ``data`` (an open WcaData) to read from another one, as tests do.
+"""
+
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date
 
-import httpx
-import truststore
+from wca_data.read import WcaData
 
-
-def use_operating_system_trust_store() -> None:
-    """Verify TLS against the OS certificate store rather than certifi's bundle.
-
-    httpx defaults to certifi's public root list, which omits any private root a
-    TLS-inspecting proxy presents (e.g. a corporate Zscaler CA installed into the
-    OS store). Honouring the OS store lets verification succeed wherever the host
-    trusts the issuer, with no environment variables to set.
-    """
-    truststore.inject_into_ssl()
+WCA_PERSON_URL = "https://www.worldcubeassociation.org/persons/{wca_id}"
 
 
-use_operating_system_trust_store()
-
-WCA_API_BASE_URL = "https://www.worldcubeassociation.org/api/v0"
-PERSONS_SEARCH_ENDPOINT = "/persons"
-PERSON_PROFILE_ENDPOINT = "/persons/{wca_id}"
-PERSON_RESULTS_ENDPOINT = "/persons/{wca_id}/results"
-PERSON_COMPETITIONS_ENDPOINT = "/persons/{wca_id}/competitions"
-SEARCH_QUERY_PARAMETER = "q"
-EVENT_QUERY_PARAMETER = "event_id"
-PERSON_KEY = "person"
-PERSON_NAME_KEY = "name"
-PERSON_WCA_ID_KEY = "wca_id"
-PERSON_PROFILE_URL_KEY = "url"
-PERSON_AVATAR_KEY = "avatar"
-AVATAR_THUMBNAIL_URL_KEY = "thumb_url"
-RESULT_SINGLE_KEY = "best"
-RESULT_AVERAGE_KEY = "average"
-RESULT_ATTEMPTS_KEY = "attempts"
-RESULT_COMPETITION_KEY = "competition_id"
-COMPETITION_ID_KEY = "id"
-COMPETITION_START_DATE_KEY = "start_date"
-COMPETITION_LATITUDE_KEY = "latitude_degrees"
-COMPETITION_LONGITUDE_KEY = "longitude_degrees"
-COMPETITION_CITY_KEY = "city"
-PERSONAL_RECORDS_KEY = "personal_records"
+class PersonNotFound(LookupError):
+    """No competitor has this WCA ID."""
 
 
 @dataclass(frozen=True)
 class Competition:
-    """A competition with its location, used to place PR results on a map."""
+    """A competition with its location, used to place PR results on a map.
+
+    ``latitude`` and ``longitude`` are None when WCA has no location for it.
+    """
 
     id: str
     start_date: str
-    latitude: float
-    longitude: float
+    latitude: float | None
+    longitude: float | None
     city: str
 
 
 @dataclass(frozen=True)
 class Person:
-    """A competitor returned by a WCA search."""
+    """A competitor, with a link to their profile on the WCA site."""
 
     name: str
     wca_id: str
     profile_url: str
-    avatar_thumb_url: str = ""
 
 
 @dataclass(frozen=True)
@@ -87,88 +63,84 @@ class Result:
     solves: tuple = ()
 
 
-def search_persons(name, client=None):
-    """Return the competitors whose names match the given search term."""
-    matches = _get_json(
-        PERSONS_SEARCH_ENDPOINT,
-        params={SEARCH_QUERY_PARAMETER: name},
-        client=client,
+@contextmanager
+def _reading(data: WcaData | None) -> Iterator[WcaData]:
+    if data is not None:
+        yield data
+        return
+    with WcaData.open() as opened:
+        yield opened
+
+
+def _to_person(person) -> Person:
+    return Person(
+        name=person.name,
+        wca_id=person.wca_id,
+        profile_url=WCA_PERSON_URL.format(wca_id=person.wca_id),
     )
-    return [_to_person(match) for match in matches]
 
 
-def get_results(wca_id, event_id, client=None):
-    """Return a competitor's results for one event, newest WCA order preserved."""
-    endpoint = PERSON_RESULTS_ENDPOINT.format(wca_id=wca_id)
-    results = _get_json(
-        endpoint,
-        params={EVENT_QUERY_PARAMETER: event_id},
-        client=client,
-    )
-    return [_to_result(result) for result in results]
+def search_persons(name, data=None):
+    """Return the competitors whose names or WCA IDs match the given search term."""
+    with _reading(data) as reader:
+        return [_to_person(person) for person in reader.search_persons(name)]
 
 
-def get_competitions(wca_id, client=None):
+def get_results(wca_id, event_id, data=None):
+    """Return a competitor's results for one event, oldest competition and round first."""
+    with _reading(data) as reader:
+        return [
+            Result(
+                single=result.best,
+                competition_id=result.competition_id,
+                average=result.average,
+                solves=result.attempts,
+            )
+            for result in reader.results(wca_id, event_id)
+        ]
+
+
+def get_competitions(wca_id, data=None):
     """Return a competitor's competitions, keyed by competition id."""
-    endpoint = PERSON_COMPETITIONS_ENDPOINT.format(wca_id=wca_id)
-    raw = _get_json(endpoint, params=None, client=client)
-    return {
-        comp[COMPETITION_ID_KEY]: Competition(
-            id=comp[COMPETITION_ID_KEY],
-            start_date=comp[COMPETITION_START_DATE_KEY],
-            latitude=comp[COMPETITION_LATITUDE_KEY],
-            longitude=comp[COMPETITION_LONGITUDE_KEY],
-            city=comp[COMPETITION_CITY_KEY],
-        )
-        for comp in raw
-    }
+    with _reading(data) as reader:
+        return {
+            competition.id: Competition(
+                id=competition.id,
+                start_date=competition.start_date,
+                latitude=competition.latitude,
+                longitude=competition.longitude,
+                city=competition.city,
+            )
+            for competition in reader.competitions(wca_id)
+        }
 
 
-def get_competition_dates(wca_id, client=None):
+def get_competition_dates(wca_id, data=None):
     """Return a competitor's competitions mapped to their start dates."""
     return {
         comp_id: comp.start_date
-        for comp_id, comp in get_competitions(wca_id, client=client).items()
+        for comp_id, comp in get_competitions(wca_id, data=data).items()
     }
 
 
-def get_profile(wca_id, client=None):
-    """Return a competitor's identity and competed events from one profile fetch."""
-    endpoint = PERSON_PROFILE_ENDPOINT.format(wca_id=wca_id)
-    profile = _get_json(endpoint, params=None, client=client)
-    return Profile(
-        person=_to_person(profile),
-        event_ids=list(profile[PERSONAL_RECORDS_KEY]),
-    )
+def get_profile(wca_id, data=None):
+    """Return a competitor's identity and the events they have a successful result in.
+
+    Raises PersonNotFound for an unknown WCA ID.
+    """
+    with _reading(data) as reader:
+        person = reader.person(wca_id)
+        if person is None:
+            raise PersonNotFound(f"No competitor has the WCA ID {wca_id}")
+        # As on the WCA site, an event holds a record only once a solve is completed.
+        recorded = {result.event_id for result in reader.results(wca_id) if result.best > 0}
+        event_ids = [
+            event.id for event in reader.competed_events(wca_id) if event.id in recorded
+        ]
+        return Profile(person=_to_person(person), event_ids=event_ids)
 
 
-def _get_json(endpoint, params, client):
-    owns_client = client is None
-    if owns_client:
-        client = httpx.Client(base_url=WCA_API_BASE_URL)
-    try:
-        response = client.get(endpoint, params=params)
-        response.raise_for_status()
-        return response.json()
-    finally:
-        if owns_client:
-            client.close()
-
-
-def _to_person(match):
-    person = match[PERSON_KEY]
-    return Person(
-        name=person[PERSON_NAME_KEY],
-        wca_id=person[PERSON_WCA_ID_KEY],
-        profile_url=person[PERSON_PROFILE_URL_KEY],
-        avatar_thumb_url=person[PERSON_AVATAR_KEY][AVATAR_THUMBNAIL_URL_KEY],
-    )
-
-
-def _to_result(result):
-    return Result(
-        single=result[RESULT_SINGLE_KEY],
-        average=result[RESULT_AVERAGE_KEY],
-        competition_id=result[RESULT_COMPETITION_KEY],
-        solves=tuple(result[RESULT_ATTEMPTS_KEY]),
-    )
+def get_export_date(data=None) -> date:
+    """The day of the WCA export the database was built from, for the licence notice."""
+    with _reading(data) as reader:
+        return reader.metadata().export_date.date()

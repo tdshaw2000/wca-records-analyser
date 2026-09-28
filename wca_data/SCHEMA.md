@@ -1,6 +1,6 @@
 # WCA data: database schema
 
-Schema version: **2**
+Schema version: **3**
 
 The database is a single SQLite file built nightly from the
 [WCA results export](https://www.worldcubeassociation.org/export/results) (format v2) by
@@ -48,6 +48,7 @@ Every competitor, with their current name and country only (the export's `sub_id
 | `wca_id` | TEXT, primary key | WCA ID, e.g. `2009ZEMD01` |
 | `name` | TEXT | Name as WCA shows it, UTF-8, e.g. `Xiaoming Wang (王小明)` |
 | `country_id` | TEXT | WCA country id, e.g. `Australia` |
+| `sort_name` | TEXT | `name` folded for sorting: lower case, accents removed, and `ł ø đ ð ħ ı ŧ þ æ œ` spelt as plain letters (`wca_data.schema.sort_name`). `ORDER BY sort_name` puts `Łukasz` with `Lukasz`, not after `Z` |
 
 ### `persons_fts`
 
@@ -70,7 +71,8 @@ each name's CJK characters (Han ideographs with marks such as 々 and 〇, kana 
 order, one space between each: `王 小 明`. Search it with the characters you want, spaced the same
 way, as a quoted phrase: `WHERE persons_cjk MATCH '"小 明"'` finds names with `小明` anywhere in
 them. If a name has more than one CJK run, they are joined, so a phrase can span them.
-`wca_data.schema.CJK_CHARACTER` lists the exact characters.
+Names are NFKC-normalised first, so half-width kana are stored as full-width; normalise
+search text the same way. `wca_data.schema.CJK_CHARACTER` lists the exact characters.
 
 Only names with CJK characters have a row. It is contentless: read `rowid` and join to
 `persons` on `rowid`, as for `persons_fts`.
@@ -133,3 +135,4 @@ One row per competitor per round. Indexed on `(person_id, event_id)`.
 |---|---|
 | 1 | First version |
 | 2 | Adds `round_types` and `persons_cjk` |
+| 3 | `persons_cjk` holds NFKC-normalised characters; adds `persons.sort_name` |

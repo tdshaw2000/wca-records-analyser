@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ from wca_records_analyser.web import (
     Overview,
     RecordProgressions,
     app,
+    get_export_date_function,
     get_map_function,
     get_overview_function,
     get_overview_map_function,
@@ -22,7 +24,7 @@ from wca_records_analyser.web import (
     get_search_function,
     static_asset_version,
 )
-from wca_records_analyser.wca_client import Person, Profile
+from wca_records_analyser.wca_client import Person, PersonNotFound, Profile
 
 SEARCH_ROUTE = "/search"
 API_SEARCH_ROUTE = "/api/search"
@@ -91,29 +93,21 @@ PROGRESSIONS_WITH_ALL_RESULTS = SimpleNamespace(
     consistency=[],
 )
 
-MATS_VALK_AVATAR_THUMB_URL = (
-    "https://avatars.worldcubeassociation.org/2007VALK01_thumb.jpg"
-)
 MATS_VALK = Person(
     name="Mats Valk",
     wca_id="2007VALK01",
     profile_url="https://www.worldcubeassociation.org/persons/2007VALK01",
-    avatar_thumb_url=MATS_VALK_AVATAR_THUMB_URL,
 )
 FELIKS_ZEMDEGS = Person(
     name="Feliks Zemdegs",
     wca_id="2009ZEMD01",
     profile_url="https://www.worldcubeassociation.org/persons/2009ZEMD01",
-    avatar_thumb_url=(
-        "https://avatars.worldcubeassociation.org/2009ZEMD01_thumb.jpg"
-    ),
 )
 MANY_COMPETITORS = [
     Person(
         name=f"Test Competitor {index}",
         wca_id=f"2020TEST{index:02d}",
         profile_url=f"https://www.worldcubeassociation.org/persons/2020TEST{index:02d}",
-        avatar_thumb_url="",
     )
     for index in range(MAX_SEARCH_SUGGESTIONS + 2)
 ]
@@ -263,6 +257,124 @@ def _get_overview_rows(overview=MATS_VALK_OVERVIEW):
         )
     finally:
         app.dependency_overrides.clear()
+
+
+def test_overview_of_an_unknown_wca_id_is_a_404():
+    def not_found(wca_id):
+        raise PersonNotFound(f"No competitor has the WCA ID {wca_id}")
+
+    app.dependency_overrides[get_profile_function] = lambda: not_found
+    try:
+        client = TestClient(app)
+        response = client.get(OVERVIEW_ROUTE, params={"wca_id": "1999NONE01"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+
+
+def test_records_of_an_unknown_wca_id_is_a_404():
+    def not_found(wca_id):
+        raise PersonNotFound(f"No competitor has the WCA ID {wca_id}")
+
+    app.dependency_overrides[get_profile_function] = lambda: not_found
+    app.dependency_overrides[get_progression_function] = (
+        lambda: _progression_returning(PROGRESSIONS)
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            RECORDS_ROUTE, params={"wca_id": "1999NONE01", "event_id": EVENT_ID}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+
+
+def test_a_wca_id_with_html_in_it_is_not_reflected_unescaped_in_the_404_body():
+    def not_found(wca_id):
+        raise PersonNotFound(f"No competitor has the WCA ID {wca_id}")
+
+    app.dependency_overrides[get_profile_function] = lambda: not_found
+    try:
+        client = TestClient(app)
+        response = client.get(
+            OVERVIEW_ROUTE, params={"wca_id": "<script>alert(1)</script>"}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert "<script>" not in response.text
+
+
+EXPORT_DATE = date(2026, 9, 23)
+
+
+def _with_export_date(export_date=EXPORT_DATE):
+    app.dependency_overrides[get_export_date_function] = lambda: (lambda: export_date)
+
+
+def _assert_shows_licence_notice(response_text):
+    assert "owned and maintained by the" in response_text
+    assert "World Cube Association" in response_text
+    assert "https://worldcubeassociation.org/results" in response_text
+    assert "as of 2026-09-23." in response_text
+
+
+def test_every_page_shows_the_wca_licence_notice_with_the_export_date():
+    _with_export_date()
+    try:
+        client = TestClient(app)
+        response = client.get("/")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    _assert_shows_licence_notice(response.text)
+
+
+def test_overview_page_shows_the_wca_licence_notice():
+    _with_export_date()
+    app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
+        MATS_VALK_PROFILE
+    )
+    app.dependency_overrides[get_overview_function] = lambda: _overview_returning(
+        MATS_VALK_OVERVIEW
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            OVERVIEW_ROUTE, params={"wca_id": MATS_VALK_PROFILE.person.wca_id}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    _assert_shows_licence_notice(response.text)
+
+
+def test_records_page_shows_the_wca_licence_notice():
+    _with_export_date()
+    app.dependency_overrides[get_progression_function] = (
+        lambda: _progression_returning(PROGRESSIONS)
+    )
+    app.dependency_overrides[get_profile_function] = lambda: _profile_returning(
+        MATS_VALK_PROFILE
+    )
+    app.dependency_overrides[get_map_function] = lambda: _map_returning([], [])
+    try:
+        client = TestClient(app)
+        response = client.get(
+            RECORDS_ROUTE,
+            params={"wca_id": MATS_VALK_PROFILE.person.wca_id, "event_id": EVENT_ID},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    _assert_shows_licence_notice(response.text)
 
 
 def test_index_page_shows_a_name_search_form():
@@ -727,11 +839,12 @@ def test_records_shows_the_competitor_identity():
     assert MATS_VALK.wca_id in response.text
 
 
-def test_records_shows_the_competitor_avatar():
+def test_records_shows_no_avatar_since_the_wca_export_has_none():
     response = _get_records_page()
 
     assert response.status_code == 200
-    assert f'src="{MATS_VALK_AVATAR_THUMB_URL}"' in response.text
+    assert "competitor-avatar\"" not in response.text
+    assert "<img" not in response.text
 
 
 def test_records_opens_the_wca_profile_in_a_new_tab_safely():
@@ -787,7 +900,7 @@ def test_overview_shows_the_competitor_identity():
     assert response.status_code == 200
     assert MATS_VALK.name in response.text
     assert MATS_VALK.wca_id in response.text
-    assert f'src="{MATS_VALK_AVATAR_THUMB_URL}"' in response.text
+    assert "<img" not in response.text
     assert WCA_PROFILE_URL in response.text
 
 
