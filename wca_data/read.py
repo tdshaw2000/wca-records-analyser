@@ -240,10 +240,11 @@ class WcaData:
 
         Chinese, Japanese and Korean characters match anywhere in the name, in the order
         typed, since those names have no spaces between words. Case and accents don't
-        matter. Sorted by name, then WCA ID; at most limit of them.
+        matter. A person whose whole WCA ID was typed comes first, then the rest by name and
+        WCA ID; at most limit of them.
         """
         word_query, cjk_query = _search_queries(text)
-        if word_query is None and cjk_query is None:
+        if (word_query is None and cjk_query is None) or limit < 1:
             return []
         conditions, params = [], []
         if word_query is not None:
@@ -252,10 +253,13 @@ class WcaData:
         if cjk_query is not None:
             conditions.append("rowid IN (SELECT rowid FROM persons_cjk WHERE persons_cjk MATCH ?)")
             params.append(cjk_query)
+        # Someone who types a whole WCA ID wants that person first.
+        typed_ids = [word.upper() for word in text.split()]
         rows = self.connection.execute(
             "SELECT wca_id, name, country_id FROM persons WHERE "
             + " AND ".join(conditions)
-            + " ORDER BY name, wca_id LIMIT ?",
-            (*params, limit),
+            + f" ORDER BY wca_id IN ({', '.join('?' * len(typed_ids))}) DESC, name, wca_id"
+            + " LIMIT ?",
+            (*params, *typed_ids, limit),
         )
         return [Person(*row) for row in rows]
