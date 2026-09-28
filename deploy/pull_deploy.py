@@ -101,7 +101,9 @@ def deploy(folder, run):
         run(["docker", "image", "prune", "--force", "--filter", f"label={SOURCE_LABEL}"])
         # A new image may carry a bumped SCHEMA_VERSION; the health check doesn't read the
         # database, so rebuild straight away rather than waiting for the nightly timer.
-        run(["systemctl", "start", BUILD_SERVICE])
+        # --no-block: nothing here waits on the build, and a real build can run for
+        # minutes, longer than this service's own TimeoutStartSec.
+        run(["systemctl", "start", "--no-block", BUILD_SERVICE])
         return "deployed"
     _remember_bad(folder, new)
     _pin(folder, live)
