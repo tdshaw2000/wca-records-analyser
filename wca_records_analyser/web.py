@@ -43,6 +43,7 @@ from wca_records_analyser.wca_client import (
     PersonNotFound,
     get_competition_dates,
     get_competitions,
+    get_export_date,
     get_profile,
     get_results,
     search_persons,
@@ -76,6 +77,7 @@ RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 WCA_ID_CONTEXT_KEY = "wca_id"
 NAME_CONTEXT_KEY = "name"
+EXPORT_DATE_CONTEXT_KEY = "export_date"
 EVENT_ID_CONTEXT_KEY = "event_id"
 EVENTS_CONTEXT_KEY = "events"
 PROFILE_URL_CONTEXT_KEY = "profile_url"
@@ -193,6 +195,12 @@ SEARCH_CACHE_TTL_SECONDS = 5 * 60
 cached_search = ttl_cached(SEARCH_CACHE_TTL_SECONDS, time.monotonic)(
     search_persons
 )
+cached_export_date = ttl_cached(CACHE_TTL_SECONDS, time.monotonic)(get_export_date)
+
+
+def get_export_date_function():
+    """Provide the function used to get the WCA export date (overridable in tests)."""
+    return cached_export_date
 
 
 def get_search_function():
@@ -283,20 +291,26 @@ def get_overview_map_function():
     return build_overview_map
 
 
-def _render_index(request, searched_name, results):
+def _render_index(request, searched_name, results, export_date):
     return templates.TemplateResponse(
         request=request,
         name=INDEX_TEMPLATE,
         context={
             SEARCHED_NAME_CONTEXT_KEY: searched_name,
             RESULTS_CONTEXT_KEY: results,
+            EXPORT_DATE_CONTEXT_KEY: export_date,
         },
     )
 
 
 @app.get(INDEX_ROUTE, response_class=HTMLResponse)
-def index(request: Request):
-    return _render_index(request, searched_name=None, results=None)
+def index(
+    request: Request,
+    export_date_function=Depends(get_export_date_function),
+):
+    return _render_index(
+        request, searched_name=None, results=None, export_date=export_date_function()
+    )
 
 
 @app.get(SEARCH_ROUTE, response_class=HTMLResponse)
@@ -304,6 +318,7 @@ def search(
     request: Request,
     name: str,
     search_function=Depends(get_search_function),
+    export_date_function=Depends(get_export_date_function),
 ):
     results = search_function(name)
     # A search that pins down exactly one competitor may as well skip the
@@ -313,7 +328,9 @@ def search(
             f"{OVERVIEW_ROUTE}?{WCA_ID_QUERY_PARAMETER}={results[0].wca_id}"
         )
         return RedirectResponse(overview_url, status_code=HTTP_303_SEE_OTHER)
-    return _render_index(request, searched_name=name, results=results)
+    return _render_index(
+        request, searched_name=name, results=results, export_date=export_date_function()
+    )
 
 
 @app.get(API_SEARCH_ROUTE)
@@ -340,6 +357,7 @@ def overview(
     request: Request,
     wca_id: str,
     profile_function=Depends(get_profile_function),
+    export_date_function=Depends(get_export_date_function),
 ):
     # Only the profile (one fetch) is needed to render the shell instantly; the
     # slow per-event rows arrive afterwards from the fragment endpoint. One
@@ -357,6 +375,7 @@ def overview(
             OVERVIEW_ROWS_URL_CONTEXT_KEY: (
                 f"{OVERVIEW_ROWS_ROUTE}?{WCA_ID_QUERY_PARAMETER}={wca_id}"
             ),
+            EXPORT_DATE_CONTEXT_KEY: export_date_function(),
         },
     )
 
@@ -394,6 +413,7 @@ def records(
     progression_function=Depends(get_progression_function),
     profile_function=Depends(get_profile_function),
     map_function=Depends(get_map_function),
+    export_date_function=Depends(get_export_date_function),
 ):
     progressions = progression_function(wca_id, event_id)
     profile = profile_function(wca_id)
@@ -443,5 +463,6 @@ def records(
             EVENT_HAS_AVERAGE_CONTEXT_KEY: event_has_average(event_id),
             SINGLE_MAP_SERIES_CONTEXT_KEY: map_series["singles"],
             AVERAGE_MAP_SERIES_CONTEXT_KEY: map_series["averages"],
+            EXPORT_DATE_CONTEXT_KEY: export_date_function(),
         },
     )

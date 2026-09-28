@@ -57,6 +57,18 @@ body {
     padding: 2rem 1.5rem 3rem;
 }
 
+.site-footer {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 0 1.5rem 2rem;
+    color: var(--muted-text);
+    font-size: 0.85rem;
+}
+
+.site-footer a {
+    color: inherit;
+}
+
 h2 {
     margin: 2.25rem 0 0.75rem;
     font-size: 1.15rem;

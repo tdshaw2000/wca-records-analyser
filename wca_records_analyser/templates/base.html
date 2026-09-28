@@ -17,6 +17,14 @@
     <main class="site-main">
         {% block content %}{% endblock %}
     </main>
+    {% if export_date %}
+        <footer class="site-footer">
+            <p>This information is based on competition results owned and maintained by the
+                World Cube Association, published at
+                <a href="https://worldcubeassociation.org/results">https://worldcubeassociation.org/results</a>
+                as of {{ export_date }}.</p>
+        </footer>
+    {% endif %}
     {% block scripts %}{% endblock %}
 </body>
 </html>
