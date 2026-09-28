@@ -142,7 +142,9 @@ def test_a_new_deploy_restarts_the_data_build_so_a_schema_bump_rebuilds(tmp_path
     _write_env(tmp_path, f"WCA_IMAGE={OLD}\n")
     docker = FakeDocker(tmp_path)
     assert pull_deploy.deploy(tmp_path, docker) == "deployed"
-    assert docker.ran("systemctl", "start") == [["systemctl", "start", "wca-data-build.service"]]
+    assert docker.ran("systemctl", "start") == [
+        ["systemctl", "start", "--no-block", "wca-data-build.service"]
+    ]
 
 
 def test_a_remembered_bad_image_is_not_tried_again(tmp_path):
