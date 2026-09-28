@@ -51,6 +51,13 @@ def test_opens_the_database_named_by_wca_data_db_path(db_path):
         assert data.metadata().schema_version == SCHEMA_VERSION
 
 
+@pytest.mark.parametrize("environ", [{}, {"WCA_DATA_DB_PATH": ""}])
+def test_without_a_path_or_wca_data_db_path_it_refuses_to_guess(environ):
+    # The owner's choice: a reader never falls back to the build job's server path.
+    with pytest.raises(DatabaseUnavailable, match="WCA_DATA_DB_PATH"):
+        WcaData.open(environ=environ)
+
+
 def test_a_missing_database_is_reported_clearly_and_not_created(tmp_path):
     missing = tmp_path / "nowhere.sqlite"
     with pytest.raises(DatabaseUnavailable, match="nowhere.sqlite"):
