@@ -162,9 +162,27 @@ def test_names_and_wca_ids_are_full_text_searchable(db, query, expected):
     assert rows == [(expected,)]
 
 
+@pytest.mark.parametrize(
+    ("phrase", "expected"),
+    [('"小 明"', ["2010WANG01"]), ('"王"', ["2010WANG01"]), ('"王 小 明"', ["2010WANG01"]),
+     ('"明 小"', [])],
+)
+def test_cjk_characters_of_names_are_indexed_one_by_one(db, phrase, expected):
+    rows = db.execute(
+        "SELECT p.wca_id FROM persons_cjk c JOIN persons p ON p.rowid = c.rowid "
+        "WHERE persons_cjk MATCH ?", (phrase,)
+    ).fetchall()
+    assert [wca_id for (wca_id,) in rows] == expected
+
+
+def test_only_names_with_cjk_characters_are_in_the_cjk_index(db):
+    assert db.execute("SELECT count(*) FROM persons_cjk").fetchone() == (1,)
+
+
 def test_the_database_passes_sqlites_integrity_check(db):
     assert db.execute("PRAGMA integrity_check").fetchone() == ("ok",)
     assert db.execute("INSERT INTO persons_fts(persons_fts) VALUES ('integrity-check')")
+    assert db.execute("INSERT INTO persons_cjk(persons_cjk) VALUES ('integrity-check')")
 
 
 def test_an_unsupported_export_version_fails_without_leaving_a_database(tmp_path):

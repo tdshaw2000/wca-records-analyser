@@ -325,3 +325,47 @@ def test_search_returns_at_most_the_limit(tmp_path):
     with WcaData.open(path) as data:
         assert len(data.search_persons("lee")) == 25
         assert _ids(data.search_persons("lee", limit=3)) == ["2000LEES01", "2001LEES01", "2002LEES01"]
+
+
+# --- CJK names: Chinese, Japanese and Korean names have no spaces between words ---
+
+
+@pytest.fixture
+def cjk_data(tmp_path):
+    header = ["name", "gender", "wca_id", "sub_id", "country_id"]
+    path = _build(
+        tmp_path,
+        persons=tsv(header,
+                    ["Feliks Zemdegs", "m", "2009ZEMD01", "1", "Australia"],
+                    ["Xiaoming Wang (王小明)", "m", "2010WANG01", "1", "China"],
+                    ["Ken'ichi Ueno (上野健一)", "m", "1982UENO01", "1", "Japan"],
+                    ["Taro Tanaka (たなかタロウ)", "m", "2015TANA01", "1", "Japan"],
+                    ["Minsoo Kim (김민수)", "m", "2016KIMM01", "1", "Korea"],
+                    ["Yi Wang (王一)", "f", "2018WANG02", "1", "China"]),
+    )
+    with WcaData.open(path) as opened:
+        yield opened
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("小明", ["2010WANG01"]),  # any run of characters inside the name
+        ("明", ["2010WANG01"]),
+        ("王", ["2010WANG01", "2018WANG02"]),
+        ("王小明", ["2010WANG01"]),
+        ("(王小明)", ["2010WANG01"]),
+        ("明小", []),  # the characters must be in that order
+        ("王 明", ["2010WANG01"]),  # separate words each match
+        ("健一", ["1982UENO01"]),
+        ("タロウ", ["2015TANA01"]),  # katakana
+        ("なか", ["2015TANA01"]),  # hiragana
+        ("민수", ["2016KIMM01"]),  # hangul
+        ("wang 王", ["2010WANG01", "2018WANG02"]),  # mixed with a latin word
+        ("xiao 王", ["2010WANG01"]),
+        ("Wang王一", ["2018WANG02"]),
+        ("feliks 王", []),
+    ],
+)
+def test_search_finds_any_part_of_a_cjk_name(cjk_data, query, expected):
+    assert _ids(cjk_data.search_persons(query)) == expected
