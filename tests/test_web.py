@@ -292,6 +292,23 @@ def test_records_of_an_unknown_wca_id_is_a_404():
     assert response.status_code == 404
 
 
+def test_a_wca_id_with_html_in_it_is_not_reflected_unescaped_in_the_404_body():
+    def not_found(wca_id):
+        raise PersonNotFound(f"No competitor has the WCA ID {wca_id}")
+
+    app.dependency_overrides[get_profile_function] = lambda: not_found
+    try:
+        client = TestClient(app)
+        response = client.get(
+            OVERVIEW_ROUTE, params={"wca_id": "<script>alert(1)</script>"}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert "<script>" not in response.text
+
+
 EXPORT_DATE = date(2026, 9, 23)
 
 
