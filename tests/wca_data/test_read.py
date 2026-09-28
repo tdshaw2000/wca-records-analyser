@@ -250,3 +250,78 @@ def test_results_are_read_through_the_person_and_event_index(data):
     [query] = [sql for sql in statements if "FROM results" in sql]
     plan = " ".join(row[3] for row in data.connection.execute("EXPLAIN QUERY PLAN " + query))
     assert "results_person_event" in plan
+
+
+# --- search ---
+
+
+def _ids(people):
+    return [person.wca_id for person in people]
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("Feliks", ["2009ZEMD01"]),
+        ("feli", ["2009ZEMD01"]),  # the start of a word, as someone types
+        ("zem feli", ["2009ZEMD01"]),  # every word must match, in any order
+        ("  Max   Park ", ["2012PARK03"]),
+        ("zoe martinez", ["2015MART01"]),  # accents don't matter
+        ("ZOÉ", ["2015MART01"]),
+        ("2009zemd01", ["2009ZEMD01"]),  # a WCA ID, or the start of one
+        ("2009ZEMD", ["2009ZEMD01"]),
+        ("wang", ["2010WANG01"]),
+        ("王小明", ["2010WANG01"]),
+        ("feliks park", []),
+        ("Felix", []),  # only current names are searched
+    ],
+)
+def test_search_matches_the_start_of_each_word_of_a_name_or_wca_id(data, query, expected):
+    assert _ids(data.search_persons(query)) == expected
+
+
+@pytest.mark.parametrize("query", ["", "   ", "()", "-", '"', "*", "^"])
+def test_a_query_with_nothing_to_search_for_finds_nobody(data, query):
+    assert data.search_persons(query) == []
+
+
+@pytest.mark.parametrize(
+    "query",
+    ['feliks"', '"feliks', "feliks AND", "OR max", "NOT zoe", "NEAR(max park)", "name:max",
+     "-zoe", "max*", "(max", "feliks + max", "{wca_id}: 2009", "zoe'"],
+)
+def test_search_input_is_never_read_as_query_syntax(data, query):
+    data.search_persons(query)  # no sqlite3.OperationalError
+
+
+def test_search_treats_query_operators_as_words(data):
+    assert _ids(data.search_persons("max*")) == ["2012PARK03"]
+    assert _ids(data.search_persons("-zoe")) == ["2015MART01"]
+    assert data.search_persons("feliks OR max") == []
+
+
+def test_search_results_are_whole_persons_in_name_order(tmp_path):
+    header = ["name", "gender", "wca_id", "sub_id", "country_id"]
+    path = _build(
+        tmp_path,
+        persons=tsv(header,
+                    ["Feliks Zemdegs", "m", "2009ZEMD01", "1", "Australia"],
+                    ["Anna Smith", "f", "2020SMIT02", "1", "Canada"],
+                    ["Anna Smith", "f", "2019SMIT01", "1", "Canada"],
+                    ["Aaron Smith", "m", "2021SMIT01", "1", "USA"]),
+    )
+    with WcaData.open(path) as data:
+        assert data.search_persons("smith") == [
+            Person(wca_id="2021SMIT01", name="Aaron Smith", country_id="USA"),
+            Person(wca_id="2019SMIT01", name="Anna Smith", country_id="Canada"),
+            Person(wca_id="2020SMIT02", name="Anna Smith", country_id="Canada"),
+        ]
+
+
+def test_search_returns_at_most_the_limit(tmp_path):
+    header = ["name", "gender", "wca_id", "sub_id", "country_id"]
+    rows = [[f"Sam Lee {n:02d}", "m", f"20{n:02d}LEES01", "1", "USA"] for n in range(30)]
+    path = _build(tmp_path, persons=tsv(header, *rows))
+    with WcaData.open(path) as data:
+        assert len(data.search_persons("lee")) == 25
+        assert _ids(data.search_persons("lee", limit=3)) == ["2000LEES01", "2001LEES01", "2002LEES01"]
