@@ -91,29 +91,21 @@ PROGRESSIONS_WITH_ALL_RESULTS = SimpleNamespace(
     consistency=[],
 )
 
-MATS_VALK_AVATAR_THUMB_URL = (
-    "https://avatars.worldcubeassociation.org/2007VALK01_thumb.jpg"
-)
 MATS_VALK = Person(
     name="Mats Valk",
     wca_id="2007VALK01",
     profile_url="https://www.worldcubeassociation.org/persons/2007VALK01",
-    avatar_thumb_url=MATS_VALK_AVATAR_THUMB_URL,
 )
 FELIKS_ZEMDEGS = Person(
     name="Feliks Zemdegs",
     wca_id="2009ZEMD01",
     profile_url="https://www.worldcubeassociation.org/persons/2009ZEMD01",
-    avatar_thumb_url=(
-        "https://avatars.worldcubeassociation.org/2009ZEMD01_thumb.jpg"
-    ),
 )
 MANY_COMPETITORS = [
     Person(
         name=f"Test Competitor {index}",
         wca_id=f"2020TEST{index:02d}",
         profile_url=f"https://www.worldcubeassociation.org/persons/2020TEST{index:02d}",
-        avatar_thumb_url="",
     )
     for index in range(MAX_SEARCH_SUGGESTIONS + 2)
 ]
@@ -727,11 +719,12 @@ def test_records_shows_the_competitor_identity():
     assert MATS_VALK.wca_id in response.text
 
 
-def test_records_shows_the_competitor_avatar():
+def test_records_shows_no_avatar_since_the_wca_export_has_none():
     response = _get_records_page()
 
     assert response.status_code == 200
-    assert f'src="{MATS_VALK_AVATAR_THUMB_URL}"' in response.text
+    assert "competitor-avatar\"" not in response.text
+    assert "<img" not in response.text
 
 
 def test_records_opens_the_wca_profile_in_a_new_tab_safely():
@@ -787,7 +780,7 @@ def test_overview_shows_the_competitor_identity():
     assert response.status_code == 200
     assert MATS_VALK.name in response.text
     assert MATS_VALK.wca_id in response.text
-    assert f'src="{MATS_VALK_AVATAR_THUMB_URL}"' in response.text
+    assert "<img" not in response.text
     assert WCA_PROFILE_URL in response.text
 
 
