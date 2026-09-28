@@ -82,6 +82,22 @@ def _connect_read_only(path: Path) -> sqlite3.Connection:
     )
 
 
+SEARCH_LIMIT = 25
+
+
+def _prefix_query(text: str) -> str | None:
+    """An FTS5 query matching names or WCA IDs with a word starting with each word of text.
+
+    Each word is quoted, so nothing the user types is read as FTS5 syntax. Words with no
+    letters or digits are dropped, since the index has no tokens for them. None if no word
+    is left.
+    """
+    words = [word for word in text.split() if any(char.isalnum() for char in word)]
+    if not words:
+        return None
+    return " ".join('"' + word.replace('"', '""') + '"*' for word in words)
+
+
 def _attempts(packed: str) -> tuple[int, ...]:
     return tuple(int(value) for value in packed.split(",")) if packed else ()
 
@@ -207,3 +223,19 @@ class WcaData:
             Result(*row[:7], attempts=_attempts(row[7]))
             for row in self.connection.execute(sql, params)
         ]
+
+    def search_persons(self, text: str, limit: int = SEARCH_LIMIT) -> list[Person]:
+        """Persons with a word of their name or WCA ID starting with every word of text.
+
+        Case and accents don't matter. Sorted by name, then WCA ID; at most limit of them.
+        """
+        query = _prefix_query(text)
+        if query is None:
+            return []
+        rows = self.connection.execute(
+            "SELECT wca_id, name, country_id FROM persons "
+            "WHERE rowid IN (SELECT rowid FROM persons_fts WHERE persons_fts MATCH ?) "
+            "ORDER BY name, wca_id LIMIT ?",
+            (query, limit),
+        )
+        return [Person(*row) for row in rows]
