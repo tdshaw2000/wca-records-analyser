@@ -1,6 +1,7 @@
 """Web page for searching World Cube Association competitors by name."""
 
 import hashlib
+import html
 import os
 import time
 from dataclasses import dataclass, field
@@ -115,7 +116,7 @@ app = FastAPI()
 
 @app.exception_handler(PersonNotFound)
 def _person_not_found(request: Request, exc: PersonNotFound):
-    return HTMLResponse(status_code=404, content=str(exc))
+    return HTMLResponse(status_code=404, content=html.escape(str(exc)))
 
 
 app.mount(
