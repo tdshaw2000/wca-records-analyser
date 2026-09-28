@@ -23,7 +23,7 @@
 
 - **Language:** Python
 - **Web:** FastAPI + Jinja2 templates, served with uvicorn
-- **HTTP:** httpx (against the WCA public API at `https://www.worldcubeassociation.org/api/v0`)
+- **Data access:** `wca_data` (see below) reads a SQLite database built from the WCA public results export; the app no longer calls the WCA API directly.
 - **Charting:** Chart.js (vendored under `static/vendor/`, no CDN) with the date-fns adapter for time axes.
 - **CI/CD:** GitHub Actions (hosted runners; `.github/workflows/ci.yml`)
 
@@ -31,7 +31,7 @@
 
 Each module owns one concern; keep HTTP, analysis, presentation, and web wiring separate.
 
-- `wca_client.py` — WCA API access only. `search_persons`, `get_results`, `get_competition_dates`, `get_competed_events`; dataclasses `Person`, `Result`. Functions take an optional `client` for test injection.
+- `wca_client.py` — reads a competitor's data via `wca_data.read.WcaData`, in the shapes the rest of the app expects: `search_persons`, `get_results`, `get_competitions`, `get_competition_dates`, `get_profile`, `get_export_date`; dataclasses `Person`, `Competition`, `Profile`, `Result`. `PersonNotFound` for an unknown WCA ID (a 404 in `web.py`). Functions take an optional `data` (an open `WcaData`) for test injection; without one they open the database `WCA_DATA_DB_PATH` names.
 - `records.py` — PR analysis (no HTTP). `personal_record_flags`, `single_record_progression`; dataclass `RecordPoint`. Singles are centiseconds; non-positive values are DNF/DNS and are skipped.
 - `events.py` — event id → display name table (`EVENT_NAMES`) and `named_events`; dataclass `Event`.
 - `formatting.py` — `format_single` renders centiseconds as a cubing time string.
@@ -59,7 +59,7 @@ web; `tests/wca_data/test_isolation.py` enforces that. App-specific analysis sta
 ## running and testing
 
 - **Tests:** `.venv/bin/python -m pytest`
-- **Run the app:** `.venv/bin/python -m uvicorn wca_records_analyser.web:app`. TLS to the live API works without any extra environment: `wca_client` calls `truststore.inject_into_ssl()` at import, so httpx verifies against the OS trust store (which holds the host's Zscaler proxy CA) instead of certifi's bundle.
+- **Run the app:** `WCA_DATA_DB_PATH=<path to a built database> .venv/bin/python -m uvicorn wca_records_analyser.web:app`.
 
 ## Review loop
 

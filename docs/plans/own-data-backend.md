@@ -1,6 +1,6 @@
 # Project plan: our own WCA data backend on OCI
 
-Status: **phases 1 and 2 done** (2026-09-28). Written 2026-09-26; updated 2026-09-27 with the
+Status: **phases 1 through 3 done** (2026-09-28). Written 2026-09-26; updated 2026-09-27 with the
 hosting, caching and working-practice decisions. Supersedes the open questions in
 [`docs/shared-backend-tradeoffs.md`](../shared-backend-tradeoffs.md), which remains the
 background reading (measurements, licence text, export format).
@@ -216,7 +216,13 @@ behaviour is a red commit (failing tests) then a green commit, reviewed as `CLAU
    two-character queries those names need).
 3. **Web app on the new data layer** — swap `wca_client.py` over, drop avatars, add licence
    footer, time the overview (see "Measure before caching PRs"). Still behind the holding
-   page on Render.
+   page on Render. Done: `wca_client.py` reads `wca_data.read.WcaData`; an unknown WCA ID is
+   a 404; httpx/truststore dropped (moved to a dev-only test dependency). Timed the overview
+   for Feliks Zemdegs (2009ZEMD01, 19 events) on the real export: ~76ms sequential. The
+   per-event thread pool, built for the old API's round-trips, made this *slower* (~236ms) 
+   against local SQLite reads with nothing to hide, so it's removed; the TTL cache stays, since
+   it still helps repeat visits and warm search. No PR cache: both numbers are well under
+   anything that would need one.
 4. **Server and deployment** — ARM64 image to GHCR, Compose project and data directory on the
    shared VM, the Caddy site entry in the scramble stack, build timer, pull-deploy timer,
    monitoring, runbook. Remove the Render deploy job.
