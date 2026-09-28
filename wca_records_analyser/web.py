@@ -75,7 +75,6 @@ RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 WCA_ID_CONTEXT_KEY = "wca_id"
 NAME_CONTEXT_KEY = "name"
-AVATAR_THUMB_URL_CONTEXT_KEY = "avatar_thumb_url"
 EVENT_ID_CONTEXT_KEY = "event_id"
 EVENTS_CONTEXT_KEY = "events"
 PROFILE_URL_CONTEXT_KEY = "profile_url"
@@ -345,7 +344,6 @@ def overview(
         context={
             WCA_ID_CONTEXT_KEY: wca_id,
             NAME_CONTEXT_KEY: person.name,
-            AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
             SKELETON_ROW_COUNT_CONTEXT_KEY: len(profile.event_ids),
             OVERVIEW_ROWS_URL_CONTEXT_KEY: (
@@ -412,7 +410,6 @@ def records(
         context={
             WCA_ID_CONTEXT_KEY: wca_id,
             NAME_CONTEXT_KEY: person.name,
-            AVATAR_THUMB_URL_CONTEXT_KEY: person.avatar_thumb_url,
             EVENT_ID_CONTEXT_KEY: event_id,
             EVENTS_CONTEXT_KEY: named_events(profile.event_ids),
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
