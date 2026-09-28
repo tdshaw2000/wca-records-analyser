@@ -78,6 +78,15 @@ def test_publish_pushes_an_arm64_image_where_the_vm_pulls_from():
     assert f'REPOSITORY = "{IMAGE}"' in (ROOT / "deploy" / "pull_deploy.py").read_text()
 
 
+def test_publish_bakes_the_commit_sha_into_the_image():
+    # wca_records_analyser.web.build_number() reads GIT_COMMIT from the running
+    # container's environment; the Dockerfile declares it as a build ARG/ENV.
+    publish = _jobs()["publish"]
+    build = _uses(publish, "docker/build-push-action")["with"]
+    build_args = build["build-args"].splitlines()
+    assert "GIT_COMMIT=${{ github.sha }}" in build_args
+
+
 def test_no_workflow_uses_a_self_hosted_runner_pull_request_target_or_a_secret():
     for path in WORKFLOWS.glob("*.yml"):
         text = path.read_text()
