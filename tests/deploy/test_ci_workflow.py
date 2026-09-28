@@ -26,6 +26,10 @@ def test_the_render_deploy_is_gone():
     assert "RENDER" not in CI.read_text()
 
 
+def test_render_yaml_is_removed():
+    assert not (ROOT / "render.yaml").exists()
+
+
 def test_every_branch_builds_the_image_and_checks_it_turns_healthy():
     image = _jobs()["image"]
     assert image["needs"] == "test"
