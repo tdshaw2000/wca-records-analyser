@@ -26,8 +26,16 @@ def test_the_render_deploy_is_gone():
     assert "RENDER" not in CI.read_text()
 
 
-def test_render_yaml_is_removed():
-    assert not (ROOT / "render.yaml").exists()
+def test_render_yaml_is_a_static_holding_page_not_the_app():
+    # The app deploys to the VM now (see docs/runbook.md); render.yaml only
+    # points Render's free static-site hosting at deploy/render-holding, a
+    # tiny "we've moved" page for anyone who still lands on the old Render URL.
+    config = yaml.safe_load((ROOT / "render.yaml").read_text())
+    (service,) = config["services"]
+    assert service["runtime"] == "static"
+    assert service["staticPublishPath"] == "./deploy/render-holding"
+    assert service["autoDeploy"] is True
+    assert "dockerfilePath" not in service
 
 
 def test_every_branch_builds_the_image_and_checks_it_turns_healthy():

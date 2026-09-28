@@ -58,6 +58,7 @@ connects to it. How to set up and operate it: `docs/runbook.md`.
 - `deploy/pull_deploy.py` — stdlib script for the host, every 5 minutes: pins the new digest in `.env`, `compose up --wait web`, rolls back and records an unhealthy image in `bad-images`.
 - `deploy/systemd/` — `wca-data-build` (03:30 UTC nightly) and `wca-deploy` services and timers.
 - `deploy/caddy/` — reference copy of the site block that lives in the scramble repo's Caddyfile.
+- `render.yaml` / `deploy/render-holding/` — Render is retired as the app's deploy target (phase 6); this only points Render's free static-site hosting at a "we've moved" page (a link to the VM URL, no auto-redirect) for anyone still landing on the old Render URL. Render's own GitHub integration deploys it; no secrets or CI job involved.
 - Tests in `tests/deploy/`.
 
 ## repo rules (the repo is to become public)
