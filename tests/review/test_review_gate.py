@@ -417,6 +417,44 @@ def test_review_state_lives_inside_git_so_it_is_never_committed(repo):
     assert git(repo, "status", "--porcelain") == ""
 
 
+def write_handback_transcript(path, message):
+    """A transcript line shaped like a cloud session's: the subagent's final report arrives as
+    a SubagentHandback tool call, not a plain assistant text message."""
+    line = {
+        "message": {
+            "content": [
+                {"type": "tool_use", "name": "SubagentHandback", "input": {"message": message}}
+            ]
+        }
+    }
+    path.write_text(json.dumps(line) + "\n")
+
+
+def record_from_transcript(repo, tmp_path, message, agent_type="reviewer"):
+    transcript = tmp_path / "transcript.jsonl"
+    write_handback_transcript(transcript, message)
+    return run(
+        "record",
+        {
+            "hook_event_name": "SubagentStop",
+            "cwd": str(repo),
+            "agent_type": agent_type,
+            "agent_id": "a1",
+            "stop_hook_active": False,
+            "agent_transcript_path": str(transcript),
+        },
+    )
+
+
+def test_a_cloud_session_reads_the_verdict_from_the_transcript(repo, tmp_path):
+    """Cloud sessions' SubagentStop event carries no last_assistant_message (the report lands
+    in a SubagentHandback tool call instead); the gate must fall back to the transcript."""
+    result = record_from_transcript(repo, tmp_path, verdict(head(repo)))
+
+    assert result.returncode == 0, result.stderr
+    assert mark_ready(repo).returncode == 0
+
+
 def test_marking_ready_outside_a_git_repo_is_blocked_not_crashed(tmp_path):
     result = run(
         "gate",
