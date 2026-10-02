@@ -2,6 +2,7 @@
 
 import functools
 import importlib.util
+import os
 import stat
 from pathlib import Path
 
@@ -54,10 +55,19 @@ def test_collect_keeps_only_lines_naming_a_wca_id():
         count = collect_admin_log.collect(run, output_path)
         assert count == 1
         assert output_path.read_text() == OVERVIEW_LINE + "\n"
-        # Written by a root systemd service; the web container reads it as a
-        # non-root user, so it must be readable by everyone.
-        mode = stat.S_IMODE(output_path.stat().st_mode)
-        assert mode & stat.S_IROTH, f"expected world-readable, got {oct(mode)}"
+        # Written by a root systemd service; the web container reads it as its own
+        # non-root uid, same ownership /srv/wca-data already uses, so it's never
+        # readable by any other local account on the shared VM. chown only actually
+        # takes effect when run as root (as the real service does); this test process
+        # itself may not be, so only require the ownership when it can be.
+        info = output_path.stat()
+        if os.geteuid() == 0:
+            assert (info.st_uid, info.st_gid) == (
+                collect_admin_log.WEB_UID,
+                collect_admin_log.WEB_GID,
+            )
+        mode = stat.S_IMODE(info.st_mode)
+        assert not mode & (stat.S_IRGRP | stat.S_IROTH), f"not owner-only, got {oct(mode)}"
     finally:
         output_path.unlink(missing_ok=True)
         output_path.parent.rmdir()
