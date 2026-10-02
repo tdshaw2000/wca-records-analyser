@@ -1,0 +1,12 @@
+# Filters the web container's access log for the /admin page (deploy/collect_admin_log.py).
+[Unit]
+Description=Collect admin usage log (wca-records-analyser)
+Requires=docker.service
+Wants=network-online.target
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/wca-records-analyser
+ExecStart=/usr/bin/python3 /srv/wca-records-analyser/collect_admin_log.py
+TimeoutStartSec=5min

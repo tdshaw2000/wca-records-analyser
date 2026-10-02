@@ -30,7 +30,11 @@ def test_the_build_service_runs_the_build_service_of_this_compose_project():
 
 
 def test_the_services_start_after_docker_and_the_network():
-    for name in ("wca-data-build.service", "wca-deploy.service"):
+    for name in (
+        "wca-data-build.service",
+        "wca-deploy.service",
+        "wca-admin-digest.service",
+    ):
         unit = _unit(name)["Unit"]
         assert "docker.service" in unit["Requires"].split(), name
         assert {"docker.service", "network-online.target"} <= set(unit["After"].split()), name
@@ -58,3 +62,20 @@ def test_the_deploy_checks_for_a_new_image_every_five_minutes():
     assert timer["OnBootSec"] == "2min"
     assert timer["OnUnitInactiveSec"] == "5min"
     assert _unit("wca-deploy.timer")["Install"]["WantedBy"] == "timers.target"
+
+
+def test_the_admin_digest_service_runs_the_installed_collector_script():
+    service = _unit("wca-admin-digest.service")["Service"]
+    assert service["Type"] == "oneshot"
+    assert service["WorkingDirectory"] == INSTALL_DIR
+    command = _exec_start("wca-admin-digest.service")
+    assert command == ["/usr/bin/python3", f"{INSTALL_DIR}/collect_admin_log.py"]
+    # Bounds a hung `docker compose logs`, like the build (2h) and deploy (15min) services.
+    assert "TimeoutStartSec" in service
+
+
+def test_the_admin_digest_runs_every_five_minutes():
+    timer = _unit("wca-admin-digest.timer")["Timer"]
+    assert timer["OnBootSec"] == "2min"
+    assert timer["OnUnitInactiveSec"] == "5min"
+    assert _unit("wca-admin-digest.timer")["Install"]["WantedBy"] == "timers.target"

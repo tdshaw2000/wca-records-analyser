@@ -13,8 +13,10 @@ in [`deploy/`](../deploy); the plan behind it is
 | `wca-deploy.timer` → `pull_deploy.py` | VM, every 5 minutes | Pulls `:main`; if its digest is new, pins it in `.env`, restarts `web`, keeps it if it turns healthy, otherwise rolls back |
 | `web` service (`compose.yaml`) | VM, container | The app on port 8000 of the scramble stack's Docker network, alias `wca-records-analyser`. No host port |
 | `wca-data-build.timer` → `build` service | VM, 03:30 UTC nightly | `python -m wca_data.build` at nice 19, capped at 1 CPU and 1 GB. It also asks for idle IO, which only BFQ honours; the CPU caps are what protect the scramble app |
+| `wca-admin-digest.timer` → `collect_admin_log.py` | VM, every 5 minutes | Filters `docker compose logs -t web` down to the lines naming a `wca_id`, for the `/admin` page. Runs as root (the only piece here with docker access) |
 | Site block in the scramble repo's Caddyfile | VM, scramble's Caddy | `wca-records-analyser.duckdns.org` → `wca-records-analyser:8000` |
 | `/srv/wca-data/` | VM, owned by uid 10001 | `wca.sqlite` (live) and `wca.sqlite.prev` (the one before). Mounted read-only into `web` |
+| `/srv/wca-admin/` | VM, `usage.log` owned by uid 10001 | The filtered access log `/admin` reads, written by root but chowned to the uid the container reads it as. Mounted read-only into `web` |
 | `/srv/wca-records-analyser/` | VM | `deploy/` installed from the image, plus `.env` and `bad-images` (never committed) |
 
 ## One-time setup
@@ -31,10 +33,13 @@ step 8, and step 8 only reloads its Caddy.
    **public** (the plan's choice: the VM needs no credentials). Then check from the VM:
    `sudo docker pull ghcr.io/tdshaw2000/wca-records-analyser:main`.
 
-3. **Create the data directory**, owned by the uid the image runs as:
+3. **Create the data directory**, owned by the uid the image runs as, and the admin log
+   directory (the collector writes `usage.log` into it as root, then chowns the file
+   itself to that same uid, so it stays unreadable by any other local account):
 
    ```sh
    sudo install -d -o 10001 -g 10001 -m 755 /srv/wca-data
+   sudo install -d -m 755 /srv/wca-admin
    ```
 
 4. **Install `deploy/` from the image** (no checkout of the repo needed):
@@ -59,6 +64,8 @@ step 8, and step 8 only reloads its Caddy.
    - `EDGE_NETWORK=<name>`, only if the scramble stack's network isn't
      `scramble-challenge_default`. Find it with
      `sudo docker inspect scramble-challenge-caddy-1 --format '{{json .NetworkSettings.Networks}}'`.
+   - `ADMIN_PASSWORD=<password>`: the `/admin` page's HTTP Basic password (username
+     `admin`). Leave it unset to keep that page 404ing (its default).
    - Leave `WCA_IMAGE` out; the pull deploy writes it.
 
 6. **Build the database once** (about four minutes, and up to 2 GB of scratch disk):
@@ -77,9 +84,13 @@ step 8, and step 8 only reloads its Caddy.
    sudo python3 /srv/wca-records-analyser/pull_deploy.py      # "pull deploy: deployed"
    sudo cp /srv/wca-records-analyser/systemd/* /etc/systemd/system/
    sudo systemctl daemon-reload
-   sudo systemctl enable --now wca-deploy.timer wca-data-build.timer
+   sudo systemctl enable --now wca-deploy.timer wca-data-build.timer wca-admin-digest.timer
    systemctl list-timers 'wca-*'
    ```
+
+   The first `wca-admin-digest` run writes `/srv/wca-admin/usage.log` (empty until someone
+   visits a competitor's page); `/admin` only shows anything once both that file exists and
+   `ADMIN_PASSWORD` is set.
 
    If this first deploy fails its health check there is nothing to roll back to, so the
    unhealthy `web` container is left running: `sudo docker compose logs web` says why. Fix it,
@@ -107,6 +118,8 @@ step 8, and step 8 only reloads its Caddy.
   minutes the VM runs it. What happened: `journalctl -u wca-deploy.service -n 50`.
 - **Build logs:** `journalctl -u wca-data-build.service -n 50`. Most nights say
   `wca_data build: unchanged` when WCA hasn't published since the last build.
+- **Admin digest logs:** `journalctl -u wca-admin-digest.service -n 20`, or read
+  `/srv/wca-admin/usage.log` directly — the same lines `/admin` groups by competitor.
 - **Build now:** `sudo systemctl start wca-data-build.service`. A second build while one is
   running refuses to start.
 - **When a PR changes `deploy/`:** the pull deploy only swaps the image, not the files around

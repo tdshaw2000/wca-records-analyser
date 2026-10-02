@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Admin — WCA Records Analyser{% endblock %}
+{% block content %}
+    <h1>Who's used the app</h1>
+    {% if usage %}
+        <ul class="admin-usage-list">
+            {% for entry in usage %}
+                <li>
+                    <details>
+                        <summary>
+                            {{ entry.wca_id }}
+                            ({{ entry.overview_visits | length }} overview visit{{ "s" if entry.overview_visits | length != 1 else "" }},
+                            last {{ entry.overview_visits[-1].timestamp }})
+                        </summary>
+                        {% if entry.other_visits %}
+                            <ul>
+                                {% for visit in entry.other_visits %}
+                                    <li>{{ visit.timestamp }} — {{ visit.path }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No other pages viewed.</p>
+                        {% endif %}
+                    </details>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="empty-message">No usage recorded yet.</p>
+    {% endif %}
+{% endblock %}

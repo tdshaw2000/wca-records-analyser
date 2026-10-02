@@ -36,7 +36,14 @@ Each module owns one concern; keep HTTP, analysis, presentation, and web wiring 
 - `events.py` — event id → display name table (`EVENT_NAMES`) and `named_events`; dataclass `Event`.
 - `formatting.py` — `format_single` renders centiseconds as a cubing time string.
 - `chart.py` — shapes `RecordPoint` progressions into JSON-serialisable chart series (no HTTP); rendered client-side by `static/records-chart.js`.
-- `web.py` — FastAPI routes (`/`, `/search`, `/records`) with injectable `Depends` seams (`get_search_function`, `get_events_function`, `get_progression_function`) so web tests never hit the network. Templates in `templates/`.
+- `web.py` — FastAPI routes (`/`, `/search`, `/records`, `/admin`) with injectable `Depends` seams (`get_search_function`, `get_events_function`, `get_progression_function`, `get_admin_log_text_function`) so web tests never hit the network. Templates in `templates/`.
+  - **Admin:** `/admin` lists who's used the app (WCA IDs that requested the overview page,
+    each expandable to the other pages they viewed), behind HTTP Basic auth gated on
+    `ADMIN_PASSWORD` (404s while unset). Sourced from the existing access log rather than a
+    new DB table: `admin_log.py` parses it (uvicorn's own access log already carries the
+    query string, so no app-side request logging was needed); `deploy/collect_admin_log.py`
+    filters `docker compose logs` on the VM, where the web container has no docker access
+    of its own, and writes the result to the read-only mount `WCA_ADMIN_LOG_PATH` names.
   - **Holding page:** a middleware that, when `HOLDING_PAGE_ENABLED` is `True`, answers every non-static request with `templates/holding.html` (status 200; `/healthz`, the image's database-free health check, is let through). It shielded the app during the WCA API access change of 24 September 2026 and is off since the phase 5 cutover to the own data backend (2026-09-28). `tests/conftest.py` disables it for the normal suite; `tests/test_holding_page.py` re-enables it to test it, and checks the default is off.
 
 The data layer is a separate package, `wca_data/`, being built to replace the WCA API (plan:

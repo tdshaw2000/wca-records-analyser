@@ -3,17 +3,20 @@
 import hashlib
 import html
 import os
+import secrets
 import time
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.status import HTTP_303_SEE_OTHER
 
+from wca_records_analyser.admin_log import parse_visits, usage_by_wca_id
 from wca_records_analyser.cache import ttl_cached
 from wca_records_analyser.chart import (
     to_consistency_series,
@@ -56,6 +59,7 @@ RECORDS_ROUTE = "/records"
 OVERVIEW_ROUTE = "/overview"
 OVERVIEW_ROWS_ROUTE = "/overview/rows"
 OVERVIEW_MAP_DATA_ROUTE = "/overview/map-data"
+ADMIN_ROUTE = "/admin"
 SEARCH_NAME_PARAMETER = "name"
 SEARCH_QUERY_PARAMETER = "q"
 WCA_ID_QUERY_PARAMETER = "wca_id"
@@ -69,6 +73,7 @@ HOLDING_TEMPLATE = "holding.html"
 RECORDS_TEMPLATE = "records.html"
 OVERVIEW_TEMPLATE = "overview.html"
 OVERVIEW_ROWS_TEMPLATE = "overview_rows.html"
+ADMIN_TEMPLATE = "admin.html"
 TEMPLATES_DIRECTORY = Path(__file__).parent / "templates"
 STATIC_ROUTE = "/static"
 HEALTH_ROUTE = "/healthz"
@@ -106,6 +111,10 @@ VERSION_HASH_LENGTH = 8
 BUILD_NUMBER_GLOBAL = "build_number"
 GIT_COMMIT_ENVIRONMENT_VARIABLE = "GIT_COMMIT"
 BUILD_NUMBER_LENGTH = 7
+USAGE_CONTEXT_KEY = "usage"
+ADMIN_PASSWORD_ENVIRONMENT_VARIABLE = "ADMIN_PASSWORD"
+ADMIN_LOG_PATH_ENVIRONMENT_VARIABLE = "WCA_ADMIN_LOG_PATH"
+ADMIN_USERNAME = "admin"
 # The WCA changed its API access policy on 24 September 2026, cutting off the
 # data every page relies on. While this is on, every page (static assets aside)
 # is replaced by a holding page that explains why. Off since the phase 5
@@ -140,6 +149,7 @@ def build_number():
     return commit_sha[:BUILD_NUMBER_LENGTH]
 
 
+admin_credentials_scheme = HTTPBasic(auto_error=False)
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 templates.env.filters[SINGLE_FILTER] = format_single
 templates.env.filters[AVERAGE_FILTER] = format_average
@@ -233,6 +243,22 @@ def get_overview_function():
 def get_profile_function():
     """Provide the function used to look up a competitor's profile (overridable in tests)."""
     return cached_profile
+
+
+def get_admin_log_text_function():
+    """Provide the function used to read the filtered access log (overridable in tests).
+
+    deploy/collect_admin_log.py writes this file on the VM; the app has no docker access of
+    its own. Missing (not yet collected, or running outside the VM) reads as no usage yet.
+    """
+
+    def read_admin_log_text():
+        path = os.environ.get(ADMIN_LOG_PATH_ENVIRONMENT_VARIABLE)
+        if not path or not Path(path).is_file():
+            return ""
+        return Path(path).read_text()
+
+    return read_admin_log_text
 
 
 def get_progression_function():
@@ -461,4 +487,30 @@ def records(
             AVERAGE_MAP_SERIES_CONTEXT_KEY: map_series["averages"],
             EXPORT_DATE_CONTEXT_KEY: export_date_function(),
         },
+    )
+
+
+@app.get(ADMIN_ROUTE, response_class=HTMLResponse)
+def admin(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(admin_credentials_scheme),
+    admin_log_text_function=Depends(get_admin_log_text_function),
+):
+    # No password configured: 404, not 401, so an admin page nobody has set up isn't even
+    # visible to find, let alone try passwords against.
+    configured_password = os.environ.get(ADMIN_PASSWORD_ENVIRONMENT_VARIABLE)
+    if not configured_password:
+        raise HTTPException(status_code=404)
+    if credentials is None or not (
+        secrets.compare_digest(credentials.username, ADMIN_USERNAME)
+        and secrets.compare_digest(credentials.password, configured_password)
+    ):
+        raise HTTPException(
+            status_code=401, headers={"WWW-Authenticate": "Basic"}
+        )
+    usage = usage_by_wca_id(parse_visits(admin_log_text_function()))
+    return templates.TemplateResponse(
+        request=request,
+        name=ADMIN_TEMPLATE,
+        context={USAGE_CONTEXT_KEY: usage},
     )
