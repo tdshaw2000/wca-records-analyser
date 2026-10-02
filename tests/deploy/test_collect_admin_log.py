@@ -2,6 +2,7 @@
 
 import functools
 import importlib.util
+import stat
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,6 +54,10 @@ def test_collect_keeps_only_lines_naming_a_wca_id():
         count = collect_admin_log.collect(run, output_path)
         assert count == 1
         assert output_path.read_text() == OVERVIEW_LINE + "\n"
+        # Written by a root systemd service; the web container reads it as a
+        # non-root user, so it must be readable by everyone.
+        mode = stat.S_IMODE(output_path.stat().st_mode)
+        assert mode & stat.S_IROTH, f"expected world-readable, got {oct(mode)}"
     finally:
         output_path.unlink(missing_ok=True)
         output_path.parent.rmdir()
