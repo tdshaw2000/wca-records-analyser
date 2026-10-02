@@ -6,6 +6,7 @@
 #   WCA_IMAGE          the image both services run, pinned by digest; pull_deploy.py writes it
 #   WCA_DATA_PING_URL  the missed-build monitor the build pings after every good run
 #   EDGE_NETWORK       the scramble stack's Docker network, if not scramble-challenge_default
+#   ADMIN_PASSWORD     the /admin page's HTTP Basic password; the page 404s while this is unset
 name: wca-records-analyser
 
 x-logging: &logging
@@ -20,11 +21,19 @@ services:
     restart: unless-stopped
     environment:
       WCA_DATA_DB_PATH: /srv/wca-data/wca.sqlite
+      WCA_ADMIN_LOG_PATH: /srv/wca-admin/usage.log
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     volumes:
       # The directory, not the file: the build renames a new database into place.
       - type: bind
         source: /srv/wca-data
         target: /srv/wca-data
+        read_only: true
+      # Written by collect_admin_log.py (deploy/systemd/wca-admin-digest.{service,timer}),
+      # which has the docker access this read-only container doesn't.
+      - type: bind
+        source: /srv/wca-admin
+        target: /srv/wca-admin
         read_only: true
     read_only: true
     tmpfs:
