@@ -10,6 +10,8 @@ COMPOSE = ROOT / "deploy" / "compose.yaml"
 IMAGE = "ghcr.io/tdshaw2000/wca-records-analyser"
 DATA_DIR = "/srv/wca-data"
 DB_PATH = "/srv/wca-data/wca.sqlite"
+ADMIN_DIR = "/srv/wca-admin"
+ADMIN_LOG_PATH = "/srv/wca-admin/usage.log"
 ALIAS = "wca-records-analyser"
 
 
@@ -46,6 +48,17 @@ def test_the_web_app_reads_the_database_through_a_read_only_mount():
     web = _service("web")
     assert _data_mount(web)["read_only"] is True
     assert web["environment"]["WCA_DATA_DB_PATH"] == DB_PATH
+
+
+def test_the_web_app_reads_the_admin_log_through_a_read_only_mount():
+    web = _service("web")
+    mounts = [m for m in web["volumes"] if isinstance(m, dict) and m["target"] == ADMIN_DIR]
+    assert len(mounts) == 1, "expected one long-form bind mount of the admin log directory"
+    assert mounts[0]["type"] == "bind"
+    assert mounts[0]["source"] == ADMIN_DIR
+    assert mounts[0]["read_only"] is True
+    assert web["environment"]["WCA_ADMIN_LOG_PATH"] == ADMIN_LOG_PATH
+    assert web["environment"]["ADMIN_PASSWORD"] == "${ADMIN_PASSWORD:-}"
 
 
 def test_the_web_app_publishes_no_port_on_the_host():
