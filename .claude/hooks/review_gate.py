@@ -129,12 +129,46 @@ def parse_verdict(message):
     return verdict
 
 
+def transcript_report(path):
+    """The reviewer's final report, read from its own transcript. Cloud sessions' SubagentStop
+    event carries no last_assistant_message; the reviewer hands its report back through a
+    SubagentHandback tool call instead of a closing text message, so that is read here as the
+    message of last resort, in transcript order so the latest one wins."""
+    if not path:
+        return None
+    try:
+        lines = Path(path).read_text().splitlines()
+    except OSError:
+        return None
+    message = None
+    for line in lines:
+        try:
+            content = json.loads(line).get("message", {}).get("content")
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text" and isinstance(block.get("text"), str):
+                message = block["text"]
+            elif block.get("type") == "tool_use" and block.get("name") == "SubagentHandback":
+                text = (block.get("input") or {}).get("message")
+                if isinstance(text, str):
+                    message = text
+    return message
+
+
 def record(event):
     reviewer = event.get("agent_type")
     if reviewer not in REVIEWERS:
         return
     cwd = event.get("cwd")
-    verdict = parse_verdict(event.get("last_assistant_message"))
+    message = event.get("last_assistant_message") or transcript_report(
+        event.get("agent_transcript_path")
+    )
+    verdict = parse_verdict(message)
     problem = None
     if verdict is None:
         problem = (
