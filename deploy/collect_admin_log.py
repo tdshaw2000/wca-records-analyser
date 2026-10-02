@@ -41,6 +41,9 @@ def _write_atomic(path, text):
     try:
         with os.fdopen(descriptor, "w") as file:
             file.write(text)
+        # Written as root (a systemd service); the web container reads it as its own
+        # non-root user, so it needs to be world-readable, unlike pull_deploy.py's .env.
+        os.chmod(temporary, 0o644)
         os.replace(temporary, path)
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
