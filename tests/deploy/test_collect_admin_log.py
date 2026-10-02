@@ -88,9 +88,7 @@ def test_collect_raises_when_docker_compose_logs_fails():
 
 
 def test_main_prints_the_line_count_and_returns_zero(monkeypatch, capsys):
-    monkeypatch.setattr(
-        collect_admin_log, "collect", lambda run, output_path=None: 3
-    )
+    monkeypatch.setattr(_load(), "collect", lambda run, output_path=None: 3)
     assert collect_admin_log.main() == 0
     assert "3" in capsys.readouterr().out
 
@@ -99,6 +97,6 @@ def test_main_prints_to_stderr_and_returns_one_on_failure(monkeypatch, capsys):
     def failing_collect(run, output_path=None):
         raise collect_admin_log.CollectFailed("docker compose logs failed")
 
-    monkeypatch.setattr(collect_admin_log, "collect", failing_collect)
+    monkeypatch.setattr(_load(), "collect", failing_collect)
     assert collect_admin_log.main() == 1
     assert "docker compose logs failed" in capsys.readouterr().err
