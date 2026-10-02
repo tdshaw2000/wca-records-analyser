@@ -70,6 +70,8 @@ def test_the_admin_digest_service_runs_the_installed_collector_script():
     assert service["WorkingDirectory"] == INSTALL_DIR
     command = _exec_start("wca-admin-digest.service")
     assert command == ["/usr/bin/python3", f"{INSTALL_DIR}/collect_admin_log.py"]
+    # Bounds a hung `docker compose logs`, like the build (2h) and deploy (15min) services.
+    assert "TimeoutStartSec" in service
 
 
 def test_the_admin_digest_runs_every_five_minutes():

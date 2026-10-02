@@ -16,7 +16,7 @@ in [`deploy/`](../deploy); the plan behind it is
 | `wca-admin-digest.timer` → `collect_admin_log.py` | VM, every 5 minutes | Filters `docker compose logs -t web` down to the lines naming a `wca_id`, for the `/admin` page. Runs as root (the only piece here with docker access) |
 | Site block in the scramble repo's Caddyfile | VM, scramble's Caddy | `wca-records-analyser.duckdns.org` → `wca-records-analyser:8000` |
 | `/srv/wca-data/` | VM, owned by uid 10001 | `wca.sqlite` (live) and `wca.sqlite.prev` (the one before). Mounted read-only into `web` |
-| `/srv/wca-admin/` | VM, written by root, world-readable | `usage.log`, the filtered access log `/admin` reads. Mounted read-only into `web` |
+| `/srv/wca-admin/` | VM, `usage.log` owned by uid 10001 | The filtered access log `/admin` reads, written by root but chowned to the uid the container reads it as. Mounted read-only into `web` |
 | `/srv/wca-records-analyser/` | VM | `deploy/` installed from the image, plus `.env` and `bad-images` (never committed) |
 
 ## One-time setup
@@ -34,7 +34,8 @@ step 8, and step 8 only reloads its Caddy.
    `sudo docker pull ghcr.io/tdshaw2000/wca-records-analyser:main`.
 
 3. **Create the data directory**, owned by the uid the image runs as, and the admin log
-   directory (written by root, read by the container, so just world-readable):
+   directory (the collector writes `usage.log` into it as root, then chowns the file
+   itself to that same uid, so it stays unreadable by any other local account):
 
    ```sh
    sudo install -d -o 10001 -g 10001 -m 755 /srv/wca-data

@@ -6,6 +6,10 @@ runs on the host and writes a plain text file the container reads read-only
 (wca_records_analyser.web, WCA_ADMIN_LOG_PATH): one access-log line per request that named a
 wca_id, same as the owner's own `docker compose logs -t web | grep wca_id`.
 
+Each run re-derives the whole file from the web service's current docker logs, so the
+admin page's history is only as long as those logs: a visit quietly drops off once it
+rotates past deploy/compose.yaml's json-file cap (max-size 10m, max-file 3, ~30 MB).
+
 Standard library only: this runs on the host's python3, not in the image.
 """
 
@@ -19,6 +23,9 @@ PROJECT = "wca-records-analyser"
 SERVICE = "web"
 WCA_ID_MARKER = "wca_id="
 OUTPUT_PATH = Path("/srv/wca-admin/usage.log")
+# The uid:gid the image runs as (Dockerfile: USER 10001:10001), same as /srv/wca-data.
+WEB_UID = 10001
+WEB_GID = 10001
 
 
 class CollectFailed(Exception):
@@ -41,9 +48,15 @@ def _write_atomic(path, text):
     try:
         with os.fdopen(descriptor, "w") as file:
             file.write(text)
-        # Written as root (a systemd service); the web container reads it as its own
-        # non-root user, so it needs to be world-readable, unlike pull_deploy.py's .env.
-        os.chmod(temporary, 0o644)
+        # Written as root (a systemd service); owning it as the web container's own
+        # uid, same as /srv/wca-data, keeps it unreadable by any other local account
+        # on the shared VM. Only root can chown to another uid, which this always is
+        # on the VM; skip it rather than fail where that's not true (e.g. tests).
+        try:
+            os.chown(temporary, WEB_UID, WEB_GID)
+        except PermissionError:
+            pass
+        os.chmod(temporary, 0o600)
         os.replace(temporary, path)
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
