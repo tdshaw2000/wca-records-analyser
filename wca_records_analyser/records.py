@@ -38,12 +38,16 @@ class ConsistencyPoint:
 
 
 def personal_record_flags(values):
-    """Flag each value that beats every preceding value in chronological order."""
+    """Flag each value that matches or beats every preceding value, chronologically.
+
+    A tie with the current best counts as a (tied) record, matching how WCA
+    itself treats ties.
+    """
     flags = []
     best_so_far = None
     for value in values:
         is_attempted = value > 0
-        is_record = is_attempted and (best_so_far is None or value < best_so_far)
+        is_record = is_attempted and (best_so_far is None or value <= best_so_far)
         flags.append(is_record)
         if is_record:
             best_so_far = value
@@ -159,16 +163,21 @@ def _results_over_time(results, competition_dates, metric):
 
 
 def _record_progression(results, competition_dates, metric):
-    """Return the personal-record values of a metric, with their dates, chronologically."""
+    """Return the personal-record values of a metric, with their dates, chronologically.
+
+    Every record-setting result is kept, including one later beaten the same
+    day: it was still a record at the moment it was set.
+    """
     dated_results = sorted(
         results,
         key=lambda result: competition_dates[result.competition_id],
     )
     values = [metric(result) for result in dated_results]
     flags = personal_record_flags(values)
-    records_by_date = {}
-    for result, is_record in zip(dated_results, flags):
-        if is_record:
-            date = competition_dates[result.competition_id]
-            records_by_date[date] = RecordPoint(date=date, value=metric(result))
-    return list(records_by_date.values())
+    return [
+        RecordPoint(
+            date=competition_dates[result.competition_id], value=metric(result)
+        )
+        for result, is_record in zip(dated_results, flags)
+        if is_record
+    ]
