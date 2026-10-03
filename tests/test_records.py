@@ -47,6 +47,22 @@ def test_personal_record_flags_ignores_did_not_finish_and_did_not_start():
     )
 
 
+CHRONOLOGICAL_SINGLES_WITH_TIE = [
+    FIRST_SOLVE,
+    FIRST_SOLVE,
+    SLOWER_SOLVE,
+    NEW_BEST_SOLVE,
+]
+EXPECTED_FLAGS_WITH_TIE = [True, True, False, True]
+
+
+def test_personal_record_flags_marks_a_tied_value_as_a_record_too():
+    assert (
+        personal_record_flags(CHRONOLOGICAL_SINGLES_WITH_TIE)
+        == EXPECTED_FLAGS_WITH_TIE
+    )
+
+
 EARLIEST_COMPETITION_ID = "WestonsuperMareAutumn2023"
 MIDDLE_COMPETITION_ID = "BirminghamSummer2024"
 LATEST_COMPETITION_ID = "RubiksUKChampionship2024"
@@ -94,18 +110,41 @@ COMPETITION_DATES_FOR_ONE_DATE = {
     EARLIEST_COMPETITION_ID: EARLIEST_DATE,
     LATEST_COMPETITION_ID: LATEST_DATE,
 }
-EXPECTED_PROGRESSION_ONE_PER_DATE = [
+EXPECTED_PROGRESSION_KEEPING_BOTH_SAME_DAY_RECORDS = [
+    RecordPoint(date=EARLIEST_DATE, value=EARLIEST_SINGLE),
     RecordPoint(date=EARLIEST_DATE, value=SAME_DATE_FASTER_SINGLE),
     RecordPoint(date=LATEST_DATE, value=LATEST_SINGLE),
 ]
 
 
-def test_single_record_progression_keeps_only_the_best_record_per_date():
+def test_single_record_progression_keeps_a_record_later_beaten_the_same_day():
     progression = single_record_progression(
         RESULTS_WITH_TWO_RECORDS_ON_ONE_DATE, COMPETITION_DATES_FOR_ONE_DATE
     )
 
-    assert progression == EXPECTED_PROGRESSION_ONE_PER_DATE
+    assert progression == EXPECTED_PROGRESSION_KEEPING_BOTH_SAME_DAY_RECORDS
+
+
+TIED_SINGLE = EARLIEST_SINGLE
+
+RESULTS_WITH_A_TIED_RECORD = [
+    Result(single=EARLIEST_SINGLE, competition_id=EARLIEST_COMPETITION_ID),
+    Result(single=TIED_SINGLE, competition_id=MIDDLE_COMPETITION_ID),
+    Result(single=LATEST_SINGLE, competition_id=LATEST_COMPETITION_ID),
+]
+EXPECTED_PROGRESSION_WITH_TIE = [
+    RecordPoint(date=EARLIEST_DATE, value=EARLIEST_SINGLE),
+    RecordPoint(date=MIDDLE_DATE, value=TIED_SINGLE),
+    RecordPoint(date=LATEST_DATE, value=LATEST_SINGLE),
+]
+
+
+def test_single_record_progression_counts_a_tied_result_as_a_record():
+    progression = single_record_progression(
+        RESULTS_WITH_A_TIED_RECORD, COMPETITION_DATES
+    )
+
+    assert progression == EXPECTED_PROGRESSION_WITH_TIE
 
 
 EARLIEST_AVERAGE = 2456
