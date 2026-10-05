@@ -87,12 +87,60 @@ def test_publish_bakes_the_commit_sha_into_the_image():
     assert "GIT_COMMIT=${{ github.sha }}" in build_args
 
 
-def test_no_workflow_uses_a_self_hosted_runner_pull_request_target_or_a_secret():
+def test_no_workflow_uses_a_self_hosted_runner_or_pull_request_target():
     for path in WORKFLOWS.glob("*.yml"):
         text = path.read_text()
         assert "pull_request_target" not in text, path.name
         assert "self-hosted" not in text, path.name
-        secrets = set(re.findall(r"secrets\.(\w+)", text))
-        assert secrets <= {"GITHUB_TOKEN"}, path.name
         for job in yaml.safe_load(text)["jobs"].values():
             assert job["runs-on"].startswith("ubuntu-"), path.name
+
+
+def test_only_the_deploy_job_uses_a_secret_beyond_github_token():
+    # The deploy key is scoped, server-side, to one forced command (docs/runbook.md),
+    # so it's safe to hold even though this is a public repo with fork PRs enabled.
+    for name, job in _jobs().items():
+        used = set(re.findall(r"secrets\.(\w+)", yaml.dump(job)))
+        if name == "deploy":
+            assert used == {"DEPLOY_HOST", "DEPLOY_SSH_KEY"}
+        else:
+            assert used <= {"GITHUB_TOKEN"}, name
+
+
+def test_deploy_runs_on_a_github_hosted_runner_over_ssh_after_publishing():
+    deploy = _jobs()["deploy"]
+    assert deploy["runs-on"] == "ubuntu-latest"
+    assert deploy["needs"] == "publish"
+    assert deploy["if"] == "github.ref == 'refs/heads/main'"
+
+
+def test_deploy_never_checks_out_the_repository():
+    # The server has its own clone (kept current by deploy-launcher.sh), and more
+    # importantly this avoids ever handing this job's GITHUB_TOKEN to anything that
+    # could act on it.
+    deploy = _jobs()["deploy"]
+    assert "actions/checkout@v4" not in [step.get("uses", "") for step in deploy["steps"]]
+
+
+def test_deploy_uses_an_ssh_key_scoped_to_this_job_only():
+    deploy = _jobs()["deploy"]
+    agent = next(s for s in deploy["steps"] if s.get("uses", "").startswith("webfactory/ssh-agent"))
+    assert agent["with"]["ssh-private-key"] == "${{ secrets.DEPLOY_SSH_KEY }}"
+
+
+def test_deploy_pins_the_servers_host_key_before_connecting():
+    deploy = _jobs()["deploy"]
+    run = "\n".join(step.get("run", "") for step in deploy["steps"])
+    assert "ssh-keyscan" in run
+    assert "${{ secrets.DEPLOY_HOST }}" in run
+
+
+def test_deploy_runs_nothing_but_the_forced_remote_command():
+    # The SSH key is restricted server-side to always run deploy-launcher.sh, whatever
+    # command the client sends, so the workflow itself never names a remote command.
+    deploy = _jobs()["deploy"]
+    run = "\n".join(step.get("run", "") for step in deploy["steps"])
+    ssh_lines = [line for line in run.splitlines() if line.strip().startswith("ssh ")]
+    assert ssh_lines
+    for line in ssh_lines:
+        assert "${{ secrets.DEPLOY_HOST }}" in line
