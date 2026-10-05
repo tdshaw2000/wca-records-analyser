@@ -1,8 +1,8 @@
 name: CI
 
-# Every branch runs the tests and checks the image; only the default branch publishes it.
-# Nothing here connects to the server: the VM pulls the published image itself
-# (deploy/pull_deploy.py, docs/runbook.md).
+# Every branch runs the tests and checks the image; only the default branch publishes it
+# and deploys. The deploy job never checks out this repository or holds any credential
+# beyond a deploy key restricted, server-side, to one forced command (docs/runbook.md).
 on: push
 
 permissions:
@@ -74,3 +74,24 @@ jobs:
           tags: |
             ghcr.io/tdshaw2000/wca-records-analyser:main
             ghcr.io/tdshaw2000/wca-records-analyser:sha-${{ github.sha }}
+
+  # Runs on a GitHub-hosted runner, never one installed on the server: on a public repo
+  # a fork pull request's own copy of this workflow could otherwise target it and run
+  # arbitrary code there. This hosted runner only ever SSHes out to trigger the
+  # forced-command launcher (docs/runbook.md);
+  # it's safe as a repo secret even with fork PRs enabled, since a fork PR never has
+  # access to it, and server-side the key can run nothing but that one script.
+  deploy:
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pin the server's host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: Trigger the deploy launcher on the server
+        run: ssh -o BatchMode=yes "ubuntu@${{ secrets.DEPLOY_HOST }}"

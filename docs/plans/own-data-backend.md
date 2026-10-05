@@ -51,7 +51,7 @@ WCA export (S3) ──daily──▶ build job (VM, systemd timer)
      wca-records-analyser web app          future app(s)
      (container, behind the shared Caddy)  (same file, read-only)
 
-GitHub Actions (hosted) ──tests, build image──▶ GHCR ◀──polls── VM deploy timer
+GitHub Actions (hosted) ──tests, build image, publish──▶ GHCR ◀──pulls── VM (SSH-triggered)
 ```
 
 ## The data layer, designed for reuse
@@ -169,18 +169,29 @@ This app shares the VM the scramble challenge app already runs on, instead of a 
 
 ## CI/CD and keeping the repo public-safe
 
-The scramble challenge app's self-hosted runner is what stops that repo going public. This
-project must not repeat that.
+The scramble challenge app's original self-hosted runner is what stopped that repo going
+public. This project must not repeat *that* mistake.
+
+The original plan here (below, kept for history) was for the VM to poll GHCR rather than hold
+any deploy credential at all. That's since been superseded: CLAUDE.md's "repo rules" and
+`docs/runbook.md` are the current source of truth, and now match the scramble repo's own
+pattern — a GitHub-hosted runner SSHes out to a deploy key that's restricted, server-side, to
+one forced command, so it's no more exposed than the self-hosted-runner alternative actually
+being avoided above.
 
 - **GitHub Actions runs only on GitHub-hosted runners.** It tests, builds the image and
-  publishes it to GHCR (public image) using only the automatic `GITHUB_TOKEN`. It holds no
-  server credentials and never connects to the VM.
-- **The VM pulls.** A systemd timer checks GHCR every few minutes for a new `main` image;
-  if found it pulls, restarts, checks `/` responds, and rolls back to the previous image if not.
+  publishes it to GHCR (public image) using only the automatic `GITHUB_TOKEN`. ~~It holds no
+  server credentials and never connects to the VM.~~ *(superseded: see above)*
+- ~~**The VM pulls.** A systemd timer checks GHCR every few minutes for a new `main` image;
+  if found it pulls, restarts, checks `/` responds, and rolls back to the previous image if
+  not.~~ *(superseded: the VM is still what pulls, checks health and rolls back —
+  `deploy/pull_deploy.py` is unchanged — but an SSH-triggered deploy runs it immediately on
+  push instead of a timer polling every few minutes.)*
 - **Repo rules** (add to `CLAUDE.md` when the project starts):
   - no self-hosted runners;
   - no `pull_request_target` workflows;
-  - no secrets in the repo; the only token Actions uses is `GITHUB_TOKEN`;
+  - ~~no secrets in the repo; the only token Actions uses is `GITHUB_TOKEN`~~ *(superseded:
+    the `deploy` job also uses a forced-command-restricted `DEPLOY_SSH_KEY`, see CLAUDE.md)*;
   - the data build runs on the VM, not in Actions;
   - server config is committed as templates; IPs, OCIDs and SSH details stay in a gitignored
     file on the VM.
