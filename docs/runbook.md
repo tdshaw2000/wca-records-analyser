@@ -200,13 +200,18 @@ polling deploy. Nothing here stops the running app.
   running refuses to start.
 - **Deploy now, without waiting for a push:** `~/apps/wca-records-analyser/deploy-launcher.sh`
   — the same thing the deploy key triggers.
-- **When a PR changes `deploy/`:** nothing manual. `deploy-launcher.sh` re-clones the checkout
-  and `run_deploy.sh` re-installs every file under `/srv/wca-records-analyser` (leaving `.env`
-  and `bad-images` alone) on every deploy, so units, `compose.yaml` and the Caddy reference
-  copy are always current on the next push. Only an actual systemd unit change needs a manual
+- **When a PR changes `deploy/`:** nothing manual, with one exception. `run_deploy.sh`
+  re-installs every file under `/srv/wca-records-analyser` (leaving `.env` and `bad-images`
+  alone) on every deploy, so units, `compose.yaml` and the Caddy reference copy are always
+  current on the next push. Only an actual systemd unit change needs a manual
   `sudo systemctl daemon-reload` afterwards (units already running aren't restarted by a file
   change alone), and only a real Caddy change needs copying into the scramble repo and
-  reloading there (step 8).
+  reloading there (step 8). **The exception:** `deploy-launcher.sh` itself lives outside the
+  checkout, at `~/apps/wca-records-analyser/deploy-launcher.sh`, by design (a `git reset
+  --hard` must never rewrite the script currently running it) — so a change to that file is
+  never picked up automatically. Repeat its install step by hand: `cp
+  ~/apps/wca-records-analyser/repo/deploy/deploy-launcher.sh
+  ~/apps/wca-records-analyser/ && chmod +x ~/apps/wca-records-analyser/deploy-launcher.sh`.
 
 ## When a release bumps the database schema
 

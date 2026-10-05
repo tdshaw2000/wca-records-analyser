@@ -84,6 +84,13 @@ jobs:
   deploy:
     needs: publish
     if: github.ref == 'refs/heads/main'
+    # The old wca-deploy.timer couldn't run two instances of its systemd unit at once;
+    # this queues deploys the same way, so two pushes close together (the multi-arch
+    # publish build takes minutes) can't run deploy-launcher.sh's git reset --hard
+    # concurrently on the server's one checkout.
+    concurrency:
+      group: deploy-wca-records-analyser
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Pin the server's host key
