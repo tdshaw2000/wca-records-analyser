@@ -114,6 +114,16 @@ def test_deploy_runs_on_a_github_hosted_runner_over_ssh_after_publishing():
     assert deploy["if"] == "github.ref == 'refs/heads/main'"
 
 
+def test_deploy_cannot_overlap_with_another_deploy():
+    # The old wca-deploy.timer couldn't run two instances of its systemd unit at once;
+    # this is the SSH-triggered replacement for that serialisation. Without it, two
+    # pushes close together (plausible: publish's multi-arch build takes minutes) would
+    # run deploy-launcher.sh's git reset --hard concurrently on the same server checkout.
+    deploy = _jobs()["deploy"]
+    assert deploy["concurrency"]["group"] == "deploy-wca-records-analyser"
+    assert deploy["concurrency"]["cancel-in-progress"] is False
+
+
 def test_deploy_never_checks_out_the_repository():
     # The server has its own clone (kept current by deploy-launcher.sh), and more
     # importantly this avoids ever handing this job's GITHUB_TOKEN to anything that
