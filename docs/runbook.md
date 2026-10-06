@@ -95,9 +95,9 @@ step 8, and step 8 only reloads its Caddy.
      "wca-data build", period 1 day, grace 3 hours, and paste its ping URL. Every good build
      pings it, whether or not WCA published a new export, so an alert means builds are failing
      or not running.
-   - `EDGE_NETWORK=<name>`, only if the scramble stack's network isn't
-     `scramble-challenge_default`. Find it with
-     `sudo docker inspect scramble-challenge-caddy-1 --format '{{json .NetworkSettings.Networks}}'`.
+   - `EDGE_NETWORK=<name>`, only if the edge Caddy stack's network isn't
+     `scramble-challenge-edge`. Find it with
+     `sudo docker inspect caddy-caddy-1 --format '{{json .NetworkSettings.Networks}}'`.
    - `ADMIN_PASSWORD=<password>`: the `/admin` page's HTTP Basic password (username
      `admin`). Leave it unset to keep that page 404ing (its default).
    - Leave `WCA_IMAGE` out; the pull deploy writes it.
