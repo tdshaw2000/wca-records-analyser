@@ -72,7 +72,7 @@ def test_the_web_app_is_reached_by_the_scramble_caddy_over_its_network():
     assert web["networks"] == {"edge": {"aliases": [ALIAS]}}
     edge = _compose()["networks"]["edge"]
     assert edge["external"] is True
-    assert edge["name"] == "${EDGE_NETWORK:-scramble-challenge_default}"
+    assert edge["name"] == "${EDGE_NETWORK:-scramble-challenge-edge}"
 
 
 def test_the_web_app_restarts_and_has_a_read_only_root_filesystem():
