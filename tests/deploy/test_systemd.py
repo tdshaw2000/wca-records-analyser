@@ -1,4 +1,7 @@
-"""deploy/systemd: the nightly build timer and the pull-deploy timer."""
+"""deploy/systemd: the nightly build timer and the admin-digest timer.
+
+The pull-deploy timer is gone (superseded by the SSH-triggered deploy, docs/runbook.md);
+pull_deploy.py itself is unchanged and still runs, now from deploy/run_deploy.sh."""
 
 import configparser
 import shlex
@@ -29,10 +32,14 @@ def test_the_build_service_runs_the_build_service_of_this_compose_project():
     assert "TimeoutStartSec" in service
 
 
+def test_the_deploy_timer_is_gone():
+    assert not (UNITS / "wca-deploy.service").exists()
+    assert not (UNITS / "wca-deploy.timer").exists()
+
+
 def test_the_services_start_after_docker_and_the_network():
     for name in (
         "wca-data-build.service",
-        "wca-deploy.service",
         "wca-admin-digest.service",
     ):
         unit = _unit(name)["Unit"]
@@ -47,21 +54,6 @@ def test_the_build_runs_nightly_outside_busy_hours_and_catches_up_after_downtime
     assert timer["Timer"]["Persistent"] == "true"
     assert "RandomizedDelaySec" in timer["Timer"]
     assert timer["Install"]["WantedBy"] == "timers.target"
-
-
-def test_the_deploy_service_runs_the_installed_pull_deploy_script():
-    service = _unit("wca-deploy.service")["Service"]
-    assert service["Type"] == "oneshot"
-    assert service["WorkingDirectory"] == INSTALL_DIR
-    command = _exec_start("wca-deploy.service")
-    assert command == ["/usr/bin/python3", f"{INSTALL_DIR}/pull_deploy.py"]
-
-
-def test_the_deploy_checks_for_a_new_image_every_five_minutes():
-    timer = _unit("wca-deploy.timer")["Timer"]
-    assert timer["OnBootSec"] == "2min"
-    assert timer["OnUnitInactiveSec"] == "5min"
-    assert _unit("wca-deploy.timer")["Install"]["WantedBy"] == "timers.target"
 
 
 def test_the_admin_digest_service_runs_the_installed_collector_script():
