@@ -82,6 +82,14 @@ API_WRITE = re.compile(
 )
 # The MCP tools that post text the Review gate workflow could read as a marker.
 POSTS_TEXT = ("__pull_request_review_write", "__add_issue_comment")
+# A dispatch that does a reviewer's job under some other subagent_type (typically
+# "general-purpose", with "reviewer"/"data-reviewer" only in the free-text description or
+# prompt) is never recorded: record() only saves a verdict when agent_type is exactly one of
+# REVIEWERS. Fail closed on the word "review" appearing anywhere in the dispatch, same
+# tradeoff as everywhere else in this file - a false block only costs a retry; a missed one
+# skips the review silently.
+DISPATCH_TOOLS = ("Agent", "Task")
+REVIEW_WORD = re.compile(r"review", re.IGNORECASE)
 
 
 def git(cwd, *args):
@@ -283,9 +291,13 @@ def gh_merges(command):
 def wants(event):
     """What the tool call does, as (action, detail). action is 'ready', 'merge', 'auto-merge',
     'admin-merge', 'api-merge', 'create-not-draft', 'post-review' (a review or other write
-    posted from the shell, whose body the gate may not see), or None for anything else.
-    A merge's detail is [(method, head sha)]."""
+    posted from the shell, whose body the gate may not see), 'misnamed-reviewer', or None for
+    anything else. A merge's detail is [(method, head sha)]."""
     tool, args = event.get("tool_name") or "", event.get("tool_input") or {}
+    if tool in DISPATCH_TOOLS and args.get("subagent_type") not in REVIEWERS:
+        text = " ".join(str(args.get(key) or "") for key in ("description", "prompt"))
+        if REVIEW_WORD.search(text):
+            return "misnamed-reviewer", None
     if tool.startswith("mcp__") and tool.endswith("__update_pull_request"):
         return ("ready" if args.get("draft") is False else None), None
     if tool.startswith("mcp__") and tool.endswith("__create_pull_request"):
@@ -461,6 +473,12 @@ def gate(event):
     markers = [sha for text in texts for sha in MARKER.findall(text)]
     if action is None and not markers:
         return
+    if action == "misnamed-reviewer":
+        block(
+            "This dispatch does a reviewer's job but subagent_type isn't \"reviewer\" or "
+            '"data-reviewer" - set subagent_type to the exact registered name (not a '
+            "free-text description), or its verdict will never be recorded. " + LOOP
+        )
     if action == "create-not-draft":
         block("Open the pull request as a draft. It is marked ready only after review. " + LOOP)
     if action == "auto-merge":
