@@ -14,7 +14,7 @@ in [`deploy/`](../deploy); the plan behind it is
 | `~/apps/wca-records-analyser/deploy-launcher.sh` | VM, the forced command | git-updates `~/apps/wca-records-analyser/repo` to `origin/main`, then runs that checkout's `deploy/run_deploy.sh` |
 | `deploy/run_deploy.sh` | VM, from the checkout | Installs the checkout's `deploy/` files into `/srv/wca-records-analyser`, then runs `pull_deploy.py` once |
 | `pull_deploy.py` | VM, run by `run_deploy.sh` | Pulls `:main`; if its digest is new, pins it in `.env`, restarts `web`, keeps it if it turns healthy, otherwise rolls back |
-| `web` service (`compose.yaml`) | VM, container | The app on port 8000 of the scramble stack's Docker network, alias `wca-records-analyser`. No host port |
+| `web` service (`compose.yaml`) | VM, container | The app on port 8000 of the edge Caddy stack's Docker network, alias `wca-records-analyser`. No host port |
 | `wca-data-build.timer` → `build` service | VM, 03:30 UTC nightly | `python -m wca_data.build` at nice 19, capped at 1 CPU and 1 GB. It also asks for idle IO, which only BFQ honours; the CPU caps are what protect the scramble app |
 | `wca-admin-digest.timer` → `collect_admin_log.py` | VM, every 5 minutes | Filters `docker compose logs -t web` down to the lines naming a `wca_id`, for the `/admin` page. Runs as root (the only piece here with docker access) |
 | Site block in the scramble repo's Caddyfile | VM, scramble's Caddy | `wca-records-analyser.duckdns.org` → `wca-records-analyser:8000` |
@@ -143,9 +143,9 @@ step 8, and step 8 only reloads its Caddy.
    scramble app's connections):
 
    ```sh
-   sudo docker exec scramble-challenge-caddy-1 wget -qO- http://wca-records-analyser:8000/ | head -3
-   sudo docker exec scramble-challenge-caddy-1 caddy validate --config /etc/caddy/Caddyfile
-   sudo docker exec scramble-challenge-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+   sudo docker exec caddy-caddy-1 wget -qO- http://wca-records-analyser:8000/ | head -3
+   sudo docker exec caddy-caddy-1 caddy validate --config /etc/caddy/Caddyfile
+   sudo docker exec caddy-caddy-1 caddy reload --config /etc/caddy/Caddyfile
    curl -sI https://wca-records-analyser.duckdns.org/ | head -1    # HTTP/2 200
    ```
 

@@ -5,7 +5,7 @@
 # Settings, from /srv/wca-records-analyser/.env (never committed):
 #   WCA_IMAGE          the image both services run, pinned by digest; pull_deploy.py writes it
 #   WCA_DATA_PING_URL  the missed-build monitor the build pings after every good run
-#   EDGE_NETWORK       the scramble stack's Docker network, if not scramble-challenge-edge
+#   EDGE_NETWORK       the edge Caddy stack's Docker network, if not scramble-challenge-edge
 #   ADMIN_PASSWORD     the /admin page's HTTP Basic password; the page 404s while this is unset
 name: wca-records-analyser
 
