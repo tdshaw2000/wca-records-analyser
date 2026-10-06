@@ -1,4 +1,4 @@
-"""The reference copy of the site block that lives in the scramble stack's Caddyfile."""
+"""The reference copy of the site block that lives in the edge Caddy stack's Caddyfile."""
 
 import re
 from pathlib import Path

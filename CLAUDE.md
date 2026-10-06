@@ -64,12 +64,12 @@ operate it: `docs/runbook.md`.
 
 - `Dockerfile` — one image for the web app and the build; uid 10001, a health check on `/healthz` (never reads the database), and a copy of `deploy/` at `/opt/wca-records-analyser/deploy`.
 - `.github/workflows/ci.yml` — `test`; `image` (build, start, wait for healthy) on every branch; `publish` to `ghcr.io/tdshaw2000/wca-records-analyser` (amd64+arm64) on `main` only; `deploy` (SSH-triggered, main only) after it.
-- `deploy/compose.yaml` — services `web` (read-only `/srv/wca-data`, no ports, alias `wca-records-analyser` on the scramble stack's network) and `build` (profile only, nice 19 / idle IO in the container, capped CPU and memory). Both run `${WCA_IMAGE}`.
+- `deploy/compose.yaml` — services `web` (read-only `/srv/wca-data`, no ports, alias `wca-records-analyser` on the edge Caddy stack's network) and `build` (profile only, nice 19 / idle IO in the container, capped CPU and memory). Both run `${WCA_IMAGE}`.
 - `deploy/deploy-launcher.sh` — the server's forced command (authorized_keys `command=`, docs/runbook.md): git-updates `~/apps/wca-records-analyser/repo`, then hands off to that checkout's `deploy/run_deploy.sh`. Lives outside the checkout it updates, like the scramble repo's own launcher, so a `git reset --hard` can never rewrite the script currently running it.
 - `deploy/run_deploy.sh` — installs the checkout's `deploy/` files into `/srv/wca-records-analyser` (replacing the old manual re-install step), then runs `pull_deploy.py` once.
 - `deploy/pull_deploy.py` — unchanged: pins the new digest in `.env`, `compose up --wait web`, rolls back and records an unhealthy image in `bad-images`. Only its trigger changed, from a 5-minute timer to the SSH-triggered deploy above.
 - `deploy/systemd/` — `wca-data-build` (03:30 UTC nightly) and `wca-admin-digest` services and timers. (The old `wca-deploy` polling timer is gone; see "deploy" above.)
-- `deploy/caddy/` — reference copy of the site block that lives in the scramble repo's Caddyfile.
+- `deploy/caddy/` — reference copy of the site block that lives in the scramble repo's `edge/Caddyfile`.
 - `render.yaml` / `deploy/render-holding/` — Render is retired as the app's deploy target (phase 6); this only points Render's free static-site hosting at a "we've moved" page (a link to the VM URL, no auto-redirect) for anyone still landing on the old Render URL. Render's own GitHub integration deploys it; no secrets or CI job involved.
 - Tests in `tests/deploy/`.
 

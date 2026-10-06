@@ -1,6 +1,6 @@
 # The WCA Records Analyser on the VM it shares with the scramble challenge app.
 # Installed at /srv/wca-records-analyser/compose.yaml (docs/runbook.md). Its own project
-# name, so nothing here can touch the scramble stack's containers.
+# name, so nothing here can touch another stack's containers.
 #
 # Settings, from /srv/wca-records-analyser/.env (never committed):
 #   WCA_IMAGE          the image both services run, pinned by digest; pull_deploy.py writes it
@@ -38,7 +38,7 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    # No ports: the scramble stack's Caddy reaches the app over its network by this alias.
+    # No ports: the edge Caddy stack reaches the app over its network by this alias.
     networks:
       edge:
         aliases:

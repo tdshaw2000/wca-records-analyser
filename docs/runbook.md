@@ -1,7 +1,8 @@
 # Runbook: the WCA Records Analyser on the OCI VM
 
 The app runs on the OCI VM it shares with the scramble challenge app
-(`instance-20260924-scramble-challenge`), behind that stack's Caddy. Everything the VM runs is
+(`instance-20260924-scramble-challenge`), behind a shared, standalone Caddy edge stack (its own
+`caddy` Compose project, not part of either app's). Everything the VM runs is
 in [`deploy/`](../deploy); the plan behind it is
 [`docs/plans/own-data-backend.md`](plans/own-data-backend.md).
 
@@ -17,7 +18,7 @@ in [`deploy/`](../deploy); the plan behind it is
 | `web` service (`compose.yaml`) | VM, container | The app on port 8000 of the edge Caddy stack's Docker network, alias `wca-records-analyser`. No host port |
 | `wca-data-build.timer` → `build` service | VM, 03:30 UTC nightly | `python -m wca_data.build` at nice 19, capped at 1 CPU and 1 GB. It also asks for idle IO, which only BFQ honours; the CPU caps are what protect the scramble app |
 | `wca-admin-digest.timer` → `collect_admin_log.py` | VM, every 5 minutes | Filters `docker compose logs -t web` down to the lines naming a `wca_id`, for the `/admin` page. Runs as root (the only piece here with docker access) |
-| Site block in the scramble repo's Caddyfile | VM, scramble's Caddy | `wca-records-analyser.duckdns.org` → `wca-records-analyser:8000` |
+| Site block in the scramble-challenge repo's `edge/Caddyfile` | VM, the edge Caddy stack | `wca-records-analyser.duckdns.org` → `wca-records-analyser:8000` |
 | `/srv/wca-data/` | VM, owned by uid 10001 | `wca.sqlite` (live) and `wca.sqlite.prev` (the one before). Mounted read-only into `web` |
 | `/srv/wca-admin/` | VM, `usage.log` owned by uid 10001 | The filtered access log `/admin` reads, written by root but chowned to the uid the container reads it as. Mounted read-only into `web` |
 | `/srv/wca-records-analyser/` | VM, owned by `ubuntu` | `deploy/` kept in sync from the checkout by `run_deploy.sh`, plus `.env` and `bad-images` (never committed) |
@@ -138,9 +139,11 @@ step 8, and step 8 only reloads its Caddy.
 
 8. **Route the hostname.** In the scramble challenge repo, add
    [`deploy/caddy/wca-records-analyser.caddy`](../deploy/caddy/wca-records-analyser.caddy)'s
-   site block to its Caddyfile, so the scramble app's own deploys keep it. On the VM, check
-   Caddy can reach the app, then validate and **reload** (not restart, which would drop the
-   scramble app's connections):
+   site block to its `edge/Caddyfile`. That stack has no CI/CD of its own (it changes rarely, so
+   updates are manual — see its `edge/README.md`), so this isn't kept current by either app's
+   deploys; redo it by hand whenever this site block changes. On the VM, check Caddy can reach
+   the app, then validate and **reload** (not restart, which would drop both apps'
+   connections):
 
    ```sh
    sudo docker exec caddy-caddy-1 wget -qO- http://wca-records-analyser:8000/ | head -3
