@@ -1,6 +1,7 @@
-# Reference copy. The live block is in the scramble challenge repo's Caddyfile, whose Caddy
-# container owns ports 80 and 443 on the shared VM. Add it there, then validate and reload
-# (docs/runbook.md). The upstream is the web service's alias on the scramble stack's network.
+# Reference copy. The live block is in the scramble challenge repo's edge/Caddyfile, whose
+# Caddy container (its own standalone "caddy" stack) owns ports 80 and 443 on the shared VM.
+# Add it there, then validate and reload (docs/runbook.md). The upstream is the web service's
+# alias on the shared edge network.
 wca-records-analyser.duckdns.org {
 	encode zstd gzip
 	reverse_proxy wca-records-analyser:8000

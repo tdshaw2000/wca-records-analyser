@@ -1,4 +1,4 @@
-"""deploy/compose.yaml: the web app and the nightly build, sharing the scramble stack's VM."""
+"""deploy/compose.yaml: the web app and the nightly build, sharing the VM with the scramble app."""
 
 import re
 from pathlib import Path
