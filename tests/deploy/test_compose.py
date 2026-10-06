@@ -35,7 +35,7 @@ def _bytes(size):
     return int(number) * 1024 ** "kmg".index(unit) * 1024
 
 
-def test_the_project_has_its_own_name_so_it_never_touches_the_scramble_stack():
+def test_the_project_has_its_own_name_so_it_never_touches_another_stack():
     assert _compose()["name"] == "wca-records-analyser"
 
 
@@ -67,7 +67,7 @@ def test_the_web_app_publishes_no_port_on_the_host():
     assert web.get("network_mode") is None
 
 
-def test_the_web_app_is_reached_by_the_scramble_caddy_over_its_network():
+def test_the_web_app_is_reached_by_the_edge_caddy_over_its_network():
     web = _service("web")
     assert web["networks"] == {"edge": {"aliases": [ALIAS]}}
     edge = _compose()["networks"]["edge"]
