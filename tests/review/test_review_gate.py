@@ -806,6 +806,98 @@ def test_ordinary_pushes_are_not_gated(repo, command):
     assert bash(repo, command).returncode == 0
 
 
+# --- The gate: dispatching a reviewer under the wrong name ---
+#
+# record() only saves a verdict when the SubagentStop event's agent_type is "reviewer" or
+# "data-reviewer". A dispatch that does either job (even word for word) but is launched with
+# some other subagent_type - e.g. "general-purpose", with "reviewer" only in its free-text
+# description or prompt - is silently never recorded, and the gate stays shut with no clue
+# why. Caught from a real PR driven from a cloud session: every reviewer dispatch used
+# subagent_type "general-purpose", so .git/claude-review/ was never created at all.
+
+
+def dispatch(repo, tool_name="Agent", subagent_type=None, description="", prompt=""):
+    tool_input = {"description": description, "prompt": prompt}
+    if subagent_type is not None:
+        tool_input["subagent_type"] = subagent_type
+    return run(
+        "gate",
+        {
+            "hook_event_name": "PreToolUse",
+            "cwd": str(repo),
+            "tool_name": tool_name,
+            "tool_input": tool_input,
+        },
+    )
+
+
+def test_a_review_dispatch_under_the_wrong_subagent_type_is_blocked(repo):
+    result = dispatch(
+        repo,
+        subagent_type="general-purpose",
+        description="Data/deploy reviewer re-review PR 25",
+        prompt="Re-review the branch and end with a verdict json block.",
+    )
+
+    assert result.returncode == BLOCKED
+    assert "reviewer" in result.stderr
+
+
+def test_a_data_reviewer_dispatch_under_the_wrong_subagent_type_is_blocked_too(repo):
+    result = dispatch(
+        repo,
+        subagent_type="general-purpose",
+        description="Data/deploy reviewer re-review PR 25",
+        prompt="Act as the data-reviewer and review the data layer changes.",
+    )
+
+    assert result.returncode == BLOCKED
+
+
+def test_dispatching_the_real_reviewer_subagent_is_allowed(repo):
+    result = dispatch(
+        repo,
+        subagent_type="reviewer",
+        description="Review PR 25",
+        prompt="Review the branch.",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_dispatching_the_real_data_reviewer_subagent_is_allowed(repo):
+    result = dispatch(
+        repo,
+        subagent_type="data-reviewer",
+        description="Review PR 25's data layer",
+        prompt="Review the data layer changes.",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_an_unrelated_general_purpose_dispatch_is_not_gated(repo):
+    result = dispatch(
+        repo,
+        subagent_type="general-purpose",
+        description="Investigate the network gap",
+        prompt="Find out why the container keeps dropping off the shared network.",
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_dispatch_with_no_subagent_type_at_all_is_still_checked(repo):
+    result = dispatch(
+        repo,
+        subagent_type=None,
+        description="reviewer",
+        prompt="Review this.",
+    )
+
+    assert result.returncode == BLOCKED
+
+
 # --- The data reviewer: required when a PR touches the data layer or the server ---
 
 
