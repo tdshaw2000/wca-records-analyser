@@ -97,11 +97,13 @@ MATS_VALK = Person(
     name="Mats Valk",
     wca_id="2007VALK01",
     profile_url="https://www.worldcubeassociation.org/persons/2007VALK01",
+    country_id="Netherlands",
 )
 FELIKS_ZEMDEGS = Person(
     name="Feliks Zemdegs",
     wca_id="2009ZEMD01",
     profile_url="https://www.worldcubeassociation.org/persons/2009ZEMD01",
+    country_id="Australia",
 )
 MANY_COMPETITORS = [
     Person(
@@ -424,6 +426,15 @@ def test_index_page_has_no_search_submit_button():
     assert 'type="submit"' not in response.text
 
 
+def test_index_page_loads_the_flag_icons_stylesheet():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "/static/vendor/flag-icons/flag-icons.min.css" in response.text
+
+
 def test_index_page_includes_the_live_search_script():
     client = TestClient(app)
 
@@ -545,6 +556,50 @@ def test_search_links_each_competitor_to_their_overview():
     for competitor in (MATS_VALK, FELIKS_ZEMDEGS):
         assert competitor.name in response.text
         assert f'{OVERVIEW_ROUTE}?wca_id={competitor.wca_id}' in response.text
+
+
+def test_search_shows_each_competitors_flag():
+    app.dependency_overrides[get_search_function] = lambda: _search_returning(
+        [MATS_VALK, FELIKS_ZEMDEGS]
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            SEARCH_ROUTE, params={SEARCH_NAME_PARAMETER: SEARCHED_NAME}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert 'class="fi fi-nl"' in response.text
+    assert 'class="fi fi-au"' in response.text
+
+
+def test_search_shows_no_flag_for_an_unrecognised_country():
+    unplaceable = Person(
+        name="No Country Competitor",
+        wca_id="2020NONE01",
+        profile_url="https://www.worldcubeassociation.org/persons/2020NONE01",
+        country_id="Nowhereland",
+    )
+    # Two results, not one, so the route shows the results list rather than
+    # redirecting straight to an overview (see SINGLE_MATCH_COUNT in web.py).
+    app.dependency_overrides[get_search_function] = lambda: _search_returning(
+        [unplaceable, MATS_VALK]
+    )
+    try:
+        client = TestClient(app)
+        response = client.get(
+            SEARCH_ROUTE, params={SEARCH_NAME_PARAMETER: SEARCHED_NAME}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert unplaceable.name in response.text
+    # Only Mats Valk's flag renders; the unrecognised country gets none.
+    assert response.text.count('class="fi ') == 1
+    assert 'class="fi fi-nl"' in response.text
 
 
 def test_search_with_a_single_match_redirects_straight_to_their_overview():
@@ -904,6 +959,19 @@ def test_overview_shows_the_competitor_identity():
     assert MATS_VALK.wca_id in response.text
     assert "<img" not in response.text
     assert WCA_PROFILE_URL in response.text
+
+
+def test_overview_shows_the_competitors_flag():
+    response = _get_overview_page()
+
+    assert response.status_code == 200
+    assert 'class="fi fi-nl"' in response.text
+
+
+def test_overview_page_loads_the_flag_icons_stylesheet():
+    response = _get_overview_page()
+
+    assert "/static/vendor/flag-icons/flag-icons.min.css" in response.text
 
 
 def test_overview_heads_the_table_with_event_single_and_average():
