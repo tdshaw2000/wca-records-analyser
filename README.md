@@ -102,6 +102,10 @@ copyright notices are retained:
 | [chartjs-plugin-zoom](https://github.com/chartjs/chartjs-plugin-zoom) | 2.0.1 | MIT |
 | [Hammer.JS](https://hammerjs.github.io/) | 2.0.7 | MIT |
 | [Leaflet](https://leafletjs.com/) | 1.9.4 | BSD-2-Clause |
+| [flag-icons](https://github.com/lipis/flag-icons) | 7.2.3 | MIT |
+
+flag-icons is trimmed to the 4x3 flags this app actually references (one per
+`wca_records_analyser/flags.py` entry); the stylesheet is hand-trimmed to match.
 
 Competition data is fetched from the [World Cube
 Association](https://www.worldcubeassociation.org) API at runtime; none of it is
