@@ -974,6 +974,13 @@ def test_overview_page_loads_the_flag_icons_stylesheet():
     assert "/static/vendor/flag-icons/flag-icons.min.css" in response.text
 
 
+def test_flag_icons_stylesheet_is_cache_busted():
+    response = _get_overview_page()
+
+    version = static_asset_version("vendor/flag-icons/flag-icons.min.css")
+    assert f"/static/vendor/flag-icons/flag-icons.min.css?v={version}" in response.text
+
+
 def test_overview_heads_the_table_with_event_single_and_average():
     response = _get_overview_page()
 
