@@ -234,7 +234,9 @@ button:hover {
 }
 
 .result-list a {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
     padding: 0.85rem 1.1rem;
     color: var(--text);
     text-decoration: none;
@@ -277,6 +279,21 @@ button:hover {
     font-size: 1.6rem;
     font-weight: 700;
     letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Flags (flag-icons, static/vendor/flag-icons/): a subtle border keeps light flags
+   from blending into the surface they sit on, in either theme. */
+.fi {
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.15);
+}
+
+.competitor-name .fi {
+    width: 1.4em;
+    height: 1.05em;
 }
 
 /* The name links back up to the competitor's overview. */
