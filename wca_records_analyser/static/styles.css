@@ -284,16 +284,21 @@ button:hover {
     gap: 0.5rem;
 }
 
-/* Flags (flag-icons, static/vendor/flag-icons/): a subtle border keeps light flags
-   from blending into the surface they sit on, in either theme. */
+/* Flags (flag-icons, static/vendor/flag-icons/): circular crop (the stylesheet's own .fi
+   sets border-radius: 50%); a subtle border keeps light flags from blending into the
+   surface they sit on, in either theme. Equal width/height keeps the circle round. */
 .fi {
-    border-radius: 2px;
     box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.15);
 }
 
+.result-list .fi {
+    width: 1.2em;
+    height: 1.2em;
+}
+
 .competitor-name .fi {
-    width: 1.4em;
-    height: 1.05em;
+    width: 1.3em;
+    height: 1.3em;
 }
 
 /* The name links back up to the competitor's overview. */

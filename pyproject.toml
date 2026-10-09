@@ -33,7 +33,7 @@ wca_records_analyser = [
     "static/*",
     "static/vendor/*",
     "static/vendor/flag-icons/*",
-    "static/vendor/flag-icons/flags/4x3/*",
+    "static/vendor/flag-icons/flags/1x1/*",
 ]
 
 [tool.pytest.ini_options]

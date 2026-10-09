@@ -104,7 +104,7 @@ copyright notices are retained:
 | [Leaflet](https://leafletjs.com/) | 1.9.4 | BSD-2-Clause |
 | [flag-icons](https://github.com/lipis/flag-icons) | 7.2.3 | MIT |
 
-flag-icons is trimmed to the 4x3 flags this app actually references (one per
+flag-icons is trimmed to the 1x1 (circular-cropped) flags this app actually references (one per
 `wca_records_analyser/flags.py` entry); the stylesheet is hand-trimmed to match.
 
 Competition data is fetched from the [World Cube
