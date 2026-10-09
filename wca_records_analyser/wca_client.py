@@ -34,11 +34,17 @@ class Competition:
 
 @dataclass(frozen=True)
 class Person:
-    """A competitor, with a link to their profile on the WCA site."""
+    """A competitor, with a link to their profile on the WCA site.
+
+    ``country_id`` is the WCA's own country name (see flags.py for why that is not the
+    same as an ISO code), defaulting to "" so existing callers that don't need it are
+    unaffected.
+    """
 
     name: str
     wca_id: str
     profile_url: str
+    country_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -77,6 +83,7 @@ def _to_person(person) -> Person:
         name=person.name,
         wca_id=person.wca_id,
         profile_url=WCA_PERSON_URL.format(wca_id=person.wca_id),
+        country_id=person.country_id,
     )
 
 

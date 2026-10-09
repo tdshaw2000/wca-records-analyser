@@ -16,7 +16,7 @@ from wca_records_analyser import web
 PACKAGE_NAME = "wca_records_analyser"
 PACKAGE_DIRECTORY = Path(web.__file__).parent
 PYPROJECT_PATH = PACKAGE_DIRECTORY.parent / "pyproject.toml"
-ASSET_SUFFIXES = {".html", ".css", ".js"}
+ASSET_SUFFIXES = {".html", ".css", ".js", ".svg"}
 
 
 def _package_data_globs():

@@ -25,6 +25,7 @@ from wca_records_analyser.chart import (
     to_record_series,
 )
 from wca_records_analyser.events import EVENT_NAMES, named_events
+from wca_records_analyser.flags import flag_class
 from wca_records_analyser.formatting import (
     MULTI_BLIND_EVENT_ID,
     event_has_average,
@@ -83,6 +84,7 @@ RESULTS_CONTEXT_KEY = "results"
 SEARCHED_NAME_CONTEXT_KEY = "searched_name"
 WCA_ID_CONTEXT_KEY = "wca_id"
 NAME_CONTEXT_KEY = "name"
+COUNTRY_ID_CONTEXT_KEY = "country_id"
 EXPORT_DATE_CONTEXT_KEY = "export_date"
 EVENT_ID_CONTEXT_KEY = "event_id"
 EVENTS_CONTEXT_KEY = "events"
@@ -106,6 +108,7 @@ SINGLE_MAP_SERIES_CONTEXT_KEY = "single_map_series"
 AVERAGE_MAP_SERIES_CONTEXT_KEY = "average_map_series"
 SINGLE_FILTER = "single"
 AVERAGE_FILTER = "average"
+FLAG_CLASS_FILTER = "flag_class"
 STATIC_VERSION_GLOBAL = "static_version"
 VERSION_HASH_LENGTH = 8
 BUILD_NUMBER_GLOBAL = "build_number"
@@ -153,6 +156,7 @@ admin_credentials_scheme = HTTPBasic(auto_error=False)
 templates = Jinja2Templates(directory=TEMPLATES_DIRECTORY)
 templates.env.filters[SINGLE_FILTER] = format_single
 templates.env.filters[AVERAGE_FILTER] = format_average
+templates.env.filters[FLAG_CLASS_FILTER] = flag_class
 templates.env.globals[STATIC_VERSION_GLOBAL] = static_asset_version
 templates.env.globals[BUILD_NUMBER_GLOBAL] = build_number
 
@@ -392,6 +396,7 @@ def overview(
         context={
             WCA_ID_CONTEXT_KEY: wca_id,
             NAME_CONTEXT_KEY: person.name,
+            COUNTRY_ID_CONTEXT_KEY: person.country_id,
             PROFILE_URL_CONTEXT_KEY: person.profile_url,
             SKELETON_ROW_COUNT_CONTEXT_KEY: len(profile.event_ids),
             OVERVIEW_ROWS_URL_CONTEXT_KEY: (

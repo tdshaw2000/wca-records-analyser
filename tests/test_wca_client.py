@@ -26,6 +26,7 @@ FELIKS = Person(
     name="Feliks Zemdegs",
     wca_id="2009ZEMD01",
     profile_url="https://www.worldcubeassociation.org/persons/2009ZEMD01",
+    country_id="Australia",
 )
 
 

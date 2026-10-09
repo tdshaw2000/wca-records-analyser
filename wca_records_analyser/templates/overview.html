@@ -4,7 +4,11 @@
     <section class="competitor">
         <div class="competitor-identity">
             <div class="competitor-text">
-                <h1 class="competitor-name">{{ name }}</h1>
+                <h1 class="competitor-name">
+                    {% set flag = country_id | flag_class %}
+                    {% if flag %}<span class="{{ flag }}" aria-hidden="true"></span>{% endif %}
+                    {{ name }}
+                </h1>
                 <p class="competitor-meta">
                     <span class="competitor-id">{{ wca_id }}</span>
                     <a class="profile-link" href="{{ profile_url }}" target="_blank" rel="noopener noreferrer">View WCA profile <span class="external-icon" aria-hidden="true">↗</span></a>

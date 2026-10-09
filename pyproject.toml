@@ -28,7 +28,13 @@ dev = [
 include = ["wca_records_analyser*", "wca_data*"]
 
 [tool.setuptools.package-data]
-wca_records_analyser = ["templates/*.html", "static/*", "static/vendor/*"]
+wca_records_analyser = [
+    "templates/*.html",
+    "static/*",
+    "static/vendor/*",
+    "static/vendor/flag-icons/*",
+    "static/vendor/flag-icons/flags/4x3/*",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

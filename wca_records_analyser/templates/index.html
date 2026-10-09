@@ -16,7 +16,11 @@
             <ul class="result-list">
                 {% for person in results %}
                     <li>
-                        <a href="/overview?wca_id={{ person.wca_id }}">{{ person.name }}</a>
+                        <a href="/overview?wca_id={{ person.wca_id }}">
+                            {% set flag = person.country_id | flag_class %}
+                            {% if flag %}<span class="{{ flag }}" aria-hidden="true"></span>{% endif %}
+                            {{ person.name }}
+                        </a>
                     </li>
                 {% endfor %}
             </ul>
