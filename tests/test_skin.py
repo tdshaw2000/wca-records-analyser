@@ -59,6 +59,34 @@ def test_the_default_theme_is_one_of_the_listed_themes():
     assert DEFAULT_THEME in THEMES
 
 
+def _css_rule(css: str, selector: str) -> str:
+    return css.split(selector + " {", 1)[1].split("}", 1)[0]
+
+
+def test_the_header_stacks_above_the_rest_of_the_page():
+    """Regression test: body is `display: flex; flex-direction: column`, so site-header and
+    site-main are flex-item siblings, each painted as if positioned - without its own
+    z-index, site-header (and anything absolutely positioned inside it, like the skin menu)
+    painted *behind* site-main, because site-main comes later in the DOM. Reported by the
+    owner from a screenshot: the skin menu rendered behind the search box on a narrow screen."""
+    css = (STATIC_DIRECTORY / "base.css").read_text()
+
+    header = _css_rule(css, ".site-header")
+    assert "z-index: 2" in header
+
+
+def test_the_skin_picker_does_not_overlap_the_build_number():
+    """Regression test: the skin picker used to be pinned with `position: absolute; top;
+    right`, landing directly on top of the build-number text in the header's top-right
+    corner (reported by the owner from a screenshot). It is now a normal flex child, pushed
+    to the far right with `margin-left: auto` instead, so it never overlaps its siblings."""
+    css = (STATIC_DIRECTORY / "base.css").read_text()
+
+    picker = _css_rule(css, ".skin-picker")
+    assert "position: absolute" not in picker
+    assert "margin-left: auto" in picker
+
+
 def test_the_index_page_offers_each_skin_and_ticks_the_default_one():
     client = TestClient(app)
 
