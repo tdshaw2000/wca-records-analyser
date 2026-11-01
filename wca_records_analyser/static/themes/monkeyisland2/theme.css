@@ -1,0 +1,25 @@
+/* "Monkey" skin: a pirate, point-and-click-adventure palette - dark teal and brass,
+   gold accents, a serif display font. Unlike Scramble's own Monkey skin this uses a
+   system serif stack and no harbour illustration (see the PR for why). */
+:root {
+    --page-background: #0b1f24;
+    --surface: #132b32;
+    --text: #f3e2b6;
+    --muted-text: #a99b7d;
+    --border: #8a4f24;
+    --accent: #b35900;
+    --accent-hover: #ffd23f;
+    --accent-soft: #2a1c08;
+    --shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+    --radius: 4px;
+    --content-width: 760px;
+    --time-font: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+    --table-head-background: #0e2328;
+    --overlay-background: rgba(11, 31, 36, 0.8);
+    --body-font: Georgia, "Times New Roman", serif;
+}
+
+.site-title {
+    color: var(--accent-hover);
+    text-shadow: 2px 2px 0 #3a1d08;
+}

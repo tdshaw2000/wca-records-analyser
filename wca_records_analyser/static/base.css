@@ -1,4 +1,5 @@
-/* Structural CSS shared by every skin. Colors live in each skin's own
+/* Structural CSS shared by every skin. Colors (and the body font, which a
+   few skins change for character) live in each skin's own
    static/themes/<name>/theme.css as CSS variables; this file only ever
    reads them through var(), never sets a color directly. */
 
@@ -12,7 +13,7 @@ body {
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--body-font);
     color: var(--text);
     background: var(--page-background);
     line-height: 1.55;

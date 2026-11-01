@@ -1,0 +1,26 @@
+/* "Mario" skin: a bright, playful platformer palette with a bold display font and
+   rounded, bubbly cards. Unlike Scramble's own Mario skin this uses a system
+   display-font stack rather than a vendored custom font (see the PR for why). */
+:root {
+    --page-background: #bfe8ff;
+    --surface: #fffbe6;
+    --text: #12183f;
+    --muted-text: #5a3a1c;
+    --border: #d9894a;
+    --accent: #e5322d;
+    --accent-hover: #9e1511;
+    --accent-soft: #ffe8a3;
+    --shadow: 0 4px 0 rgba(18, 24, 64, 0.25);
+    --radius: 20px;
+    --content-width: 760px;
+    --time-font: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+    --table-head-background: #fff3c4;
+    --overlay-background: rgba(255, 251, 230, 0.75);
+    --body-font: "Comic Sans MS", "Chalkboard SE", "Trebuchet MS", sans-serif;
+}
+
+.site-title {
+    color: var(--accent);
+    font-weight: 700;
+    text-shadow: 0 2px 0 var(--border);
+}

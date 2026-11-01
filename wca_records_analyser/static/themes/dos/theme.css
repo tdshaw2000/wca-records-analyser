@@ -1,0 +1,25 @@
+/* "DOS" skin: an MS-DOS text-mode program, in CGA/VGA colors - monospace everywhere,
+   sharp corners, no shadows. Unlike Scramble's own DOS skin this uses a system
+   monospace stack rather than a vendored bitmap font (see the PR for why). */
+:root {
+    --page-background: #0000aa;
+    --surface: #000000;
+    --text: #aaaaaa;
+    --muted-text: #55ffff;
+    --border: #aaaaaa;
+    --accent: #00aa00;
+    --accent-hover: #55ff55;
+    --accent-soft: #003300;
+    --shadow: none;
+    --radius: 0px;
+    --content-width: 760px;
+    --time-font: ui-monospace, "Courier New", monospace;
+    --table-head-background: #000055;
+    --overlay-background: rgba(0, 0, 0, 0.75);
+    --body-font: ui-monospace, "Courier New", monospace;
+}
+
+.site-title {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}

@@ -1,0 +1,26 @@
+/* "VHS" skin: an 80s synthwave night drive - dark purple with glowing pink/cyan
+   neon. Unlike Scramble's own neon80s skin this uses system font stacks and no
+   custom glow animation (see the PR for why). */
+:root {
+    --page-background: #0b0420;
+    --surface: #1a0a33;
+    --text: #f4ecff;
+    --muted-text: #b7a5e0;
+    --border: #5a0f6e;
+    --accent: #ff2fb4;
+    --accent-hover: #2ff3ff;
+    --accent-soft: #2a0f45;
+    --shadow: 0 0 12px rgba(47, 243, 255, 0.35);
+    --radius: 10px;
+    --content-width: 760px;
+    --time-font: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+    --table-head-background: #150629;
+    --overlay-background: rgba(11, 4, 32, 0.8);
+    --body-font: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+.site-title {
+    color: var(--accent-hover);
+    text-shadow: 0 0 6px var(--accent-hover), 0 0 16px var(--accent);
+    letter-spacing: 0.05em;
+}
