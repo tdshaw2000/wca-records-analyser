@@ -8,8 +8,9 @@ import time
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
@@ -118,6 +119,17 @@ USAGE_CONTEXT_KEY = "usage"
 ADMIN_PASSWORD_ENVIRONMENT_VARIABLE = "ADMIN_PASSWORD"
 ADMIN_LOG_PATH_ENVIRONMENT_VARIABLE = "WCA_ADMIN_LOG_PATH"
 ADMIN_USERNAME = "admin"
+SKIN_ROUTE = "/skin"
+# Like Scramble Challenge's own skins setup: a gear-menu picker remembered in a
+# cookie, falling back to DEFAULT_THEME. Folder name under static/themes/ (also
+# what the cookie stores): display label, in menu order.
+THEME_COOKIE_NAME = "wca_theme"
+THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+DEFAULT_THEME = "plain"
+THEMES = {
+    "plain": "Minimal",
+    "dark": "Dark",
+}
 # The WCA changed its API access policy on 24 September 2026, cutting off the
 # data every page relies on. While this is on, every page (static assets aside)
 # is replaced by a holding page that explains why. Off since the phase 5
@@ -159,6 +171,32 @@ templates.env.filters[AVERAGE_FILTER] = format_average
 templates.env.filters[FLAG_CLASS_FILTER] = flag_class
 templates.env.globals[STATIC_VERSION_GLOBAL] = static_asset_version
 templates.env.globals[BUILD_NUMBER_GLOBAL] = build_number
+
+
+def is_local_path(url: str) -> bool:
+    """A path on this site. Whitespace, control characters and backslashes are refused
+    because browsers drop or rewrite them, which can turn "/<tab>/x" into "//x"."""
+    if any(c.isspace() or not c.isprintable() or c == "\\" for c in url):
+        return False
+    return url.startswith("/") and not url.startswith("//")
+
+
+def chosen_theme(request: Request):
+    """The visitor's own skin if they picked one, otherwise DEFAULT_THEME.
+
+    A Jinja global rather than per-route context, so base.html can read it on
+    every page without every route having to pass it through.
+    """
+    theme = request.cookies.get(THEME_COOKIE_NAME)
+    if theme not in THEMES:
+        theme = DEFAULT_THEME
+    next_path = request.url.path
+    if request.url.query:
+        next_path = f"{next_path}?{request.url.query}"
+    return {"theme": theme, "themes": THEMES, "next": next_path}
+
+
+templates.env.globals["chosen_theme"] = chosen_theme
 
 
 @app.middleware("http")
@@ -327,6 +365,22 @@ def _render_index(request, searched_name, results, export_date):
 def health():
     """Liveness for the container's health check: never touches the database (docs/runbook.md)."""
     return "ok"
+
+
+@app.post(SKIN_ROUTE)
+def choose_skin(skin: str = Form(...), next: str = Form("")):
+    if skin not in THEMES:
+        raise HTTPException(status_code=400)
+    next_url = next if is_local_path(next) else "/"
+    response = RedirectResponse(next_url, status_code=HTTP_303_SEE_OTHER)
+    response.set_cookie(
+        THEME_COOKIE_NAME,
+        skin,
+        max_age=THEME_COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+    )
+    return response
 
 
 @app.get(INDEX_ROUTE, response_class=HTMLResponse)

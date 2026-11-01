@@ -4,7 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}WCA Records Analyser{% endblock %}</title>
-    <link rel="stylesheet" href="/static/styles.css?v={{ static_version('styles.css') }}">
+    {% set theme_info = chosen_theme(request) %}
+    <link rel="stylesheet" href="/static/base.css?v={{ static_version('base.css') }}">
+    <link rel="stylesheet" id="theme-stylesheet" href="/static/themes/{{ theme_info.theme }}/theme.css?v={{ static_version('themes/' ~ theme_info.theme ~ '/theme.css') }}">
     <link rel="stylesheet" href="/static/vendor/flag-icons/flag-icons.min.css?v={{ static_version('vendor/flag-icons/flag-icons.min.css') }}">
 </head>
 <body>
@@ -14,6 +16,17 @@
         {% if current_build_number %}
             <span class="build-number">[build {{ current_build_number }}]</span>
         {% endif %}
+        <details class="skin-picker">
+            <summary class="skin-picker-toggle" aria-label="Change skin">&#9881;</summary>
+            <form class="skin-menu" method="post" action="/skin">
+                <p class="skin-menu-title">Skin</p>
+                <input type="hidden" name="next" value="{{ theme_info.next }}">
+                {%- for value, label in theme_info.themes.items() %}
+                <button type="submit" class="skin-option" name="skin" value="{{ value }}"{% if value == theme_info.theme %} aria-current="true"{% endif %}
+                        data-theme-css="/static/themes/{{ value }}/theme.css?v={{ static_version('themes/' ~ value ~ '/theme.css') }}">{{ label }}</button>
+                {%- endfor %}
+            </form>
+        </details>
     </header>
     <main class="site-main">
         {% block content %}{% endblock %}
@@ -27,5 +40,6 @@
         </footer>
     {% endif %}
     {% block scripts %}{% endblock %}
+    <script src="/static/skin.js?v={{ static_version('skin.js') }}"></script>
 </body>
 </html>

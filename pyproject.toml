@@ -13,6 +13,8 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
     "jinja2>=3.1",
+    # Needed for FastAPI's Form(...), used by the skin picker's POST /skin.
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +36,7 @@ wca_records_analyser = [
     "static/vendor/*",
     "static/vendor/flag-icons/*",
     "static/vendor/flag-icons/flags/1x1/*",
+    "static/themes/*/*",
 ]
 
 [tool.pytest.ini_options]
