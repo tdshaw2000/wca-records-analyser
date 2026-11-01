@@ -128,6 +128,10 @@ DEFAULT_THEME = "plain"
 THEMES = {
     "plain": "Minimal",
     "dark": "Dark",
+    "dos": "DOS",
+    "mario64": "Mario",
+    "monkeyisland2": "Monkey",
+    "neon80s": "VHS",
 }
 # The WCA changed its API access policy on 24 September 2026, cutting off the
 # data every page relies on. While this is on, every page (static assets aside)

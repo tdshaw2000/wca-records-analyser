@@ -38,8 +38,19 @@ def skin_options(html: str) -> list[tuple[str, str, bool]]:
     ]
 
 
+ALL_THEME_KEYS = ["plain", "dark", "dos", "mario64", "monkeyisland2", "neon80s"]
+ALL_THEME_OPTIONS = [
+    ("plain", "Minimal"),
+    ("dark", "Dark"),
+    ("dos", "DOS"),
+    ("mario64", "Mario"),
+    ("monkeyisland2", "Monkey"),
+    ("neon80s", "VHS"),
+]
+
+
 def test_every_listed_theme_has_a_stylesheet():
-    assert list(THEMES) == ["plain", "dark"]
+    assert list(THEMES) == ALL_THEME_KEYS
     for theme in THEMES:
         assert (STATIC_THEMES_DIRECTORY / theme / "theme.css").is_file()
 
@@ -54,30 +65,49 @@ def test_the_index_page_offers_each_skin_and_ticks_the_default_one():
     response = client.get("/")
 
     assert skin_options(response.text) == [
-        ("plain", "Minimal", True),
-        ("dark", "Dark", False),
+        (value, label, value == DEFAULT_THEME) for value, label in ALL_THEME_OPTIONS
     ]
 
 
-def test_a_chosen_skin_cookie_ticks_that_skin():
+@pytest.mark.parametrize("chosen", ALL_THEME_KEYS)
+def test_a_chosen_skin_cookie_ticks_that_skin(chosen):
     client = TestClient(app)
-    client.cookies.set(THEME_COOKIE_NAME, "dark")
+    client.cookies.set(THEME_COOKIE_NAME, chosen)
 
     response = client.get("/")
 
     assert skin_options(response.text) == [
-        ("plain", "Minimal", False),
-        ("dark", "Dark", True),
+        (value, label, value == chosen) for value, label in ALL_THEME_OPTIONS
     ]
 
 
-def test_a_chosen_skin_cookie_links_that_skins_stylesheet():
+@pytest.mark.parametrize("chosen", ALL_THEME_KEYS)
+def test_a_chosen_skin_cookie_links_that_skins_stylesheet(chosen):
     client = TestClient(app)
-    client.cookies.set(THEME_COOKIE_NAME, "dark")
+    client.cookies.set(THEME_COOKIE_NAME, chosen)
 
     response = client.get("/")
 
-    assert "/static/themes/dark/theme.css" in response.text
+    assert f"/static/themes/{chosen}/theme.css" in response.text
+
+
+@pytest.mark.parametrize("theme", ALL_THEME_KEYS)
+def test_every_theme_styles_the_skin_picker(theme):
+    css = (STATIC_THEMES_DIRECTORY / theme / "theme.css").read_text()
+
+    for variable in (
+        "--page-background",
+        "--surface",
+        "--text",
+        "--muted-text",
+        "--border",
+        "--accent",
+        "--accent-hover",
+        "--accent-soft",
+        "--table-head-background",
+        "--overlay-background",
+    ):
+        assert variable in css, variable
 
 
 def test_an_unknown_skin_in_the_cookie_falls_back_to_the_default():
@@ -178,4 +208,4 @@ def test_the_gear_menu_is_on_the_records_page_too():
     finally:
         app.dependency_overrides.clear()
 
-    assert len(skin_options(response.text)) == 2
+    assert len(skin_options(response.text)) == len(ALL_THEME_KEYS)
