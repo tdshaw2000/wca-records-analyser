@@ -27,16 +27,22 @@ body {
     padding: 1rem 1.5rem;
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 0.6rem;
     position: relative;
+    /* body is a flex column, so site-header and site-main are both flex items;
+       a flex item with z-index: auto still paints above/below its siblings by
+       tree order like a positioned one, so without this the skin menu (inside
+       site-header) painted behind site-main's content below it. */
+    z-index: 2;
 }
 
 /* Skin picker: a small gear in the header's top-right corner. */
 
 .skin-picker {
-    position: absolute;
-    top: 0.6rem;
-    right: 1rem;
+    position: relative;
+    margin-left: auto;
+    align-self: center;
     text-align: left;
 }
 
