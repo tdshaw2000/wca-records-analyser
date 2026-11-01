@@ -12,7 +12,7 @@ HOLDING_MESSAGE = (
     "in WCA API access, which it relied on. Until a new solution is found, this "
     "unfortunately cannot be rectified."
 )
-STYLESHEET_PATH = "/static/styles.css"
+STYLESHEET_PATH = "/static/base.css"
 
 
 @pytest.fixture

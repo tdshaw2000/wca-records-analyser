@@ -38,8 +38,8 @@ MAX_SEARCH_SUGGESTIONS = 10
 SEARCHED_NAME = "Mats Valk"
 EVENT_ID = "333"
 EVENT_NAME = "3x3x3 Cube"
-STYLESHEET_PATH = "/static/styles.css"
-STYLESHEET_FILENAME = "styles.css"
+STYLESHEET_PATH = "/static/base.css"
+STYLESHEET_FILENAME = "base.css"
 
 SINGLE_PROGRESSION = [
     RecordPoint(date="2023-11-18", value=1777),
@@ -382,7 +382,7 @@ def test_records_page_shows_the_wca_licence_notice():
 
 
 def test_the_licence_notice_is_pinned_to_the_bottom_of_the_viewport():
-    css = (STATIC_DIRECTORY / "styles.css").read_text()
+    css = (STATIC_DIRECTORY / "base.css").read_text()
 
     assert "min-height: 100vh" in css
     assert ".site-main" in css and "flex: 1" in css
@@ -393,7 +393,7 @@ def test_the_pinned_footer_uses_the_dynamic_viewport_height_on_mobile():
     # Plain 100vh is the *largest possible* viewport on mobile browsers (address bar
     # hidden), so a page sized to it overflows once the address bar is shown, pushing
     # the footer below the visible screen. 100dvh tracks the actual visible viewport.
-    css = (STATIC_DIRECTORY / "styles.css").read_text()
+    css = (STATIC_DIRECTORY / "base.css").read_text()
 
     assert "min-height: 100dvh" in css
 
@@ -417,13 +417,15 @@ def test_index_page_labels_the_search_field_as_name_or_wca_id():
 
 
 def test_index_page_has_no_search_submit_button():
-    # Live search replaces the button; Enter still submits the form.
+    # Live search replaces the button; Enter still submits the form. (The skin
+    # picker's own menu has submit buttons of its own, elsewhere on the page.)
     client = TestClient(app)
 
     response = client.get("/")
 
     assert response.status_code == 200
-    assert 'type="submit"' not in response.text
+    search_form = response.text.split('class="search-form"')[1].split("</form>")[0]
+    assert 'type="submit"' not in search_form
 
 
 def test_index_page_loads_the_flag_icons_stylesheet():
@@ -522,7 +524,7 @@ def test_records_scripts_are_cache_busted():
 
 
 def test_static_asset_version_changes_with_file_contents():
-    assert static_asset_version("styles.css") != static_asset_version(
+    assert static_asset_version("base.css") != static_asset_version(
         "records-chart.js"
     )
 
