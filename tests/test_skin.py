@@ -3,9 +3,21 @@ the same mechanism Scramble Challenge uses (gear menu, cookie, per-skin styleshe
 
 import re
 
+import pytest
 from fastapi.testclient import TestClient
 
-from wca_records_analyser.web import DEFAULT_THEME, STATIC_DIRECTORY, THEME_COOKIE_NAME, THEMES, app
+from wca_records_analyser.wca_client import Person, Profile
+from wca_records_analyser.web import (
+    DEFAULT_THEME,
+    STATIC_DIRECTORY,
+    THEME_COOKIE_NAME,
+    THEMES,
+    RecordProgressions,
+    app,
+    get_map_function,
+    get_profile_function,
+    get_progression_function,
+)
 
 STATIC_THEMES_DIRECTORY = STATIC_DIRECTORY / "themes"
 
@@ -114,12 +126,27 @@ def test_an_unknown_skin_is_refused():
     assert skin_cookie(client) is None
 
 
-def test_choosing_a_skin_only_goes_back_to_a_page_on_this_site():
+@pytest.mark.parametrize(
+    "next_url",
+    [
+        "",
+        "https://evil.example/",
+        "//evil.example/",
+        "/\\evil.example",
+        "c/abc",
+        # Browsers and Werkzeug/Starlette drop tabs and newlines, which would leave //evil.example.
+        "/\t/evil.example",
+        "/\n/evil.example",
+        "/\r/evil.example",
+        "/ /evil.example",
+    ],
+)
+def test_choosing_a_skin_only_goes_back_to_a_page_on_this_site(next_url):
     client = TestClient(app)
 
     response = client.post(
         "/skin",
-        data={"skin": "dark", "next": "https://evil.example/"},
+        data={"skin": "dark", "next": next_url},
         follow_redirects=False,
     )
 
@@ -127,19 +154,6 @@ def test_choosing_a_skin_only_goes_back_to_a_page_on_this_site():
 
 
 def test_the_gear_menu_is_on_the_records_page_too():
-    from datetime import date
-    from types import SimpleNamespace
-
-    from wca_records_analyser.wca_client import Person, Profile
-    from wca_records_analyser.web import (
-        Overview,
-        RecordProgressions,
-        get_export_date_function,
-        get_map_function,
-        get_profile_function,
-        get_progression_function,
-    )
-
     person = Person(
         wca_id="2007VALK01", name="Mats Valk", country_id="Netherlands", profile_url=""
     )
